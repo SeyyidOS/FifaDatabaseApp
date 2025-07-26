@@ -125,6 +125,42 @@ function HomePage() {
     setManualTeamB([]);
   };
 
+  const generateRandomClubs = () => {
+    if (clubs.length < 2) {
+      alert("You need at least 2 clubs to select randomly.");
+      return;
+    }
+
+    // Group clubs by tier
+    const tierGroups: { [tier: number]: Club[] } = {};
+    clubs.forEach((club) => {
+      if (!tierGroups[club.tier]) {
+        tierGroups[club.tier] = [];
+      }
+      tierGroups[club.tier].push(club);
+    });
+
+    // Randomly select a tier that has at least 2 clubs
+    const availableTiers = Object.keys(tierGroups).filter(
+      (tier) => tierGroups[Number(tier)].length >= 2
+    );
+    if (availableTiers.length === 0) {
+      alert("Not enough clubs with the same tier to form a match.");
+      return;
+    }
+
+    const randomTier = Number(
+      availableTiers[Math.floor(Math.random() * availableTiers.length)]
+    );
+    const selectedClubs = [...tierGroups[randomTier]].sort(
+      () => Math.random() - 0.5
+    );
+
+    // Assign clubs
+    setClubA(selectedClubs[0].id);
+    setClubB(selectedClubs[1].id);
+  };
+
   const toggleManualTeam = (playerId: number, team: "A" | "B") => {
     if (team === "A") {
       setManualTeamA((prev) =>
@@ -214,6 +250,7 @@ function HomePage() {
         setScoreA={setScoreA}
         setScoreB={setScoreB}
         submitResult={submitResult}
+        generateRandomClubs={generateRandomClubs} // NEW
       />
 
       <MatchHistory matches={matches} />

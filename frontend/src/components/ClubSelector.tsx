@@ -18,6 +18,7 @@ interface ClubSelectorProps {
   setScoreA: (val: number | "") => void;
   setScoreB: (val: number | "") => void;
   submitResult: () => void;
+  generateRandomClubs: () => void; // NEW PROP
 }
 
 const ClubSelector: React.FC<ClubSelectorProps> = ({
@@ -31,6 +32,7 @@ const ClubSelector: React.FC<ClubSelectorProps> = ({
   setScoreA,
   setScoreB,
   submitResult,
+  generateRandomClubs,
 }) => {
   return (
     <div className="club-section">
@@ -60,6 +62,12 @@ const ClubSelector: React.FC<ClubSelectorProps> = ({
             </option>
           ))}
         </select>
+        <button
+          onClick={generateRandomClubs}
+          className="player-button random-club-btn"
+        >
+          🎲 Random Clubs
+        </button>
       </div>
 
       <h2>Result</h2>
