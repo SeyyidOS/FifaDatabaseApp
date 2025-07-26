@@ -10,52 +10,38 @@ import "../styles/Leaderboard.css";
 interface PlayerStats {
   name: string;
   wins: number;
+  draws: number;
   losses: number;
   total_matches: number;
   win_percentage: number;
   goals_forwarded: number;
   goals_accepted: number;
+  points: number;
 }
 
 interface TeamStats {
   team: string;
   wins: number;
+  draws: number;
   losses: number;
   total_matches: number;
   win_percentage: number;
   goals_forwarded: number;
   goals_accepted: number;
+  points: number;
 }
 
 interface DuoStats {
   team_name: string;
   wins: number;
+  draws: number;
   losses: number;
   total_matches: number;
   win_percentage: number;
   goals_forwarded: number;
   goals_accepted: number;
+  points: number;
 }
-
-// Utility function to sort by win_percentage, then goal difference (goals_forwarded - goals_accepted)
-const sortLeaderboard = <
-  T extends {
-    win_percentage: number;
-    goals_forwarded: number;
-    goals_accepted: number;
-  }
->(
-  data: T[]
-): T[] => {
-  return [...data].sort((a, b) => {
-    if (b.win_percentage !== a.win_percentage) {
-      return b.win_percentage - a.win_percentage;
-    }
-    const diffA = a.goals_forwarded - a.goals_accepted;
-    const diffB = b.goals_forwarded - b.goals_accepted;
-    return diffB - diffA;
-  });
-};
 
 const Leaderboard: React.FC = () => {
   const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
@@ -108,19 +94,23 @@ const Leaderboard: React.FC = () => {
             "Player",
             "Matches",
             "Wins",
+            "Draws",
             "Losses",
             "Goals For",
             "Goals Against",
             "Win %",
+            "Points",
           ]}
-          data={sortLeaderboard(playerStats).map((p) => [
+          data={playerStats.map((p) => [
             p.name,
             p.total_matches,
             p.wins,
+            p.draws,
             p.losses,
             p.goals_forwarded,
             p.goals_accepted,
             `${p.win_percentage}%`,
+            p.points,
           ])}
         />
       ) : activeTab === "teams" ? (
@@ -129,19 +119,23 @@ const Leaderboard: React.FC = () => {
             "Club",
             "Matches",
             "Wins",
+            "Draws",
             "Losses",
             "Goals For",
             "Goals Against",
             "Win %",
+            "Points",
           ]}
-          data={sortLeaderboard(teamStats).map((t) => [
+          data={teamStats.map((t) => [
             t.team,
             t.total_matches,
             t.wins,
+            t.draws,
             t.losses,
             t.goals_forwarded,
             t.goals_accepted,
             `${t.win_percentage}%`,
+            t.points,
           ])}
         />
       ) : (
@@ -150,19 +144,23 @@ const Leaderboard: React.FC = () => {
             "Duo Team",
             "Matches",
             "Wins",
+            "Draws",
             "Losses",
             "Goals For",
             "Goals Against",
             "Win %",
+            "Points",
           ]}
-          data={sortLeaderboard(duoStats).map((d) => [
+          data={duoStats.map((d) => [
             d.team_name,
             d.total_matches,
             d.wins,
+            d.draws,
             d.losses,
             d.goals_forwarded,
             d.goals_accepted,
             `${d.win_percentage}%`,
+            d.points,
           ])}
         />
       )}
