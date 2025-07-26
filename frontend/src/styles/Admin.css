@@ -47,3 +47,14 @@
 .admin-table button:hover {
   background: #c0392b;
 }
+
+@media (max-width: 600px) {
+  .admin-container {
+    padding: 15px;
+  }
+  .admin-table th,
+  .admin-table td {
+    font-size: 0.85rem;
+    padding: 6px;
+  }
+}
