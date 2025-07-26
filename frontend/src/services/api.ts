@@ -24,7 +24,16 @@ export const addPlayerAPI = async (name: string) => {
   return res.json();
 };
 
-export const addMatchAPI = async (matchData: any) => {
+export interface MatchData {
+  clubA: string;
+  clubB: string;
+  teamA: string[];
+  teamB: string[];
+  scoreA: number;
+  scoreB: number;
+}
+
+export const addMatchAPI = async (matchData: MatchData) => {
   return await fetch(`${API_URL}/matches`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
