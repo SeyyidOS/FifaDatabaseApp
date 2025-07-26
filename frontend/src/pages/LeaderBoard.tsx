@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import LeaderboardTable from "../components/LeaderboardTable";
+import LeaderboardTable from "../components/LeaderBoardTable";
 import {
   fetchPlayerLeaderboard,
   fetchTeamLeaderboard,
