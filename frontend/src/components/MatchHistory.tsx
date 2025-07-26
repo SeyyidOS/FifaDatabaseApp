@@ -28,7 +28,20 @@ const MatchHistory: React.FC<{ matches: Match[] }> = ({ matches }) => {
         <tbody>
           {matches.map((match) => (
             <tr key={match.id}>
-              <td>{new Date(match.time).toLocaleString()}</td>
+              <td>
+                {(() => {
+                  const date = new Date(match.time);
+                  date.setHours(date.getHours() + 3); // Add 3 hours
+                  return date.toLocaleString("tr-TR", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hour12: false,
+                  });
+                })()}
+              </td>
               <td className="club-name">
                 {match.club_a}
                 <div className="player-subtext">{match.team_a}</div>
