@@ -1,3 +1,4 @@
+/* Wrapper */
 .navbar-wrapper {
   display: flex;
   justify-content: center;
@@ -7,6 +8,8 @@
   left: 0;
   z-index: 1000;
   background: transparent;
+  padding: 0 1rem; /* Responsive padding */
+  box-sizing: border-box;
 }
 
 /* Main navbar container */
@@ -14,37 +17,39 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 20px; /* Reduced vertical padding */
+  padding: 0.5rem 1.2rem;
   background: linear-gradient(135deg, #6c5ce7, #0984e3);
   color: #fff;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
-  border-radius: 0 0 10px 10px;
-  width: 95%;
-  max-width: 900px; /* Matches a smaller app-container look */
-  height: 50px; /* Fixed height for balance */
+  box-shadow: 0 px 10px rgba(0, 0, 0, 0.15);
+  border-radius: 0 0 0.6rem 0.6rem;
+  width: 100%;
+  max-width: 60rem; /* ~960px */
+  min-height: 3.2rem;
   transition: all 0.3s ease;
+  box-sizing: border-box;
 }
 
 /* Branding */
 .navbar-brand {
-  font-size: 1.3rem; /* Slightly smaller */
+  font-size: 1.2rem;
   font-weight: 700;
   color: #fff;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
 }
 
 /* Links */
 .navbar-links {
   display: flex;
-  gap: 18px;
+  gap: 1.2rem;
 }
 
 .nav-link {
   text-decoration: none;
-  font-size: 0.95rem;
+  font-size: 1rem;
   color: #fff;
   font-weight: 500;
-  padding-bottom: 2px;
+  padding-bottom: 0.1rem;
   border-bottom: 2px solid transparent;
   transition: color 0.3s, border-bottom 0.3s;
 }
@@ -62,37 +67,39 @@
 .hamburger {
   display: none;
   flex-direction: column;
-  gap: 4px;
+  gap: 0.3rem;
   cursor: pointer;
 }
 
 .hamburger span {
-  height: 2px;
-  width: 20px;
+  height: 0.2rem;
+  width: 1.2rem;
   background: #fff;
-  border-radius: 2px;
+  border-radius: 0.2rem;
   transition: all 0.3s ease;
 }
 
 /* Mobile Menu */
 @media (max-width: 768px) {
   .navbar {
-    height: 55px;
+    padding: 0.5rem 1rem;
+    min-height: 3.5rem;
     max-width: 100%;
-    padding: 8px 15px;
   }
 
   .navbar-links {
     display: none;
     flex-direction: column;
-    gap: 12px;
+    gap: 0.8rem;
     position: absolute;
-    top: 55px;
-    right: 15px;
+    top: 3.5rem;
+    right: 1rem;
     background: rgba(0, 0, 0, 0.9);
-    padding: 10px 15px;
-    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    border-radius: 0.5rem;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    width: max-content;
+    min-width: 10rem;
   }
 
   .navbar-links.show {
@@ -102,5 +109,17 @@
 
   .hamburger {
     display: flex;
+  }
+}
+
+/* Animation */
+@keyframes slideDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
