@@ -11,22 +11,22 @@ class LeaderboardService:
         SELECT
             p.name AS name,
             COALESCE(SUM(
-                CASE WHEN (m.score_a > m.score_b AND p.name = ANY(string_to_array(m.team_a, ',')))
-                          OR (m.score_b > m.score_a AND p.name = ANY(string_to_array(m.team_b, ',')))
-                     THEN 1 ELSE 0 END
+                CASE WHEN (m.score_a > m.score_b AND p.name = ANY(string_to_array(trim(both '{}' from m.team_a), ',')))
+                        OR (m.score_b > m.score_a AND p.name = ANY(string_to_array(trim(both '{}' from m.team_b), ',')))
+                    THEN 1 ELSE 0 END
             ), 0) AS wins,
             COALESCE(SUM(
-                CASE WHEN (m.score_a < m.score_b AND p.name = ANY(string_to_array(m.team_a, ',')))
-                          OR (m.score_b < m.score_a AND p.name = ANY(string_to_array(m.team_b, ',')))
-                     THEN 1 ELSE 0 END
+                CASE WHEN (m.score_a < m.score_b AND p.name = ANY(string_to_array(trim(both '{}' from m.team_a), ',')))
+                        OR (m.score_b < m.score_a AND p.name = ANY(string_to_array(trim(both '{}' from m.team_b), ',')))
+                    THEN 1 ELSE 0 END
             ), 0) AS losses,
             COUNT(m.id) AS total_matches,
             ROUND(
                 (
                     COALESCE(SUM(
-                        CASE WHEN (m.score_a > m.score_b AND p.name = ANY(string_to_array(m.team_a, ',')))
-                                  OR (m.score_b > m.score_a AND p.name = ANY(string_to_array(m.team_b, ',')))
-                             THEN 1 ELSE 0 END
+                        CASE WHEN (m.score_a > m.score_b AND p.name = ANY(string_to_array(trim(both '{}' from m.team_a), ',')))
+                                OR (m.score_b > m.score_a AND p.name = ANY(string_to_array(trim(both '{}' from m.team_b), ',')))
+                            THEN 1 ELSE 0 END
                     ), 0)::numeric
                     / NULLIF(COUNT(m.id), 0)
                 ) * 100,
@@ -34,23 +34,25 @@ class LeaderboardService:
             ) AS win_percentage,
             COALESCE(SUM(
                 CASE
-                    WHEN p.name = ANY(string_to_array(m.team_a, ',')) THEN m.score_a
-                    WHEN p.name = ANY(string_to_array(m.team_b, ',')) THEN m.score_b
+                    WHEN p.name = ANY(string_to_array(trim(both '{}' from m.team_a), ',')) THEN m.score_a
+                    WHEN p.name = ANY(string_to_array(trim(both '{}' from m.team_b), ',')) THEN m.score_b
                     ELSE 0
                 END
             ), 0) AS goals_forwarded,
             COALESCE(SUM(
                 CASE
-                    WHEN p.name = ANY(string_to_array(m.team_a, ',')) THEN m.score_b
-                    WHEN p.name = ANY(string_to_array(m.team_b, ',')) THEN m.score_a
+                    WHEN p.name = ANY(string_to_array(trim(both '{}' from m.team_a), ',')) THEN m.score_b
+                    WHEN p.name = ANY(string_to_array(trim(both '{}' from m.team_b), ',')) THEN m.score_a
                     ELSE 0
                 END
             ), 0) AS goals_accepted
         FROM players p
         LEFT JOIN matches m
-          ON p.name = ANY(string_to_array(m.team_a, ',')) OR p.name = ANY(string_to_array(m.team_b, ','))
+        ON p.name = ANY(string_to_array(trim(both '{}' from m.team_a), ','))
+        OR p.name = ANY(string_to_array(trim(both '{}' from m.team_b), ','))
         GROUP BY p.name
         ORDER BY wins DESC, total_matches DESC;
+
         """
         return self.db.execute(query, fetch_one=False)
 
@@ -110,20 +112,37 @@ class LeaderboardService:
             SUM(goals_accepted) AS goals_accepted
         FROM (
             SELECT
-                array_to_string(string_to_array(m.team_a, ','), ' & ') AS team_name,
+                array_to_string(
+                    ARRAY(
+                        SELECT unnest(string_to_array(trim(both '{}' from m.team_a), ','))
+                        ORDER BY unnest
+                    ),
+                    ' & '
+                ) AS team_name,
                 (m.score_a > m.score_b) AS is_winner,
                 m.score_a AS goals_forwarded,
                 m.score_b AS goals_accepted
             FROM matches m
+            WHERE array_length(string_to_array(trim(both '{}' from m.team_a), ','), 1) > 1
+
             UNION ALL
+
             SELECT
-                array_to_string(string_to_array(m.team_b, ','), ' & ') AS team_name,
+                array_to_string(
+                    ARRAY(
+                        SELECT unnest(string_to_array(trim(both '{}' from m.team_b), ','))
+                        ORDER BY unnest
+                    ),
+                    ' & '
+                ) AS team_name,
                 (m.score_b > m.score_a) AS is_winner,
                 m.score_b AS goals_forwarded,
                 m.score_a AS goals_accepted
             FROM matches m
+            WHERE array_length(string_to_array(trim(both '{}' from m.team_b), ','), 1) > 1
         ) AS duo_teams
         GROUP BY team_name
         ORDER BY wins DESC, total_matches DESC;
+
         """
         return self.db.execute(query, fetch_one=False)
