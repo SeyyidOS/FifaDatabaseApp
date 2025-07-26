@@ -1,0 +1,91 @@
+.player-form {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.player-input {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  flex: 1;
+  background: #fafafa;
+  transition: border-color 0.3s;
+}
+
+.player-input:focus {
+  border-color: #74b9ff;
+  outline: none;
+}
+
+.player-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  justify-items: center;
+  margin-top: 10px;
+}
+
+.player-card {
+  background: #f8f9fa;
+  color: #2c3e50;
+  padding: 12px 14px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  font-weight: 500;
+  font-size: 1.05rem;
+  width: 90%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.3s ease;
+}
+
+.player-card:hover {
+  background: #eaf3ff;
+}
+
+.team-select-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.team-btn {
+  padding: 5px 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.3s, color 0.3s;
+}
+
+.team-btn:hover {
+  background: #74b9ff;
+  color: #fff;
+}
+
+.team-btn.active {
+  background: #74b9ff;
+  color: #fff;
+  border-color: #74b9ff;
+}
+
+.no-players {
+  color: #888;
+}
+
+@media (max-width: 600px) {
+  .player-cards {
+    grid-template-columns: 1fr;
+  }
+  .player-form {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .player-button {
+    width: 100%;
+  }
+}

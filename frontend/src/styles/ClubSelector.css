@@ -1,0 +1,77 @@
+.club-section {
+  margin-top: 30px;
+}
+
+.club-selection {
+  display: flex;
+  flex-direction: row;
+  gap: 15px;
+  align-items: center;
+  justify-content: center;
+}
+
+.club-dropdown {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  width: 100%;
+  max-width: 250px;
+  background: #ffffff;
+  color: #333;
+  transition: border-color 0.3s;
+}
+
+.club-dropdown:focus {
+  border-color: #74b9ff;
+}
+
+.score-section {
+  display: flex;
+  justify-content: center;
+  gap: 25px;
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+.score-input-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.9rem;
+  color: #2c3e50;
+}
+
+.score-input-group label {
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.score-input {
+  width: 70px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 1rem;
+  background: #ffffff;
+  color: #2c3e50;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.score-input:focus {
+  border-color: #74b9ff;
+  box-shadow: 0 0 4px rgba(116, 185, 255, 0.4);
+  outline: none;
+}
+
+@media (max-width: 600px) {
+  .club-selection {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .score-section {
+    flex-direction: column;
+    gap: 12px;
+  }
+}

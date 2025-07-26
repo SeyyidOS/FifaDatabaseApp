@@ -1,0 +1,90 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap");
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Inter", sans-serif;
+  background: linear-gradient(135deg, #a8edea, #fed6e3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+.app-container {
+  background: #ffffff;
+  padding: 30px 40px;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  max-width: 1000px;
+  width: 95%;
+  text-align: center;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+h1 {
+  font-size: 2.2rem;
+  color: #2c3e50;
+  margin-bottom: 20px;
+}
+
+h2 {
+  font-size: 1.5rem;
+  color: #34495e;
+  margin-top: 25px;
+  margin-bottom: 10px;
+}
+
+.player-button,
+.submit-btn {
+  padding: 12px 18px;
+  background: #74b9ff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.3s, transform 0.2s;
+}
+
+.player-button:hover,
+.submit-btn:hover {
+  background: #5da9f6;
+  transform: scale(1.02);
+}
+
+.submit-btn {
+  margin-top: 10px;
+  background: linear-gradient(135deg, #55efc4, #00cec9);
+}
+
+.submit-btn:hover {
+  background: linear-gradient(135deg, #00b894, #00cec9);
+}
+
+.success-message {
+  color: #27ae60;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.page-container {
+  padding: 20px;
+}
+
+@media (max-width: 600px) {
+  h1 {
+    font-size: 1.8rem;
+  }
+}

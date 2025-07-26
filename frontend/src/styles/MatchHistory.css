@@ -1,0 +1,75 @@
+.match-history {
+  margin-top: 30px;
+  text-align: center;
+}
+
+.match-history h2 {
+  margin-bottom: 15px;
+  font-size: 1.6rem;
+  color: #2c3e50;
+}
+
+.match-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  font-size: 1rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  background: #fff;
+}
+
+.match-table thead {
+  background: linear-gradient(135deg, #74b9ff, #5da9f6);
+}
+
+.match-table th {
+  padding: 12px 14px;
+  color: #fff;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+}
+
+.match-table td {
+  padding: 12px 14px;
+  text-align: center;
+  color: #2c3e50;
+  background: #ffffff;
+  border-bottom: 1px solid #eee;
+}
+
+.match-table tr:nth-child(even) td {
+  background: #f9f9f9;
+}
+
+.match-table tr:hover td {
+  background: #eef6ff;
+}
+
+.match-table td.score-cell {
+  font-weight: 700;
+  color: #d63031;
+  font-size: 1.1rem;
+}
+
+.match-table td.club-name {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.player-subtext {
+  font-size: 0.85rem;
+  color: #2c3e50;
+  margin-top: 4px;
+  font-weight: 400;
+}
+
+@media (max-width: 600px) {
+  .match-table th,
+  .match-table td {
+    font-size: 0.85rem;
+  }
+}
