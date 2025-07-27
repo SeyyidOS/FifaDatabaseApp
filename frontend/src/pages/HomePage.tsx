@@ -39,8 +39,10 @@ function HomePage() {
   const [username, setUsername] = useState("");
   const [players, setPlayers] = useState<Player[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
-  const [clubA, setClubA] = useState<number | "">("");
-  const [clubB, setClubB] = useState<number | "">("");
+  const [clubA, setClubA] = useState<number | "custom" | "">("");
+  const [clubB, setClubB] = useState<number | "custom" | "">("");
+  const [customClubA, setCustomClubA] = useState("");
+  const [customClubB, setCustomClubB] = useState("");
   const [teamA, setTeamA] = useState<string[]>([]);
   const [teamB, setTeamB] = useState<string[]>([]);
   const [manualTeamA, setManualTeamA] = useState<number[]>([]);
@@ -187,6 +189,15 @@ function HomePage() {
       return;
     }
 
+    if (clubA === "custom" && !customClubA.trim()) {
+      alert("Please enter a custom club name for Club A.");
+      return;
+    }
+    if (clubB === "custom" && !customClubB.trim()) {
+      alert("Please enter a custom club name for Club B.");
+      return;
+    }
+
     const teamANames =
       teamA.length > 0
         ? teamA
@@ -198,8 +209,14 @@ function HomePage() {
 
     try {
       await addMatchAPI({
-        clubA: clubs.find((c) => c.id === clubA)?.name || "Club A",
-        clubB: clubs.find((c) => c.id === clubB)?.name || "Club B",
+        clubA:
+          clubA === "custom"
+            ? customClubA
+            : clubs.find((c) => c.id === clubA)?.name || "Club A",
+        clubB:
+          clubB === "custom"
+            ? customClubB
+            : clubs.find((c) => c.id === clubB)?.name || "Club B",
         teamA: teamANames,
         teamB: teamBNames,
         scoreA: Number(scoreA) || 0,
@@ -215,8 +232,6 @@ function HomePage() {
 
   return (
     <div className="app-container">
-      {/* <h1>⚽ Player & Club Management</h1> */}
-
       <PlayerManager
         players={players}
         username={username}
@@ -243,6 +258,10 @@ function HomePage() {
         clubs={clubs}
         clubA={clubA}
         clubB={clubB}
+        customClubA={customClubA}
+        customClubB={customClubB}
+        setCustomClubA={setCustomClubA}
+        setCustomClubB={setCustomClubB}
         setClubA={setClubA}
         setClubB={setClubB}
         scoreA={scoreA}
@@ -250,7 +269,7 @@ function HomePage() {
         setScoreA={setScoreA}
         setScoreB={setScoreB}
         submitResult={submitResult}
-        generateRandomClubs={generateRandomClubs} // NEW
+        generateRandomClubs={generateRandomClubs}
       />
 
       <MatchHistory matches={matches} />
