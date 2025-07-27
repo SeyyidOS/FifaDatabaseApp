@@ -28,11 +28,15 @@ const LeaderboardTable: React.FC<LeaderboardTableProps> = ({
       const valA = a[sortColumn];
       const valB = b[sortColumn];
 
-      if (typeof valA === "number" && typeof valB === "number") {
-        return sortOrder === "asc" ? valA - valB : valB - valA;
+      // Convert to numeric if possible (handles "100%" and other numbers)
+      const numA = parseFloat(String(valA).replace("%", ""));
+      const numB = parseFloat(String(valB).replace("%", ""));
+
+      if (!isNaN(numA) && !isNaN(numB)) {
+        return sortOrder === "asc" ? numA - numB : numB - numA;
       }
 
-      // For strings, sort alphabetically
+      // Fallback for strings
       return sortOrder === "asc"
         ? String(valA).localeCompare(String(valB))
         : String(valB).localeCompare(String(valA));
