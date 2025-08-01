@@ -84,6 +84,13 @@ h2 {
   margin-top: 4rem; /* space for fixed navbar */
 }
 
+.loading-spinner {
+  font-size: 24px;
+  font-weight: bold;
+  text-align: center;
+  margin-top: 100px;
+}
+
 @media (max-width: 600px) {
   body {
     font-size: 14px;
@@ -108,4 +115,3 @@ h2 {
     padding: 10px 12px;
   }
 }
- 

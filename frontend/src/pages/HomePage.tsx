@@ -36,6 +36,7 @@ interface Match {
 }
 
 function HomePage() {
+  const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState("");
   const [players, setPlayers] = useState<Player[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
@@ -54,9 +55,17 @@ function HomePage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    fetchPlayers();
-    fetchClubs();
-    fetchMatches();
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        await Promise.all([fetchPlayers(), fetchClubs(), fetchMatches()]);
+      } catch (error) {
+        console.error("Error loading data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
   }, []);
 
   const fetchPlayers = async () => {
@@ -133,7 +142,6 @@ function HomePage() {
       return;
     }
 
-    // Group clubs by tier
     const tierGroups: { [tier: number]: Club[] } = {};
     clubs.forEach((club) => {
       if (!tierGroups[club.tier]) {
@@ -142,7 +150,6 @@ function HomePage() {
       tierGroups[club.tier].push(club);
     });
 
-    // Randomly select a tier that has at least 2 clubs
     const availableTiers = Object.keys(tierGroups).filter(
       (tier) => tierGroups[Number(tier)].length >= 2
     );
@@ -158,7 +165,6 @@ function HomePage() {
       () => Math.random() - 0.5
     );
 
-    // Assign clubs
     setClubA(selectedClubs[0].id);
     setClubB(selectedClubs[1].id);
   };
@@ -232,47 +238,53 @@ function HomePage() {
 
   return (
     <div className="app-container">
-      <PlayerManager
-        players={players}
-        username={username}
-        setUsername={setUsername}
-        handleSubmit={handleSubmit}
-        manualTeamA={manualTeamA}
-        manualTeamB={manualTeamB}
-        toggleManualTeam={toggleManualTeam}
-        message={message}
-      />
+      {loading ? (
+        <div className="loading-spinner">Loading...</div>
+      ) : (
+        <>
+          <PlayerManager
+            players={players}
+            username={username}
+            setUsername={setUsername}
+            handleSubmit={handleSubmit}
+            manualTeamA={manualTeamA}
+            manualTeamB={manualTeamB}
+            toggleManualTeam={toggleManualTeam}
+            message={message}
+          />
 
-      <TeamManager
-        teamMode={teamMode}
-        setTeamMode={setTeamMode}
-        generateRandomTeams={generateRandomTeams}
-        teamA={teamA}
-        teamB={teamB}
-        manualTeamA={manualTeamA}
-        manualTeamB={manualTeamB}
-        players={players}
-      />
+          <TeamManager
+            teamMode={teamMode}
+            setTeamMode={setTeamMode}
+            generateRandomTeams={generateRandomTeams}
+            teamA={teamA}
+            teamB={teamB}
+            manualTeamA={manualTeamA}
+            manualTeamB={manualTeamB}
+            players={players}
+          />
 
-      <ClubSelector
-        clubs={clubs}
-        clubA={clubA}
-        clubB={clubB}
-        customClubA={customClubA}
-        customClubB={customClubB}
-        setCustomClubA={setCustomClubA}
-        setCustomClubB={setCustomClubB}
-        setClubA={setClubA}
-        setClubB={setClubB}
-        scoreA={scoreA}
-        scoreB={scoreB}
-        setScoreA={setScoreA}
-        setScoreB={setScoreB}
-        submitResult={submitResult}
-        generateRandomClubs={generateRandomClubs}
-      />
+          <ClubSelector
+            clubs={clubs}
+            clubA={clubA}
+            clubB={clubB}
+            customClubA={customClubA}
+            customClubB={customClubB}
+            setCustomClubA={setCustomClubA}
+            setCustomClubB={setCustomClubB}
+            setClubA={setClubA}
+            setClubB={setClubB}
+            scoreA={scoreA}
+            scoreB={scoreB}
+            setScoreA={setScoreA}
+            setScoreB={setScoreB}
+            submitResult={submitResult}
+            generateRandomClubs={generateRandomClubs}
+          />
 
-      <MatchHistory matches={matches} />
+          <MatchHistory matches={matches} />
+        </>
+      )}
     </div>
   );
 }
