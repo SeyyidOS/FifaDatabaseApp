@@ -12,10 +12,10 @@ interface Match {
   score_b: number;
 }
 
-// ✨ Clean and normalize player names
+// Normalize player names
 const cleanPlayerName = (name: string) =>
   name
-    .replace(/[{}()]/g, "") // remove brackets/braces
+    .replace(/[{}()]/g, "")
     .trim()
     .toLowerCase();
 
@@ -25,9 +25,9 @@ const capitalize = (name: string) =>
 
 const MatchHistory: React.FC<{ matches: Match[] }> = ({ matches }) => {
   const [filter, setFilter] = useState<string>("all");
-  const [selectedDateTime, setSelectedDateTime] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<string>("");
 
-  // 🧠 Unique cleaned player names
+  // Unique player list
   const uniquePlayers = useMemo(() => {
     const allPlayers = matches.flatMap((match) =>
       [...match.team_a.split(","), ...match.team_b.split(",")].map(
@@ -37,30 +37,35 @@ const MatchHistory: React.FC<{ matches: Match[] }> = ({ matches }) => {
     return Array.from(new Set(allPlayers)).sort();
   }, [matches]);
 
-  // 🧠 Filter matches based on selected player and datetime
+  // Filtered matches
   const filteredMatches = useMemo(() => {
     let result = [...matches];
 
-    // 🎯 Filter by player
+    // Filter by player
     if (filter !== "all" && uniquePlayers.includes(cleanPlayerName(filter))) {
       result = result.filter((match) => {
-        const teamAPlayers = match.team_a.split(",").map(cleanPlayerName);
-        const teamBPlayers = match.team_b.split(",").map(cleanPlayerName);
+        const teamA = match.team_a.split(",").map(cleanPlayerName);
+        const teamB = match.team_b.split(",").map(cleanPlayerName);
         return (
-          teamAPlayers.includes(cleanPlayerName(filter)) ||
-          teamBPlayers.includes(cleanPlayerName(filter))
+          teamA.includes(cleanPlayerName(filter)) ||
+          teamB.includes(cleanPlayerName(filter))
         );
       });
     }
 
-    // 🎯 Filter by datetime
-    if (selectedDateTime) {
-      const selected = new Date(selectedDateTime);
-      result = result.filter((match) => new Date(match.time) > selected);
+    // Filter by date (adjust match time by +3h and compare only the date part)
+    if (selectedDate) {
+      result = result.filter((match) => {
+        const matchDate = new Date(match.time);
+        matchDate.setHours(matchDate.getHours() + 3); // Adjust to UTC+3
+
+        const matchDateStr = matchDate.toLocaleDateString("en-CA"); // yyyy-mm-dd
+        return matchDateStr >= selectedDate;
+      });
     }
 
     return result;
-  }, [filter, selectedDateTime, matches, uniquePlayers]);
+  }, [filter, selectedDate, matches, uniquePlayers]);
 
   return (
     <div className="match-history">
@@ -79,11 +84,11 @@ const MatchHistory: React.FC<{ matches: Match[] }> = ({ matches }) => {
           </optgroup>
         </select>
 
-        <label style={{ marginLeft: "1rem" }}>From Date & Time: </label>
+        <label style={{ marginLeft: "1rem" }}>From Date: </label>
         <input
-          type="datetime-local"
-          value={selectedDateTime}
-          onChange={(e) => setSelectedDateTime(e.target.value)}
+          type="date"
+          value={selectedDate}
+          onChange={(e) => setSelectedDate(e.target.value)}
         />
       </div>
 
