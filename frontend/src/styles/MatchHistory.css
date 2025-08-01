@@ -1,6 +1,7 @@
 .match-history {
   margin-top: 30px;
   text-align: center;
+  padding: 0 16px;
 }
 
 .match-history h2 {
@@ -9,8 +10,39 @@
   color: #2c3e50;
 }
 
+.match-filter {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.match-filter label {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.match-filter select,
+.match-filter input[type="datetime-local"] {
+  padding: 8px 10px;
+  font-size: 0.95rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.2s ease-in-out;
+}
+
+.match-filter select:focus,
+.match-filter input[type="datetime-local"]:focus {
+  border-color: #5da9f6;
+}
+
 .match-table {
   width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
   border-collapse: separate;
   border-spacing: 0;
   border-radius: 12px;
@@ -62,14 +94,43 @@
 
 .player-subtext {
   font-size: 0.85rem;
-  color: #2c3e50;
+  color: #555;
   margin-top: 4px;
   font-weight: 400;
+  white-space: normal;
+  line-height: 1.2;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 768px) {
+  .match-filter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .match-filter label,
+  .match-filter select,
+  .match-filter input {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .match-table {
+    font-size: 0.9rem;
+  }
+
+  .match-table th,
+  .match-table td {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 480px) {
   .match-table th,
   .match-table td {
     font-size: 0.85rem;
+  }
+
+  .match-table td.score-cell {
+    font-size: 1rem;
   }
 }
