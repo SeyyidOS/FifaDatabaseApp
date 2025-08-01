@@ -1,0 +1,61 @@
+/* src/styles/TierSelector.css */
+
+.tier-selector {
+  margin: 2rem auto;
+  max-width: 600px;
+  text-align: center;
+}
+
+/* You can safely delete these lines if present:
+  padding: 1.5rem;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  background-color: #fdfdfd;
+  box-shadow: ...
+*/
+
+.tier-label {
+  font-weight: bold;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  display: block;
+  color: #333;
+}
+
+.tier-options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+
+.tier-pill {
+  padding: 0.45rem 1rem;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  background-color: #fff;
+  cursor: pointer;
+  transition: 0.2s ease;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #333;
+}
+
+.tier-pill:hover {
+  background-color: #eef;
+  border-color: #99c;
+}
+
+.tier-pill.selected {
+  background-color: #3385ff;
+  border-color: #3385ff;
+  color: #fff;
+  font-weight: 600;
+}
+
+.tier-note {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 0.8rem;
+}

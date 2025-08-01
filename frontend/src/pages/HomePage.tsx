@@ -3,6 +3,7 @@ import PlayerManager from "../components/PlayerManager";
 import TeamManager from "../components/TeamManager";
 import ClubSelector from "../components/ClubSelector";
 import MatchHistory from "../components/MatchHistory";
+import TierSelector from "../components/TierSelector";
 import "../styles/App.css";
 
 import {
@@ -53,6 +54,7 @@ function HomePage() {
   const [scoreB, setScoreB] = useState<number | "">("");
   const [matches, setMatches] = useState<Match[]>([]);
   const [message, setMessage] = useState("");
+  const [selectedTiers, setSelectedTiers] = useState<number[]>([]); // New
 
   useEffect(() => {
     const loadData = async () => {
@@ -150,17 +152,22 @@ function HomePage() {
       tierGroups[club.tier].push(club);
     });
 
-    const availableTiers = Object.keys(tierGroups).filter(
-      (tier) => tierGroups[Number(tier)].length >= 2
+    const activeTiers =
+      selectedTiers.length > 0
+        ? selectedTiers
+        : Object.keys(tierGroups).map(Number);
+
+    const eligibleTiers = activeTiers.filter(
+      (tier) => tierGroups[tier] && tierGroups[tier].length >= 2
     );
-    if (availableTiers.length === 0) {
-      alert("Not enough clubs with the same tier to form a match.");
+
+    if (eligibleTiers.length === 0) {
+      alert("No tier with at least 2 clubs was found in the selected tiers.");
       return;
     }
 
-    const randomTier = Number(
-      availableTiers[Math.floor(Math.random() * availableTiers.length)]
-    );
+    const randomTier =
+      eligibleTiers[Math.floor(Math.random() * eligibleTiers.length)];
     const selectedClubs = [...tierGroups[randomTier]].sort(
       () => Math.random() - 0.5
     );
@@ -262,6 +269,12 @@ function HomePage() {
             manualTeamA={manualTeamA}
             manualTeamB={manualTeamB}
             players={players}
+          />
+
+          <TierSelector
+            clubs={clubs}
+            selectedTiers={selectedTiers}
+            setSelectedTiers={setSelectedTiers}
           />
 
           <ClubSelector
