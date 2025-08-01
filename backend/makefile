@@ -62,7 +62,7 @@ all: build deploy
 # Run locally with uvicorn
 .PHONY: run
 run:
-	uvicorn app.main:app --host 0.0.0.0 --port $(PORT) --reload
+	uvicorn main:app --host 0.0.0.0 --port $(PORT) --reload
 
 # Clean local Docker image
 .PHONY: clean
