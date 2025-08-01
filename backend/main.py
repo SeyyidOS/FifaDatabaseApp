@@ -1,4 +1,5 @@
-from fastapi import FastAPI  # type: ignore
+from fastapi import FastAPI, Query  # type: ignore
+from datetime import date
 from fastapi.middleware.cors import CORSMiddleware  # type: ignore
 from database import Database
 from player_service import PlayerService
@@ -65,18 +66,18 @@ def add_match(match: dict):
 
 # ----------- Leaderboard Routes -----------
 @app.get("/leaderboard/players")
-def get_player_leaderboard():
-    return leaderboard_service.get_player_leaderboard()
+def get_players(start_time: date = Query(...)):
+    return leaderboard_service.get_player_leaderboard(start_time)
 
 
 @app.get("/leaderboard/teams")
-def get_team_leaderboard():
-    return leaderboard_service.get_team_leaderboard()
+def get_teams(start_time: date = Query(...)):
+    return leaderboard_service.get_team_leaderboard(start_time)
 
 
 @app.get("/leaderboard/duos")
-def get_duo_leaderboard():
-    return leaderboard_service.get_duo_leaderboard()
+def get_duos(start_time: date = Query(...)):
+    return leaderboard_service.get_duo_leaderboard(start_time)
 
 
 @app.get("/admin/players")

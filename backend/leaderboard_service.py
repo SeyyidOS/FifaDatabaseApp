@@ -1,12 +1,13 @@
 from database import Database
+from datetime import date
 
 
 class LeaderboardService:
     def __init__(self, db: Database):
         self.db = db
 
-    def get_player_leaderboard(self):
-        print("Fetching player leaderboard sorted by win percentage...")
+    def get_player_leaderboard(self, start_time: date):
+        print("[SERVICE] get_player_leaderboard executing")
         query = """
         SELECT
             p.name AS name,
@@ -26,14 +27,14 @@ class LeaderboardService:
                     THEN 1 ELSE 0 END
             ), 0) AS losses,
             COUNT(m.id) AS total_matches,
-            (COALESCE(SUM(
+            COALESCE(SUM(
                 CASE WHEN (m.score_a > m.score_b AND p.name = ANY(string_to_array(trim(both '{}' from m.team_a), ',')))
                         OR (m.score_b > m.score_a AND p.name = ANY(string_to_array(trim(both '{}' from m.team_b), ',')))
                     THEN 3
                     WHEN m.score_a = m.score_b AND (p.name = ANY(string_to_array(trim(both '{}' from m.team_a), ','))
                         OR p.name = ANY(string_to_array(trim(both '{}' from m.team_b), ',')))
                     THEN 1 ELSE 0 END
-            ), 0)) AS points,
+            ), 0) AS points,
             ROUND(
                 (
                     COALESCE(SUM(
@@ -63,13 +64,14 @@ class LeaderboardService:
         LEFT JOIN matches m
         ON p.name = ANY(string_to_array(trim(both '{}' from m.team_a), ','))
         OR p.name = ANY(string_to_array(trim(both '{}' from m.team_b), ','))
+        WHERE m.time >= CAST(%(start_time)s AS timestamp) - INTERVAL '3 hours'
         GROUP BY p.name
         ORDER BY win_percentage DESC, total_matches DESC;
         """
-        return self.db.execute(query, fetch_one=False)
+        return self.db.execute(query, {"start_time": start_time}, fetch_one=False)
 
-    def get_team_leaderboard(self):
-        print("Fetching team leaderboard sorted by win percentage...")
+    def get_team_leaderboard(self, start_time: date):
+        print("[SERVICE] get_team_leaderboard executing")
         query = """
         SELECT
             club AS team,
@@ -100,7 +102,10 @@ class LeaderboardService:
                 score_a AS goals_forwarded,
                 score_b AS goals_accepted
             FROM matches
+            WHERE time >= CAST(%(start_time)s AS timestamp) - INTERVAL '3 hours'
+
             UNION ALL
+
             SELECT
                 club_b AS club,
                 CASE
@@ -111,14 +116,15 @@ class LeaderboardService:
                 score_b AS goals_forwarded,
                 score_a AS goals_accepted
             FROM matches
+            WHERE time >= CAST(%(start_time)s AS timestamp) - INTERVAL '3 hours'
         ) AS all_teams
         GROUP BY club
         ORDER BY win_percentage DESC, total_matches DESC;
         """
-        return self.db.execute(query, fetch_one=False)
+        return self.db.execute(query, {"start_time": start_time}, fetch_one=False)
 
-    def get_duo_leaderboard(self):
-        print("Fetching duo (2-player) team leaderboard sorted by win percentage...")
+    def get_duo_leaderboard(self, start_time: date):
+        print("[SERVICE] get_duo_leaderboard executing")
         query = """
         SELECT
             team_name,
@@ -156,6 +162,7 @@ class LeaderboardService:
                 m.score_b AS goals_accepted
             FROM matches m
             WHERE array_length(string_to_array(trim(both '{}' from m.team_a), ','), 1) > 1
+              AND m.time >= CAST(%(start_time)s AS timestamp) - INTERVAL '3 hours'
 
             UNION ALL
 
@@ -176,8 +183,9 @@ class LeaderboardService:
                 m.score_a AS goals_accepted
             FROM matches m
             WHERE array_length(string_to_array(trim(both '{}' from m.team_b), ','), 1) > 1
+            AND m.time >= CAST(%(start_time)s AS timestamp) - INTERVAL '3 hours'
         ) AS duo_teams
         GROUP BY team_name
         ORDER BY win_percentage DESC, total_matches DESC;
         """
-        return self.db.execute(query, fetch_one=False)
+        return self.db.execute(query, {"start_time": start_time}, fetch_one=False)

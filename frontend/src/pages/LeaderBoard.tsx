@@ -7,6 +7,7 @@ import {
 } from "../services/leaderboardAPI";
 import "../styles/Leaderboard.css";
 
+// Type definitions
 interface PlayerStats {
   name: string;
   wins: number;
@@ -50,23 +51,51 @@ const Leaderboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"players" | "teams" | "duos">(
     "players"
   );
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const [startTime, setStartTime] = useState<string>(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return d.toISOString().split("T")[0]; // yyyy-mm-dd
+  });
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        setPlayerStats(await fetchPlayerLeaderboard());
-        setTeamStats(await fetchTeamLeaderboard());
-        setDuoStats(await fetchDuoLeaderboard());
-      } catch (error) {
-        console.error("Failed to load leaderboard:", error);
+        setLoading(true);
+        const [players, teams, duos] = await Promise.all([
+          fetchPlayerLeaderboard(startTime),
+          fetchTeamLeaderboard(startTime),
+          fetchDuoLeaderboard(startTime),
+        ]);
+        setPlayerStats(players);
+        setTeamStats(teams);
+        setDuoStats(duos);
+      } catch (err) {
+        console.error("Failed to load leaderboard:", err);
+      } finally {
+        setLoading(false);
       }
     };
     loadData();
-  }, []);
+  }, [startTime]);
 
   return (
     <div className="leaderboard-container">
       <h1>🏆 Leaderboard</h1>
+
+      {/* Date filter */}
+      <div className="leaderboard-filter">
+        <label htmlFor="start-time">Start Date:</label>
+        <input
+          type="date"
+          id="start-time"
+          value={startTime}
+          onChange={(e) => setStartTime(e.target.value)}
+        />
+      </div>
+
+      {/* Tabs */}
       <div className="leaderboard-tabs">
         <button
           className={activeTab === "players" ? "active" : ""}
@@ -88,7 +117,10 @@ const Leaderboard: React.FC = () => {
         </button>
       </div>
 
-      {activeTab === "players" ? (
+      {/* Loading Spinner */}
+      {loading ? (
+        <div className="loading-spinner">Loading...</div>
+      ) : activeTab === "players" ? (
         <LeaderboardTable
           columns={[
             "Player",

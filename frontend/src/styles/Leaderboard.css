@@ -60,6 +60,14 @@
   background: #eef6ff;
 }
 
+.loading-spinner {
+  text-align: center;
+  margin: 2rem;
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #444;
+}
+
 @media (max-width: 600px) {
   .leaderboard-container {
     padding: 20px;
