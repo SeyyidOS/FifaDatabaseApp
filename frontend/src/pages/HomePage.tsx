@@ -54,7 +54,8 @@ function HomePage() {
   const [scoreB, setScoreB] = useState<number | "">("");
   const [matches, setMatches] = useState<Match[]>([]);
   const [message, setMessage] = useState("");
-  const [selectedTiers, setSelectedTiers] = useState<number[]>([]); // New
+  const [selectedTiers, setSelectedTiers] = useState<number[]>([]);
+  const [selectedForRandom, setSelectedForRandom] = useState<number[]>([]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -72,7 +73,9 @@ function HomePage() {
 
   const fetchPlayers = async () => {
     try {
-      setPlayers(await fetchPlayersAPI());
+      const fetchedPlayers = await fetchPlayersAPI();
+      setPlayers(fetchedPlayers);
+      setSelectedForRandom(fetchedPlayers.map((p: Player) => p.id)); // Default: all selected
     } catch (error) {
       console.error("Failed to fetch players:", error);
     }
@@ -107,8 +110,15 @@ function HomePage() {
     }
   };
 
+  const toggleSelectForRandom = (playerId: number) => {
+    setSelectedForRandom((prev) =>
+      prev.includes(playerId)
+        ? prev.filter((id) => id !== playerId)
+        : [...prev, playerId]
+    );
+  };
+
   const generateRandomTeams = () => {
-    const shuffled = [...players].sort(() => Math.random() - 0.5);
     let teamASize = 1;
     let teamBSize = 1;
 
@@ -123,17 +133,21 @@ function HomePage() {
       teamBSize = 1;
     }
 
-    if (shuffled.length < teamASize + teamBSize) {
-      alert(
-        `You need at least ${teamASize + teamBSize} players for ${teamMode}.`
-      );
+    const totalNeeded = teamASize + teamBSize;
+    const pool = players.filter((p) => selectedForRandom.includes(p.id));
+
+    if (pool.length < totalNeeded) {
+      alert(`Select at least ${totalNeeded} players for ${teamMode}.`);
       return;
     }
+
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
 
     setTeamA(shuffled.slice(0, teamASize).map((p) => p.name));
     setTeamB(
       shuffled.slice(teamASize, teamASize + teamBSize).map((p) => p.name)
     );
+
     setManualTeamA([]);
     setManualTeamB([]);
   };
@@ -258,6 +272,8 @@ function HomePage() {
             manualTeamB={manualTeamB}
             toggleManualTeam={toggleManualTeam}
             message={message}
+            selectedForRandom={selectedForRandom}
+            toggleSelectForRandom={toggleSelectForRandom}
           />
 
           <TeamManager

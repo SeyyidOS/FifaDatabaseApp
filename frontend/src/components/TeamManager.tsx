@@ -22,6 +22,13 @@ const TeamManager: React.FC<TeamManagerProps> = ({
   manualTeamB,
   players,
 }) => {
+  const manualTeamANames = manualTeamA
+    .map((id) => players.find((p) => p.id === id)?.name)
+    .filter(Boolean) as string[];
+  const manualTeamBNames = manualTeamB
+    .map((id) => players.find((p) => p.id === id)?.name)
+    .filter(Boolean) as string[];
+
   return (
     <div className="team-section">
       <h2>Form Teams</h2>
@@ -44,10 +51,7 @@ const TeamManager: React.FC<TeamManagerProps> = ({
         <div className="team-card">
           <h3>Team A</h3>
           <ul>
-            {(teamA.length > 0
-              ? teamA
-              : manualTeamA.map((id) => players.find((p) => p.id === id)?.name)
-            ).map((name, idx) => (
+            {(teamA.length > 0 ? teamA : manualTeamANames).map((name, idx) => (
               <li key={idx}>{name}</li>
             ))}
           </ul>
@@ -55,10 +59,7 @@ const TeamManager: React.FC<TeamManagerProps> = ({
         <div className="team-card">
           <h3>Team B</h3>
           <ul>
-            {(teamB.length > 0
-              ? teamB
-              : manualTeamB.map((id) => players.find((p) => p.id === id)?.name)
-            ).map((name, idx) => (
+            {(teamB.length > 0 ? teamB : manualTeamBNames).map((name, idx) => (
               <li key={idx}>{name}</li>
             ))}
           </ul>

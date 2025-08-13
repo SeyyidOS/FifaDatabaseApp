@@ -10,6 +10,8 @@ interface PlayerManagerProps {
   manualTeamB: number[];
   toggleManualTeam: (id: number, team: "A" | "B") => void;
   message: string;
+  selectedForRandom: number[];
+  toggleSelectForRandom: (id: number) => void;
 }
 
 const PlayerManager: React.FC<PlayerManagerProps> = ({
@@ -21,6 +23,8 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
   manualTeamB,
   toggleManualTeam,
   message,
+  selectedForRandom,
+  toggleSelectForRandom,
 }) => {
   return (
     <div>
@@ -40,31 +44,41 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
 
       <h2>Players</h2>
       <div className="player-cards">
-        {players.map((player) => (
-          <div key={player.id} className="player-card selectable">
-            <span>{player.name}</span>
-            <div className="team-select-buttons">
-              <button
-                type="button"
-                className={`team-btn ${
-                  manualTeamA.includes(player.id) ? "active" : ""
-                }`}
-                onClick={() => toggleManualTeam(player.id, "A")}
-              >
-                A
-              </button>
-              <button
-                type="button"
-                className={`team-btn ${
-                  manualTeamB.includes(player.id) ? "active" : ""
-                }`}
-                onClick={() => toggleManualTeam(player.id, "B")}
-              >
-                B
-              </button>
+        {players.map((player) => {
+          const isSelected = selectedForRandom.includes(player.id);
+          return (
+            <div key={player.id} className="player-card selectable">
+              <div className="player-card-header">
+                <span>{player.name}</span>
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggleSelectForRandom(player.id)}
+                />
+              </div>
+              <div className="team-select-buttons">
+                <button
+                  type="button"
+                  className={`team-btn ${
+                    manualTeamA.includes(player.id) ? "active" : ""
+                  }`}
+                  onClick={() => toggleManualTeam(player.id, "A")}
+                >
+                  A
+                </button>
+                <button
+                  type="button"
+                  className={`team-btn ${
+                    manualTeamB.includes(player.id) ? "active" : ""
+                  }`}
+                  onClick={() => toggleManualTeam(player.id, "B")}
+                >
+                  B
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
