@@ -443,8 +443,8 @@ function HomePage() {
             clubs={clubs}
             clubA={clubA}
             clubB={clubB}
-            customClubA={setCustomClubA && customClubA}
-            customClubB={setCustomClubB && customClubB}
+            customClubA={customClubA}
+            customClubB={customClubB}
             setCustomClubA={setCustomClubA}
             setCustomClubB={setCustomClubB}
             setClubA={setClubA}

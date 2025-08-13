@@ -1,5 +1,6 @@
 # elo_service.py
 from typing import Dict, List
+import math
 
 INITIAL_ELO = 1000
 
@@ -14,6 +15,35 @@ def _clean(s: str) -> str:
         .strip()
         .lower()
     )
+
+
+def m_upset_bonus(
+    winner_elo: float,
+    loser_elo: float,
+    margin: int,
+    M_max: float = 3.0,
+    power: float = 1.5,
+    upset_scale: float = 0.5,
+) -> float:
+    """
+    Calculates a multiplier based on:
+    - Convex margin factor (more reward for bigger wins)
+    - Upset bonus (extra points for lower-rated team beating a higher-rated team)
+    """
+    abs_margin = abs(margin)
+
+    # Step 1: Convex margin multiplier
+    margin_factor = 1.0 + (M_max - 1.0) * ((abs_margin / 15.0) ** power)
+
+    # Step 2: Upset bonus
+    if winner_elo < loser_elo:
+        rating_gap = loser_elo - winner_elo
+        upset_bonus = 1.0 + upset_scale * (rating_gap / 400.0) * (abs_margin / 15.0)
+    else:
+        upset_bonus = 1.0
+
+    # Step 3: Final multiplier
+    return margin_factor * upset_bonus
 
 
 class EloService:
@@ -62,20 +92,41 @@ class EloService:
 
             avg_a = team_avg(team_a_ids)
             avg_b = team_avg(team_b_ids)
+
+            # Expected scores
             exp_a = expected(avg_a, avg_b)
             exp_b = 1.0 - exp_a
 
-            a_score = m.get("score_a") or 0
-            b_score = m.get("score_b") or 0
-            s_a, s_b = (
-                (1.0, 0.0)
-                if a_score > b_score
-                else (0.0, 1.0) if b_score > a_score else (0.5, 0.5)
-            )
+            # Actual scores
+            a_score = int(m.get("score_a") or 0)
+            b_score = int(m.get("score_b") or 0)
+            if a_score > b_score:
+                s_a, s_b = 1.0, 0.0
+                winner_elo, loser_elo = avg_a, avg_b
+                margin = a_score - b_score
+            elif b_score > a_score:
+                s_a, s_b = 0.0, 1.0
+                winner_elo, loser_elo = avg_b, avg_a
+                margin = b_score - a_score
+            else:
+                s_a, s_b = 0.5, 0.5  # draw
+                winner_elo, loser_elo = avg_a, avg_b
+                margin = 0
 
+            # Margin + upset bonus multiplier
+            if margin > 0:
+                M = m_upset_bonus(winner_elo, loser_elo, margin)
+            else:
+                M = 1.0  # Draws
+
+            # Apply Elo updates
             for pid in team_a_ids:
-                ratings[pid] = ratings.get(pid, INITIAL_ELO) + k_factor * (s_a - exp_a)
+                ratings[pid] = (
+                    ratings.get(pid, INITIAL_ELO) + k_factor * (s_a - exp_a) * M
+                )
             for pid in team_b_ids:
-                ratings[pid] = ratings.get(pid, INITIAL_ELO) + k_factor * (s_b - exp_b)
+                ratings[pid] = (
+                    ratings.get(pid, INITIAL_ELO) + k_factor * (s_b - exp_b) * M
+                )
 
         return {pid: int(round(r)) for pid, r in ratings.items()}
