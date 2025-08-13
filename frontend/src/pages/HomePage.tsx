@@ -55,7 +55,16 @@ function HomePage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [message, setMessage] = useState("");
   const [selectedTiers, setSelectedTiers] = useState<number[]>([]);
+
+  // Players checked for random selection (default: all players)
   const [selectedForRandom, setSelectedForRandom] = useState<number[]>([]);
+
+  // --- helpers for name normalization (match data is string-based) ---
+  const cleanPlayerName = (name: string) =>
+    name
+      .replace(/[{}()]/g, "")
+      .trim()
+      .toLowerCase();
 
   useEffect(() => {
     const loadData = async () => {
@@ -75,7 +84,8 @@ function HomePage() {
     try {
       const fetchedPlayers = await fetchPlayersAPI();
       setPlayers(fetchedPlayers);
-      setSelectedForRandom(fetchedPlayers.map((p: Player) => p.id)); // Default: all selected
+      // default: tick everyone
+      setSelectedForRandom(fetchedPlayers.map((p: Player) => p.id));
     } catch (error) {
       console.error("Failed to fetch players:", error);
     }
@@ -104,18 +114,62 @@ function HomePage() {
       const data = await addPlayerAPI(username);
       setMessage(data.message);
       setUsername("");
+      // refresh players (keeps default: all selected incl. the new one)
       fetchPlayers();
     } catch (error) {
       console.error("Failed to add player:", error);
     }
   };
 
+  // Checkbox toggle to include/exclude a player from randomization pool
   const toggleSelectForRandom = (playerId: number) => {
     setSelectedForRandom((prev) =>
       prev.includes(playerId)
         ? prev.filter((id) => id !== playerId)
         : [...prev, playerId]
     );
+  };
+
+  // Build a map: player(lowercased) -> Set of teammates(lowercased) from THEIR LAST match only
+  const buildLastTeammatesMap = () => {
+    // Sort matches by time descending
+    const sorted = [...matches].sort(
+      (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
+    );
+
+    // Track which players we've already recorded (we only want their own last match)
+    const recorded = new Set<string>();
+    const lastTeammates = new Map<string, Set<string>>();
+
+    for (const m of sorted) {
+      const teamAList = m.team_a
+        .split(",")
+        .map(cleanPlayerName)
+        .filter(Boolean);
+      const teamBList = m.team_b
+        .split(",")
+        .map(cleanPlayerName)
+        .filter(Boolean);
+
+      // For each player in team A, if not recorded yet, set their teammates to the rest of team A
+      for (const p of teamAList) {
+        if (!recorded.has(p)) {
+          recorded.add(p);
+          const mates = new Set(teamAList.filter((x) => x !== p));
+          lastTeammates.set(p, mates);
+        }
+      }
+      // For each player in team B, if not recorded yet, set their teammates to the rest of team B
+      for (const p of teamBList) {
+        if (!recorded.has(p)) {
+          recorded.add(p);
+          const mates = new Set(teamBList.filter((x) => x !== p));
+          lastTeammates.set(p, mates);
+        }
+      }
+    }
+
+    return lastTeammates;
   };
 
   const generateRandomTeams = () => {
@@ -141,15 +195,47 @@ function HomePage() {
       return;
     }
 
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    // Build constraint map: last-teammates
+    const lastTeammates = buildLastTeammatesMap();
 
-    setTeamA(shuffled.slice(0, teamASize).map((p) => p.name));
-    setTeamB(
-      shuffled.slice(teamASize, teamASize + teamBSize).map((p) => p.name)
+    // Validate that within a team, no pair violates "were last teammates"
+    const isTeamValid = (names: string[]) => {
+      const norm = names.map(cleanPlayerName);
+      for (let i = 0; i < norm.length; i++) {
+        for (let j = i + 1; j < norm.length; j++) {
+          const a = norm[i];
+          const b = norm[j];
+          const matesA = lastTeammates.get(a);
+          const matesB = lastTeammates.get(b);
+          if ((matesA && matesA.has(b)) || (matesB && matesB.has(a))) {
+            return false;
+          }
+        }
+      }
+      return true;
+    };
+
+    // Try to find a valid split with shuffles
+    const MAX_TRIES = 600;
+    for (let attempt = 0; attempt < MAX_TRIES; attempt++) {
+      const shuffled = [...pool].sort(() => Math.random() - 0.5);
+      const pickA = shuffled.slice(0, teamASize).map((p) => p.name);
+      const pickB = shuffled
+        .slice(teamASize, teamASize + teamBSize)
+        .map((p) => p.name);
+
+      if (isTeamValid(pickA) && isTeamValid(pickB)) {
+        setTeamA(pickA);
+        setTeamB(pickB);
+        setManualTeamA([]);
+        setManualTeamB([]);
+        return;
+      }
+    }
+
+    alert(
+      "Couldn't form teams without repeating last-match teammates. Try changing the selection or team mode."
     );
-
-    setManualTeamA([]);
-    setManualTeamB([]);
   };
 
   const generateRandomClubs = () => {
@@ -228,11 +314,15 @@ function HomePage() {
     const teamANames =
       teamA.length > 0
         ? teamA
-        : manualTeamA.map((id) => players.find((p) => p.id === id)?.name || "");
+        : manualTeamA
+            .map((id) => players.find((p) => p.id === id)?.name || "")
+            .filter(Boolean);
     const teamBNames =
       teamB.length > 0
         ? teamB
-        : manualTeamB.map((id) => players.find((p) => p.id === id)?.name || "");
+        : manualTeamB
+            .map((id) => players.find((p) => p.id === id)?.name || "")
+            .filter(Boolean);
 
     try {
       await addMatchAPI({
