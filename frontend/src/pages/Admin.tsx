@@ -5,6 +5,7 @@ import {
   fetchMatchesAdmin,
   deleteMatchAdmin,
 } from "../services/adminAPI";
+import { fetchEloSettings, updateEloSettings } from "../services/api";
 import "../styles/Admin.css";
 
 interface Player {
@@ -23,29 +24,42 @@ interface Match {
   score_b: number;
 }
 
-const INITIAL_ELO = 1000;
-
 const Admin: React.FC = () => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
-  const [kFactor, setKFactor] = useState<number>(() => {
-    const stored = localStorage.getItem("eloKFactor");
-    const parsed = stored ? Number(stored) : 24;
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : 24;
-  });
+  const [kFactor, setKFactor] = useState<number>(24);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadPlayers();
     loadMatches();
+    loadK();
   }, []);
 
-  const loadPlayers = async () => {
-    setPlayers(await fetchPlayersAdmin());
+  const loadPlayers = async () => setPlayers(await fetchPlayersAdmin());
+  const loadMatches = async () => setMatches(await fetchMatchesAdmin());
+
+  const loadK = async () => {
+    try {
+      const { kFactor } = await fetchEloSettings();
+      setKFactor(kFactor ?? 24);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const loadMatches = async () => {
-    setMatches(await fetchMatchesAdmin());
+  const onChangeK = async (val: number) => {
+    try {
+      setSaving(true);
+      setKFactor(val);
+      await updateEloSettings(val);
+      // Clients will fetch /elo as needed; no local recompute here.
+    } catch (e) {
+      console.error(e);
+      alert("Failed to update K.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDeletePlayer = async (id: number) => {
@@ -58,60 +72,10 @@ const Admin: React.FC = () => {
     loadMatches();
   };
 
-  const persistK = (k: number) => {
-    setKFactor(k);
-    localStorage.setItem("eloKFactor", String(k));
-    // HomePage listens to storage events and will recompute ELO automatically.
-  };
-
-  const hardResetElo = () => {
-    if (!players.length) return;
-    const reset: Record<number, number> = {};
-    for (const p of players) reset[p.id] = INITIAL_ELO;
-    localStorage.setItem("eloRatings", JSON.stringify(reset));
-    // HomePage listens to storage events and will update its state to match.
-    alert("ELO has been hard reset to 1000 for all players.");
-  };
-
-  const exportElo = () => {
-    try {
-      const raw = localStorage.getItem("eloRatings") || "{}";
-      const blob = new Blob([raw], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "eloRatings.json";
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error(e);
-      alert("Export failed.");
-    }
-  };
-
-  const importElo = async (file: File) => {
-    setSaving(true);
-    try {
-      const text = await file.text();
-      // Basic validation
-      const parsed = JSON.parse(text || "{}");
-      if (typeof parsed !== "object" || parsed === null) {
-        throw new Error("Invalid ELO JSON.");
-      }
-      localStorage.setItem("eloRatings", JSON.stringify(parsed));
-      alert("ELO ratings imported.");
-    } catch (e: any) {
-      alert(e?.message || "Import failed.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <div className="admin-container">
       <h1>Admin Panel</h1>
 
-      {/* ELO Controls */}
       <section className="admin-section">
         <h2>ELO Settings</h2>
         <div
@@ -133,36 +97,14 @@ const Admin: React.FC = () => {
             max={64}
             step={1}
             value={kFactor}
-            onChange={(e) => persistK(Number(e.target.value))}
+            onChange={(e) => onChangeK(Number(e.target.value))}
+            disabled={saving}
           />
           <span style={{ minWidth: 28, textAlign: "right" }}>{kFactor}</span>
-
-          <button className="player-button" onClick={hardResetElo}>
-            Hard Reset ELO (1000)
-          </button>
-
-          <button className="player-button" onClick={exportElo}>
-            Export ELO JSON
-          </button>
-
-          <label className="player-button" style={{ cursor: "pointer" }}>
-            Import ELO JSON
-            <input
-              type="file"
-              accept="application/json"
-              style={{ display: "none" }}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) importElo(f);
-              }}
-              disabled={saving}
-            />
-          </label>
         </div>
         <p style={{ opacity: 0.7, marginTop: 8 }}>
-          Notes: Changing K immediately triggers an ELO recompute in the main
-          app (from full history). Hard Reset sets all players to 1000 (ignores
-          match history) until another K change or new match.
+          Changing K updates the server setting. Clients will reflect it the
+          next time they fetch ELO.
         </p>
       </section>
 
