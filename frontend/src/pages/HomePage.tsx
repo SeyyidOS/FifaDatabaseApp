@@ -13,7 +13,6 @@ import {
   addPlayerAPI,
   addMatchAPI,
   fetchEloRatings,
-  fetchEloSettings,
 } from "../services/api";
 
 interface Player {
@@ -61,7 +60,7 @@ function HomePage() {
   const [eloRatings, setEloRatings] = useState<Record<number, number>>({});
   const [eloMatchmakingEnabled, setEloMatchmakingEnabled] =
     useState<boolean>(false);
-  const [kFactor, setKFactor] = useState<number | null>(null); // optional display
+  // const [kFactor, setKFactor] = useState<number | null>(null); // optional display
 
   const INITIAL_ELO = 1000;
 
@@ -80,19 +79,18 @@ function HomePage() {
     const load = async () => {
       try {
         setLoading(true);
-        const [playersResp, clubsResp, matchesResp, settingsResp, eloResp] =
+        const [playersResp, clubsResp, matchesResp, eloResp] =
           await Promise.all([
             fetchPlayersAPI(),
             fetchClubsAPI(),
             fetchMatchesAPI(),
-            fetchEloSettings(),
             fetchEloRatings(),
           ]);
 
         setPlayers(playersResp);
         setClubs(clubsResp);
         setMatches(matchesResp);
-        setKFactor(settingsResp?.kFactor ?? null);
+        // setKFactor(settingsResp?.kFactor ?? null);
 
         // Build map {id: elo}
         const ratingsMap: Record<number, number> = {};
