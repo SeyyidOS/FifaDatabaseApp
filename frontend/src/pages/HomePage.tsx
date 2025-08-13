@@ -55,17 +55,64 @@ function HomePage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [message, setMessage] = useState("");
   const [selectedTiers, setSelectedTiers] = useState<number[]>([]);
-
-  // Players checked for random selection (default: all players)
   const [selectedForRandom, setSelectedForRandom] = useState<number[]>([]);
 
-  // --- helpers for name normalization (match data is string-based) ---
-  const cleanPlayerName = (name: string) =>
-    name
+  // ELO ratings computed from history; persisted to localStorage for quick display
+  const [eloRatings, setEloRatings] = useState<Record<number, number>>({});
+
+  // ELO matchmaking toggle
+  const [eloMatchmakingEnabled, setEloMatchmakingEnabled] =
+    useState<boolean>(false);
+
+  // Configurable K factor (persisted)
+  const INITIAL_ELO = 1000;
+  const [kFactor, setKFactor] = useState<number>(() => {
+    const stored = localStorage.getItem("eloKFactor");
+    const parsed = stored ? Number(stored) : 24;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 24;
+  });
+
+  // ------------ helpers ------------
+  const cleanText = (s: string) =>
+    s
       .replace(/[{}()]/g, "")
       .trim()
       .toLowerCase();
 
+  const parseTeamNames = (teamStr: string) =>
+    teamStr
+      .split(",")
+      .map((x) => cleanText(x))
+      .filter(Boolean);
+
+  const loadEloFromStorage = (): Record<number, number> => {
+    try {
+      const s = localStorage.getItem("eloRatings");
+      return s ? JSON.parse(s) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const saveEloToStorage = (ratings: Record<number, number>) => {
+    try {
+      localStorage.setItem("eloRatings", JSON.stringify(ratings));
+    } catch {
+      // ignore
+    }
+  };
+
+  // Persist K when it changes
+  useEffect(() => {
+    localStorage.setItem("eloKFactor", String(kFactor));
+    // Recompute ELOs immediately when K changes (from history)
+    if (players.length > 0) {
+      recomputeEloFromHistory();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kFactor]);
+
+  // ------------ data loading ------------
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -84,8 +131,16 @@ function HomePage() {
     try {
       const fetchedPlayers = await fetchPlayersAPI();
       setPlayers(fetchedPlayers);
-      // default: tick everyone
+      // default: tick everyone for randomization
       setSelectedForRandom(fetchedPlayers.map((p: Player) => p.id));
+
+      // Seed ELO from storage for initial UI while we recompute from matches
+      const stored = loadEloFromStorage();
+      const merged: Record<number, number> = { ...stored };
+      for (const p of fetchedPlayers) {
+        if (merged[p.id] == null) merged[p.id] = INITIAL_ELO;
+      }
+      setEloRatings(merged);
     } catch (error) {
       console.error("Failed to fetch players:", error);
     }
@@ -101,10 +156,90 @@ function HomePage() {
 
   const fetchMatches = async () => {
     try {
-      setMatches(await fetchMatchesAPI());
+      const m = await fetchMatchesAPI();
+      setMatches(m);
     } catch (error) {
       console.error("Failed to fetch matches:", error);
     }
+  };
+
+  // Recompute Elo when players or matches change
+  useEffect(() => {
+    if (players.length === 0) return;
+    if (matches.length === 0) {
+      const defaults: Record<number, number> = {};
+      for (const p of players) defaults[p.id] = INITIAL_ELO;
+      setEloRatings(defaults);
+      saveEloToStorage(defaults);
+      return;
+    }
+    recomputeEloFromHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [players, matches]);
+
+  const recomputeEloFromHistory = () => {
+    // name -> id mapping (case-insensitive)
+    const nameToId = new Map<string, number>();
+    players.forEach((p) => nameToId.set(cleanText(p.name), p.id));
+
+    // Start everyone at INITIAL_ELO
+    const ratings: Record<number, number> = {};
+    for (const p of players) ratings[p.id] = INITIAL_ELO;
+
+    // Sort matches by time ascending
+    const sorted = [...matches].sort(
+      (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+    );
+
+    const teamAvg = (ids: number[]) =>
+      ids.length === 0
+        ? INITIAL_ELO
+        : ids.reduce((s, id) => s + (ratings[id] ?? INITIAL_ELO), 0) /
+          ids.length;
+
+    const expected = (eloA: number, eloB: number) =>
+      1 / (1 + Math.pow(10, (eloB - eloA) / 400));
+
+    for (const m of sorted) {
+      const teamA_names = parseTeamNames(m.team_a);
+      const teamB_names = parseTeamNames(m.team_b);
+
+      const teamA_ids = teamA_names
+        .map((n) => nameToId.get(n))
+        .filter((x): x is number => typeof x === "number");
+      const teamB_ids = teamB_names
+        .map((n) => nameToId.get(n))
+        .filter((x): x is number => typeof x === "number");
+
+      if (teamA_ids.length === 0 || teamB_ids.length === 0) continue;
+
+      const avgA = teamAvg(teamA_ids);
+      const avgB = teamAvg(teamB_ids);
+      const expA = expected(avgA, avgB);
+      const expB = 1 - expA;
+
+      let sA = 0.5,
+        sB = 0.5;
+      if (m.score_a > m.score_b) {
+        sA = 1;
+        sB = 0;
+      } else if (m.score_b > m.score_a) {
+        sA = 0;
+        sB = 1;
+      }
+
+      for (const id of teamA_ids) {
+        const r = ratings[id] ?? INITIAL_ELO;
+        ratings[id] = Math.round(r + kFactor * (sA - expA));
+      }
+      for (const id of teamB_ids) {
+        const r = ratings[id] ?? INITIAL_ELO;
+        ratings[id] = Math.round(r + kFactor * (sB - expB));
+      }
+    }
+
+    setEloRatings(ratings);
+    saveEloToStorage(ratings);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -114,14 +249,13 @@ function HomePage() {
       const data = await addPlayerAPI(username);
       setMessage(data.message);
       setUsername("");
-      // refresh players (keeps default: all selected incl. the new one)
-      fetchPlayers();
+      await fetchPlayers();
+      // recompute will run via effect when players change
     } catch (error) {
       console.error("Failed to add player:", error);
     }
   };
 
-  // Checkbox toggle to include/exclude a player from randomization pool
   const toggleSelectForRandom = (playerId: number) => {
     setSelectedForRandom((prev) =>
       prev.includes(playerId)
@@ -130,46 +264,42 @@ function HomePage() {
     );
   };
 
-  // Build a map: player(lowercased) -> Set of teammates(lowercased) from THEIR LAST match only
+  // Build map of last teammates (by each player's own last match)
   const buildLastTeammatesMap = () => {
-    // Sort matches by time descending
     const sorted = [...matches].sort(
       (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
     );
-
-    // Track which players we've already recorded (we only want their own last match)
     const recorded = new Set<string>();
     const lastTeammates = new Map<string, Set<string>>();
 
     for (const m of sorted) {
-      const teamAList = m.team_a
-        .split(",")
-        .map(cleanPlayerName)
-        .filter(Boolean);
-      const teamBList = m.team_b
-        .split(",")
-        .map(cleanPlayerName)
-        .filter(Boolean);
+      const A = parseTeamNames(m.team_a);
+      const B = parseTeamNames(m.team_b);
 
-      // For each player in team A, if not recorded yet, set their teammates to the rest of team A
-      for (const p of teamAList) {
+      for (const p of A) {
         if (!recorded.has(p)) {
           recorded.add(p);
-          const mates = new Set(teamAList.filter((x) => x !== p));
-          lastTeammates.set(p, mates);
+          lastTeammates.set(p, new Set(A.filter((x) => x !== p)));
         }
       }
-      // For each player in team B, if not recorded yet, set their teammates to the rest of team B
-      for (const p of teamBList) {
+      for (const p of B) {
         if (!recorded.has(p)) {
           recorded.add(p);
-          const mates = new Set(teamBList.filter((x) => x !== p));
-          lastTeammates.set(p, mates);
+          lastTeammates.set(p, new Set(B.filter((x) => x !== p)));
         }
       }
     }
-
     return lastTeammates;
+  };
+
+  const teamAverageEloByNames = (names: string[]) => {
+    const nameToId = new Map<string, number>();
+    players.forEach((p) => nameToId.set(cleanText(p.name), p.id));
+    const values = names
+      .map((n) => eloRatings[nameToId.get(cleanText(n)) ?? -1])
+      .filter((v) => typeof v === "number");
+    if (values.length === 0) return INITIAL_ELO;
+    return values.reduce((a, b) => a + b, 0) / values.length;
   };
 
   const generateRandomTeams = () => {
@@ -195,12 +325,10 @@ function HomePage() {
       return;
     }
 
-    // Build constraint map: last-teammates
     const lastTeammates = buildLastTeammatesMap();
 
-    // Validate that within a team, no pair violates "were last teammates"
     const isTeamValid = (names: string[]) => {
-      const norm = names.map(cleanPlayerName);
+      const norm = names.map((n) => cleanText(n));
       for (let i = 0; i < norm.length; i++) {
         for (let j = i + 1; j < norm.length; j++) {
           const a = norm[i];
@@ -215,16 +343,30 @@ function HomePage() {
       return true;
     };
 
-    // Try to find a valid split with shuffles
-    const MAX_TRIES = 600;
+    const MAX_TRIES = 1200;
+    let bestSplit: { A: string[]; B: string[] } | null = null;
+    let bestDiff = Number.POSITIVE_INFINITY;
+
     for (let attempt = 0; attempt < MAX_TRIES; attempt++) {
       const shuffled = [...pool].sort(() => Math.random() - 0.5);
-      const pickA = shuffled.slice(0, teamASize).map((p) => p.name);
-      const pickB = shuffled
+      const slice = shuffled.slice(0, totalNeeded);
+      const pickA = slice.slice(0, teamASize).map((p) => p.name);
+      const pickB = slice
         .slice(teamASize, teamASize + teamBSize)
         .map((p) => p.name);
 
-      if (isTeamValid(pickA) && isTeamValid(pickB)) {
+      if (!isTeamValid(pickA) || !isTeamValid(pickB)) continue;
+
+      if (eloMatchmakingEnabled) {
+        const avgA = teamAverageEloByNames(pickA);
+        const avgB = teamAverageEloByNames(pickB);
+        const diff = Math.abs(avgA - avgB);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          bestSplit = { A: pickA, B: pickB };
+          if (bestDiff === 0) break;
+        }
+      } else {
         setTeamA(pickA);
         setTeamB(pickB);
         setManualTeamA([]);
@@ -233,8 +375,18 @@ function HomePage() {
       }
     }
 
+    if (eloMatchmakingEnabled && bestSplit) {
+      setTeamA(bestSplit.A);
+      setTeamB(bestSplit.B);
+      setManualTeamA([]);
+      setManualTeamB([]);
+      return;
+    }
+
     alert(
-      "Couldn't form teams without repeating last-match teammates. Try changing the selection or team mode."
+      eloMatchmakingEnabled
+        ? "Couldn't form balanced ELO teams without repeating last-match teammates. Try changing selection or team mode."
+        : "Couldn't form teams without repeating last-match teammates. Try changing selection or team mode."
     );
   };
 
@@ -301,7 +453,6 @@ function HomePage() {
       alert("Please select both clubs.");
       return;
     }
-
     if (clubA === "custom" && !customClubA.trim()) {
       alert("Please enter a custom club name for Club A.");
       return;
@@ -339,12 +490,22 @@ function HomePage() {
         scoreA: Number(scoreA) || 0,
         scoreB: Number(scoreB) || 0,
       });
-      fetchMatches();
+
+      // Refresh matches; Elo will be recomputed from history via effect
+      await fetchMatches();
       setScoreA("");
       setScoreB("");
     } catch (error) {
       console.error("Failed to submit match:", error);
     }
+  };
+
+  // Hard reset: set all to 1000 and persist (ignores history)
+  const hardResetElo = () => {
+    const reset: Record<number, number> = {};
+    for (const p of players) reset[p.id] = INITIAL_ELO;
+    setEloRatings(reset);
+    saveEloToStorage(reset);
   };
 
   return (
@@ -364,17 +525,21 @@ function HomePage() {
             message={message}
             selectedForRandom={selectedForRandom}
             toggleSelectForRandom={toggleSelectForRandom}
+            eloRatings={eloRatings}
           />
 
           <TeamManager
             teamMode={teamMode}
             setTeamMode={setTeamMode}
+            eloMatchmakingEnabled={eloMatchmakingEnabled}
+            setEloMatchmakingEnabled={setEloMatchmakingEnabled}
             generateRandomTeams={generateRandomTeams}
             teamA={teamA}
             teamB={teamB}
             manualTeamA={manualTeamA}
             manualTeamB={manualTeamB}
             players={players}
+            eloRatings={eloRatings}
           />
 
           <TierSelector

@@ -12,6 +12,7 @@ interface PlayerManagerProps {
   message: string;
   selectedForRandom: number[];
   toggleSelectForRandom: (id: number) => void;
+  eloRatings: Record<number, number>;
 }
 
 const PlayerManager: React.FC<PlayerManagerProps> = ({
@@ -25,6 +26,7 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
   message,
   selectedForRandom,
   toggleSelectForRandom,
+  eloRatings,
 }) => {
   return (
     <div>
@@ -46,10 +48,13 @@ const PlayerManager: React.FC<PlayerManagerProps> = ({
       <div className="player-cards">
         {players.map((player) => {
           const isSelected = selectedForRandom.includes(player.id);
+          const elo = eloRatings[player.id] ?? 1000;
           return (
             <div key={player.id} className="player-card selectable">
               <div className="player-card-header">
-                <span>{player.name}</span>
+                <span>
+                  {player.name} <small style={{ opacity: 0.75 }}>({elo})</small>
+                </span>
                 <input
                   type="checkbox"
                   checked={isSelected}
