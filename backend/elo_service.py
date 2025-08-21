@@ -119,6 +119,9 @@ class EloService:
             else:
                 M = 1.0  # Draws
 
+            # TODO: DONT FORGET TO CHANGE THESE
+            exp_a = 0.5
+            exp_b = 0.5
             # Apply Elo updates
             for pid in team_a_ids:
                 ratings[pid] = (
