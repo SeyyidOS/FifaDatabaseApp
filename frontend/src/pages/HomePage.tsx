@@ -3,7 +3,7 @@ import PlayerManager from "../components/PlayerManager";
 import TeamManager from "../components/TeamManager";
 import ClubSelector from "../components/ClubSelector";
 import MatchHistory from "../components/MatchHistory";
-import TierSelector from "../components/TierSelector";
+// import TierSelector from "../components/TierSelector";
 import "../styles/App.css";
 
 import {
@@ -24,6 +24,7 @@ interface Club {
   id: number;
   name: string;
   tier: number;
+  elo?: number; // ← new (defaults to 1000 if missing)
 }
 
 interface Match {
@@ -55,11 +56,16 @@ function HomePage() {
   const [scoreB, setScoreB] = useState<number | "">("");
   const [matches, setMatches] = useState<Match[]>([]);
   const [message, setMessage] = useState("");
-  const [selectedTiers, setSelectedTiers] = useState<number[]>([]);
+  // const [selectedTiers, setSelectedTiers] = useState<number[]>([]);
   const [selectedForRandom, setSelectedForRandom] = useState<number[]>([]);
   const [eloRatings, setEloRatings] = useState<Record<number, number>>({});
   const [eloMatchmakingEnabled, setEloMatchmakingEnabled] =
     useState<boolean>(false);
+
+  // how close the (team ELO + club ELO) totals should be
+  const [clubBalanceMargin, setClubBalanceMargin] = useState<number>(75); // change anytime
+  const DEFAULT_CLUB_ELO = 500;
+
   // const [kFactor, setKFactor] = useState<number | null>(null); // optional display
 
   const INITIAL_ELO = 1000;
@@ -296,33 +302,73 @@ function HomePage() {
       return;
     }
 
-    const tierGroups: { [tier: number]: Club[] } = {};
-    clubs.forEach((club) => {
-      (tierGroups[club.tier] ||= []).push(club);
-    });
+    // Resolve team names (manual or auto)
+    const teamANames =
+      teamA.length > 0
+        ? teamA
+        : manualTeamA
+            .map((id) => players.find((p) => p.id === id)?.name || "")
+            .filter(Boolean);
 
-    const activeTiers =
-      selectedTiers.length > 0
-        ? selectedTiers
-        : Object.keys(tierGroups).map(Number);
+    const teamBNames =
+      teamB.length > 0
+        ? teamB
+        : manualTeamB
+            .map((id) => players.find((p) => p.id === id)?.name || "")
+            .filter(Boolean);
 
-    const eligibleTiers = activeTiers.filter(
-      (tier) => tierGroups[tier] && tierGroups[tier].length >= 2
-    );
+    // If empty, teamAverageEloByNames already returns INITIAL_ELO
+    const avgA = teamAverageEloByNames(teamANames);
+    const avgB = teamAverageEloByNames(teamBNames);
 
-    if (eligibleTiers.length === 0) {
-      alert("No tier with at least 2 clubs was found in the selected tiers.");
-      return;
+    const clubElo = (c: Club) =>
+      typeof c.elo === "number" ? c.elo! : DEFAULT_CLUB_ELO;
+
+    type Candidate = { a: Club; b: Club; diff: number };
+
+    let best: Candidate | null = null;
+    const within: Candidate[] = [];
+
+    // Evaluate ALL unordered pairs (no tiers), using club ELO / 2
+    for (let i = 0; i < clubs.length; i++) {
+      for (let j = i + 1; j < clubs.length; j++) {
+        const c1 = clubs[i];
+        const c2 = clubs[j];
+
+        const c1Half = clubElo(c1) / 2;
+        const c2Half = clubElo(c2) / 2;
+
+        // try both orientations; pick the better
+        const d1 = Math.abs(avgA + c1Half - (avgB + c2Half));
+        const d2 = Math.abs(avgA + c2Half - (avgB + c1Half));
+        const swap = d2 < d1;
+
+        const cand: Candidate = {
+          a: swap ? c2 : c1,
+          b: swap ? c1 : c2,
+          diff: swap ? d2 : d1,
+        };
+
+        if (cand.diff <= clubBalanceMargin) within.push(cand);
+        if (!best || cand.diff < best.diff) best = cand;
+      }
     }
 
-    const randomTier =
-      eligibleTiers[Math.floor(Math.random() * eligibleTiers.length)];
-    const selectedClubs = [...tierGroups[randomTier]].sort(
-      () => Math.random() - 0.5
-    );
+    const pick =
+      within.length > 0
+        ? within[Math.floor(Math.random() * within.length)]
+        : (best as Candidate);
 
-    setClubA(selectedClubs[0].id);
-    setClubB(selectedClubs[1].id);
+    setClubA(pick.a.id);
+    setClubB(pick.b.id);
+
+    if (within.length === 0) {
+      console.info(
+        `Closest balance diff: ${Math.round(
+          pick.diff
+        )} (margin ${clubBalanceMargin})`
+      );
+    }
   };
 
   const toggleManualTeam = (playerId: number, team: "A" | "B") => {
@@ -431,11 +477,75 @@ function HomePage() {
             eloRatings={eloRatings}
           />
 
-          <TierSelector
+          {/* <TierSelector
             clubs={clubs}
             selectedTiers={selectedTiers}
             setSelectedTiers={setSelectedTiers}
-          />
+          /> */}
+
+          {/* --- Team ELO panel (replace TierSelector) --- */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 12,
+              margin: "8px 0",
+              alignItems: "start",
+            }}
+          >
+            {(() => {
+              const teamANames = teamA.length
+                ? teamA
+                : manualTeamA
+                    .map((id) => players.find((p) => p.id === id)?.name || "")
+                    .filter(Boolean);
+              const teamBNames = teamB.length
+                ? teamB
+                : manualTeamB
+                    .map((id) => players.find((p) => p.id === id)?.name || "")
+                    .filter(Boolean);
+
+              const avgA = teamAverageEloByNames(teamANames);
+              const avgB = teamAverageEloByNames(teamBNames);
+
+              const clubObjA = clubs.find((c) => c.id === clubA);
+              const clubObjB = clubs.find((c) => c.id === clubB);
+
+              const halfClubA = clubObjA
+                ? (clubObjA.elo ?? DEFAULT_CLUB_ELO) / 2
+                : 0;
+              const halfClubB = clubObjB
+                ? (clubObjB.elo ?? DEFAULT_CLUB_ELO) / 2
+                : 0;
+
+              const projectedA = Math.round(avgA + halfClubA);
+              const projectedB = Math.round(avgB + halfClubB);
+              const diff = Math.abs(projectedA - projectedB);
+
+              return (
+                <>
+                  <div style={{ gridColumn: "1 / span 2", marginTop: 6 }}>
+                    <em>
+                      Δ ELO: {Math.round(diff)} (margin {clubBalanceMargin})
+                    </em>
+                    <span style={{ marginLeft: 16 }}>
+                      Club balancing margin:{" "}
+                      <input
+                        type="number"
+                        value={clubBalanceMargin}
+                        min={0}
+                        step={5}
+                        onChange={(e) =>
+                          setClubBalanceMargin(Number(e.target.value) || 0)
+                        }
+                        style={{ width: 90 }}
+                      />
+                    </span>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
 
           <ClubSelector
             clubs={clubs}

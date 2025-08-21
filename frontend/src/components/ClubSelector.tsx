@@ -5,6 +5,7 @@ interface Club {
   id: number;
   name: string;
   tier: number;
+  elo?: number; // ← new (defaults to 1000 if missing)
 }
 
 interface ClubSelectorProps {
@@ -59,7 +60,7 @@ const ClubSelector: React.FC<ClubSelectorProps> = ({
             <option value="">Select Club A</option>
             {clubs.map((club) => (
               <option key={club.id} value={club.id}>
-                {club.name} (Tier {club.tier})
+                {club.name} ({club.elo})
               </option>
             ))}
             <option value="custom">Other (Custom Club)</option>
@@ -88,7 +89,7 @@ const ClubSelector: React.FC<ClubSelectorProps> = ({
             <option value="">Select Club B</option>
             {clubs.map((club) => (
               <option key={club.id} value={club.id}>
-                {club.name} (Tier {club.tier})
+                {club.name} ({club.elo})
               </option>
             ))}
             <option value="custom">Other (Custom Club)</option>
