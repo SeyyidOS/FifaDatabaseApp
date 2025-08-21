@@ -57,12 +57,17 @@ class EloService:
         # chronological order for stable ELO evolution
         return self.db.execute("SELECT * FROM matches ORDER BY time ASC;")
 
+    def _fetch_clubs(self) -> List[dict]:
+        return self.db.execute("SELECT * FROM clubs ORDER BY id ASC;")
+
     def compute_ratings(self, k_factor: int) -> Dict[int, int]:
         """
         Returns {player_id: elo} after processing all matches using the provided K.
         """
         players = self._fetch_players()
         matches = self._fetch_matches()
+        clubs = self._fetch_clubs()
+
         if not players:
             return {}
 
@@ -90,8 +95,20 @@ class EloService:
             if not team_a_ids or not team_b_ids:
                 continue
 
+            club_a = m.get("club_a")
+            club_b = m.get("club_b")
+
             avg_a = team_avg(team_a_ids)
             avg_b = team_avg(team_b_ids)
+
+            for club in clubs:
+                if club["name"] == club_a:
+                    club_a_rating = club["elo"]
+                elif club["name"] == club_b:
+                    club_b_rating = club["elo"]
+
+            avg_a += club_a_rating / 2
+            avg_b += club_b_rating / 2
 
             # Expected scores
             exp_a = expected(avg_a, avg_b)
@@ -119,9 +136,6 @@ class EloService:
             else:
                 M = 1.0  # Draws
 
-            # TODO: DONT FORGET TO CHANGE THESE
-            exp_a = 0.5
-            exp_b = 0.5
             # Apply Elo updates
             for pid in team_a_ids:
                 ratings[pid] = (
