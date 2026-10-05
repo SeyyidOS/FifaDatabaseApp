@@ -10,24 +10,31 @@ import { Avatar, ClubCrest } from "../components/ui/Identity";
 import { Button, Delta, Panel, Pill, RankMove } from "../components/ui/primitives";
 import type { Analytics } from "../hooks/analytics-context";
 import { useDeleteMatch, useDeletePlayer, useUpdateKFactor } from "../hooks/useData";
+import { ADMIN_KEY_STORAGE, verifyAdminKey } from "../lib/api";
 import { useSessionState } from "../hooks/useSessionState";
 import { cn } from "../lib/cn";
 import { runElo } from "../lib/elo";
 import { cleanName, displayName, formatDateTime } from "../lib/format";
 import type { ParsedMatch } from "../lib/stats";
 
-// Same client-side gate as the original app — not real security (the API is open).
-const ADMIN_PASSWORD = "admin123";
-
-function Gate({ onUnlock }: { onUnlock: () => void }) {
+function Gate({ onUnlock }: { onUnlock: (key: string) => void }) {
   const [pw, setPw] = useState("");
   const [shake, setShake] = useState(0);
-  const submit = (e: FormEvent) => {
+  const [checking, setChecking] = useState(false);
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (pw === ADMIN_PASSWORD) onUnlock();
-    else {
-      setShake((s) => s + 1);
-      setPw("");
+    if (!pw) return;
+    setChecking(true);
+    try {
+      if (await verifyAdminKey(pw)) onUnlock(pw);
+      else {
+        setShake((s) => s + 1);
+        setPw("");
+      }
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setChecking(false);
     }
   };
   return (
@@ -53,7 +60,7 @@ function Gate({ onUnlock }: { onUnlock: () => void }) {
           className={cn("input mt-6 text-center", shake > 0 && "border-loss/60")}
         />
         {shake > 0 && <p className="mt-2 text-xs text-loss">Incorrect password</p>}
-        <Button type="submit" variant="primary" className="mt-4 w-full">
+        <Button type="submit" variant="primary" className="mt-4 w-full" loading={checking}>
           Unlock
         </Button>
       </motion.form>
@@ -268,8 +275,8 @@ function MatchesAdmin({ data }: { data: Analytics }) {
 }
 
 export default function Admin() {
-  const [unlocked, setUnlocked] = useSessionState("fm-admin", false);
-  if (!unlocked) return <Gate onUnlock={() => setUnlocked(true)} />;
+  const [key, setKey] = useSessionState<string | null>(ADMIN_KEY_STORAGE, null);
+  if (!key) return <Gate onUnlock={setKey} />;
   return (
     <DataGate>
       {(data) => (
@@ -279,7 +286,7 @@ export default function Admin() {
             title="Control Room"
             description="Tune the rating system and clean up data. Changes apply for everyone immediately."
             actions={
-              <Button variant="ghost" onClick={() => setUnlocked(false)}>
+              <Button variant="ghost" onClick={() => setKey(null)}>
                 <LogOut className="size-4" /> Lock
               </Button>
             }

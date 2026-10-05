@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# Publish or update FIFA Manager on this server, next to the other sites behind Caddy:
+#   1. on first run, create $BASE/secrets.env (database password + admin key, never committed),
+#   2. build the web and api images and (re)start fifa_db, fifa_api and fifa_web (compose.public.yml),
+#   3. insert/refresh the site block (Caddyfile.fifa) in the shared Caddy config, validated first,
+#   4. reload Caddy without a restart (the other sites keep running) and smoke-test the public URL.
+# Usage: deploy/deploy.sh                publish or update (safe to re-run)
+#        deploy/deploy.sh --import FILE  load a plain SQL dump into the empty database, then publish
+#        deploy/deploy.sh --backup       write a compressed database dump to $BASE/backups
+#        deploy/deploy.sh --admin-key    print the key that unlocks the Admin page
+#        deploy/deploy.sh --remove       unpublish (removes the site block and containers; data stays)
+set -euo pipefail
+
+HERE=$(cd "$(dirname "$0")" && pwd)
+BASE=${FIFA_BASE:-/root/programs/fifa-app}
+SECRETS="$BASE/secrets.env"
+CADDYFILE=${CADDYFILE:-/root/programs/mlflow/caddy/Caddyfile}
+CADDY=${CADDY_CONTAINER:-mlflow_tls_proxy}
+BEGIN="# >>> fifa-app (managed by fifa-app/deploy/deploy.sh)"
+END="# <<< fifa-app"
+DOMAIN=$(awk '/^[^#[:space:]].*\{$/ {print $1; exit}' "$HERE/Caddyfile.fifa")
+export FIFA_BASE="$BASE"
+COMPOSE=(docker compose -f "$HERE/compose.public.yml" --env-file "$SECRETS")
+
+# current Caddyfile without our block
+without_block() { awk -v b="$BEGIN" -v e="$END" '$0==b{skip=1} !skip{print} $0==e{skip=0}' "$CADDYFILE" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}'; }
+
+install_caddyfile() {  # $1 = candidate content
+    local candidate=$1
+    # validate inside the Caddy container (same version and env) before touching the live file
+    printf '%s\n' "$candidate" | docker exec -i "$CADDY" sh -c 'cat > /tmp/Caddyfile.candidate'
+    docker exec "$CADDY" caddy validate --config /tmp/Caddyfile.candidate --adapter caddyfile >/dev/null
+    cp -p "$CADDYFILE" "$CADDYFILE.bak.$(date +%Y%m%d-%H%M%S)"
+    # write in place: the file is a single-file bind mount, replacing it (new inode) would hide it from Caddy
+    printf '%s\n' "$candidate" > "$CADDYFILE"
+    docker exec "$CADDY" caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+}
+
+ensure_secrets() {
+    mkdir -p "$BASE"
+    chmod 700 "$BASE"
+    if [ ! -s "$SECRETS" ]; then
+        (
+            umask 077
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)"
+            echo "ADMIN_KEY=$(openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | cut -c1-16)"
+        ) > "$SECRETS"
+        echo "==> created $SECRETS (database password and admin key)"
+    fi
+    # shellcheck disable=SC1090
+    source "$SECRETS"
+    # an empty key would make nginx accept requests that send no key at all
+    if [ -z "${POSTGRES_PASSWORD:-}" ] || [ "${#ADMIN_KEY}" -lt 12 ]; then
+        echo "$SECRETS must set POSTGRES_PASSWORD and an ADMIN_KEY of at least 12 characters."
+        exit 1
+    fi
+}
+
+wait_healthy() {  # $1 = container
+    for _ in $(seq 1 60); do
+        [ "$(docker inspect --format '{{.State.Health.Status}}' "$1" 2>/dev/null)" = healthy ] && return 0
+        sleep 2
+    done
+    echo "$1 did not become healthy"
+    docker logs --tail 40 "$1"
+    return 1
+}
+
+smoke_test() {
+    echo "==> checking https://$DOMAIN (the first request may wait for the certificate)"
+    for _ in $(seq 1 30); do
+        if curl -fsS --max-time 10 "https://$DOMAIN/api/clubs" 2>/dev/null | grep -q '"tier"'; then
+            # admin writes must be refused without the key
+            local code
+            code=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "https://$DOMAIN/api/admin/match/0")
+            [ "$code" = 401 ] || { echo "admin endpoint answered $code without a key (expected 401)"; return 1; }
+            echo "Live: https://$DOMAIN"
+            return 0
+        fi
+        sleep 2
+    done
+    echo "https://$DOMAIN is not answering yet; check: docker logs --tail 50 $CADDY"
+    return 1
+}
+
+IMPORT=""
+case "${1:-}" in
+    --admin-key)
+        ensure_secrets
+        echo "$ADMIN_KEY"
+        exit 0
+        ;;
+    --backup)
+        mkdir -p "$BASE/backups"
+        out="$BASE/backups/fifa_db-$(date +%Y%m%d-%H%M%S).sql.gz"
+        docker exec fifa_db pg_dump -U fifa --no-owner fifa_db | gzip > "$out"
+        echo "$out"
+        exit 0
+        ;;
+    --remove)
+        ensure_secrets
+        echo "==> removing the Caddy site block"
+        install_caddyfile "$(without_block)"
+        "${COMPOSE[@]}" down
+        echo "Unpublished $DOMAIN (data kept in $BASE)."
+        exit 0
+        ;;
+    --import)
+        IMPORT=${2:?usage: deploy/deploy.sh --import FILE}
+        [ -r "$IMPORT" ] || { echo "Cannot read $IMPORT"; exit 1; }
+        ;;
+    "") ;;
+    *)
+        sed -n '7,11p' "$0"
+        exit 2
+        ;;
+esac
+
+ensure_secrets
+
+if [ -n "$IMPORT" ]; then
+    echo "==> importing $IMPORT"
+    "${COMPOSE[@]}" up -d db
+    wait_healthy fifa_db
+    if [ -n "$(docker exec fifa_db psql -U fifa -d fifa_db -tAc "select to_regclass('public.matches')")" ]; then
+        echo "The database already has data; refusing to import over it."
+        exit 1
+    fi
+    docker exec -i fifa_db psql -v ON_ERROR_STOP=1 -q -U fifa -d fifa_db < "$IMPORT"
+fi
+
+echo "==> building images and (re)starting fifa_db, fifa_api, fifa_web"
+"${COMPOSE[@]}" up -d --build
+wait_healthy fifa_api
+wait_healthy fifa_web
+
+echo "==> installing the Caddy site block for $DOMAIN"
+install_caddyfile "$(without_block)
+
+$BEGIN
+$(cat "$HERE/Caddyfile.fifa")
+$END"
+
+smoke_test
