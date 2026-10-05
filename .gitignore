@@ -71,3 +71,9 @@ Thumbs.db
 # -------------------
 *.bak
 *.tmp
+
+# -------------------
+# Local data (never commit: contains user password hashes and tokens)
+# -------------------
+fifa-app-backup/
+deploy-local/

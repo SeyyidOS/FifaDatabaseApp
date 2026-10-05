@@ -1,0 +1,488 @@
+import { motion } from "motion/react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  ArrowRight,
+  CalendarDays,
+  Crown,
+  Flame,
+  Goal,
+  Handshake,
+  Medal,
+  Snowflake,
+  Sparkles,
+  Swords,
+  Target,
+  TrendingUp,
+  Trophy,
+  Users,
+  Zap,
+} from "lucide-react";
+import type { ReactNode } from "react";
+import { DataGate } from "../components/DataGate";
+import { EloRaceChart } from "../components/charts/EloCharts";
+import { PageHeader } from "../components/layout/AppShell";
+import { MatchCard } from "../components/match/MatchCard";
+import { PlayerCard } from "../components/PlayerCard";
+import { Avatar, ClubCrest } from "../components/ui/Identity";
+import {
+  AnimatedNumber,
+  Button,
+  Delta,
+  EmptyState,
+  FormPills,
+  Panel,
+  Pill,
+  RankMove,
+  Sparkline,
+} from "../components/ui/primitives";
+import type { Analytics } from "../hooks/analytics-context";
+import { cn } from "../lib/cn";
+import { dayFromKey, displayName, formatWeekday, relativeTime } from "../lib/format";
+import { nightSummary } from "../lib/insights";
+import { winRate, type ParsedMatch } from "../lib/stats";
+
+const fade = (i: number) => ({
+  initial: { opacity: 0, y: 14 },
+  animate: { opacity: 1, y: 0 },
+  transition: { delay: 0.05 * i, duration: 0.5, ease: [0.16, 1, 0.3, 1] as const },
+});
+
+function Kpi({
+  label,
+  value,
+  icon,
+  format,
+  hint,
+  i,
+}: {
+  label: string;
+  value: number;
+  icon: ReactNode;
+  format?: (n: number) => string;
+  hint?: ReactNode;
+  i: number;
+}) {
+  return (
+    <motion.div {...fade(i)} className="card p-4 sm:p-5">
+      <div className="flex items-center justify-between">
+        <span className="label">{label}</span>
+        <span className="text-faint">{icon}</span>
+      </div>
+      <AnimatedNumber value={value} format={format} className="display mt-3 block text-4xl sm:text-5xl" />
+      {hint && <p className="mt-1.5 truncate text-xs text-muted">{hint}</p>}
+    </motion.div>
+  );
+}
+
+function LeaderHero({ data }: { data: Analytics }) {
+  const navigate = useNavigate();
+  const leader = data.ranking.find((p) => !p.provisional) ?? data.ranking[0];
+  if (!leader) return null;
+  const s = leader.stats;
+  const second = data.ranking.find((p) => p.id !== leader.id && !p.provisional);
+  return (
+    <motion.section {...fade(0)} className="card sheen overflow-hidden lg:col-span-8">
+      <div className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-accent/10 blur-3xl" />
+      <div className="relative flex flex-col items-center gap-8 p-6 sm:p-8 md:flex-row md:items-center">
+        <div className="shrink-0">
+          <PlayerCard player={leader} size="md" />
+        </div>
+        <div className="min-w-0 flex-1 text-center md:text-left">
+          <Pill tone="accent" className="mb-4">
+            <Crown className="size-3" /> Top of the table
+          </Pill>
+          <h2 className="display text-5xl sm:text-6xl">{displayName(leader.name)}</h2>
+          <p className="mt-3 text-sm text-muted">
+            {second ? (
+              <>
+                Leads {displayName(second.name)} by{" "}
+                <span className="font-semibold text-fg">{leader.elo - second.elo} Elo</span>
+              </>
+            ) : (
+              "Leads the ratings"
+            )}
+            {s && (
+              <>
+                {" "}
+                · {s.wins}W {s.draws}D {s.losses}L · {winRate(s).toFixed(0)}% win rate
+              </>
+            )}
+          </p>
+          <div className="mt-6 grid grid-cols-3 gap-3">
+            <div className="rounded-xl border border-line bg-surface-2/60 p-3">
+              <p className="label">Elo</p>
+              <p className="display mt-1.5 text-3xl">
+                <AnimatedNumber value={leader.elo} />
+              </p>
+            </div>
+            <div className="rounded-xl border border-line bg-surface-2/60 p-3">
+              <p className="label">Peak</p>
+              <p className="display mt-1.5 text-3xl text-gold">{leader.peak}</p>
+            </div>
+            <div className="rounded-xl border border-line bg-surface-2/60 p-3">
+              <p className="label">Form</p>
+              <div className="mt-2.5">
+                <FormPills outcomes={s?.outcomes ?? []} size="sm" />
+              </div>
+            </div>
+          </div>
+          <div className="mt-6 flex flex-wrap justify-center gap-2 md:justify-start">
+            <Button variant="primary" onClick={() => navigate(`/players/${encodeURIComponent(leader.name)}`)}>
+              View profile <ArrowRight className="size-4" />
+            </Button>
+            {second && (
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  navigate(`/h2h?a=${encodeURIComponent(leader.name)}&b=${encodeURIComponent(second.name)}`)
+                }
+              >
+                <Swords className="size-4" /> vs {displayName(second.name)}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </motion.section>
+  );
+}
+
+function PowerRankings({ data }: { data: Analytics }) {
+  return (
+    <Panel
+      title="Power rankings"
+      subtitle="Elo · movement since last matchday"
+      icon={<TrendingUp className="size-4" />}
+      className="lg:col-span-4"
+      bodyClassName="px-2 pb-3 pt-3"
+      action={
+        <Link to="/leaderboard" className="text-xs font-medium text-muted hover:text-fg">
+          Full table
+        </Link>
+      }
+    >
+      <ol>
+        {data.ranking.map((p, i) => (
+          <motion.li key={p.id} {...fade(i + 2)}>
+            <Link
+              to={`/players/${encodeURIComponent(p.name)}`}
+              className="group flex items-center gap-3 rounded-xl px-3 py-2 transition-colors hover:bg-surface-2"
+            >
+              <span
+                className={cn(
+                  "display tabular w-5 text-center text-lg",
+                  p.rank === 1 ? "text-gold" : p.rank === 2 ? "text-silver" : p.rank === 3 ? "text-bronze" : "text-faint",
+                )}
+              >
+                {p.rank}
+              </span>
+              <Avatar name={p.name} size="sm" />
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1.5 truncate text-sm font-medium">
+                  {displayName(p.name)}
+                  {p.provisional && <span className="text-[10px] font-semibold text-faint">PROV</span>}
+                </span>
+              </span>
+              <Sparkline values={[1000, ...p.history.slice(-12).map((h) => h.elo)]} width={64} height={22} />
+              <span className="w-10 text-right">
+                <RankMove value={p.rankDelta} />
+              </span>
+              <span className="display tabular w-12 text-right text-xl">{p.elo}</span>
+            </Link>
+          </motion.li>
+        ))}
+      </ol>
+    </Panel>
+  );
+}
+
+function LastMatchday({ data }: { data: Analytics }) {
+  const day = data.matchdays[0];
+  if (!day)
+    return (
+      <Panel title="Last matchday" className="lg:col-span-7">
+        <EmptyState icon={<CalendarDays className="size-5" />} title="No matches yet" />
+      </Panel>
+    );
+  const summary = nightSummary(day, data.engine);
+  const mvp = summary[0];
+  const date = dayFromKey(day.key);
+  return (
+    <Panel
+      title={formatWeekday(date)}
+      subtitle={`Last matchday · ${relativeTime(day.matches[0].date)} · ${day.matches.length} matches · ${day.goals} goals`}
+      icon={<CalendarDays className="size-4" />}
+      className="lg:col-span-7"
+      action={
+        <Link to="/matches" className="text-xs font-medium text-muted hover:text-fg">
+          All matches
+        </Link>
+      }
+    >
+      {mvp && (
+        <div className="mb-4 flex items-center gap-4 rounded-2xl border border-accent/25 bg-accent/[0.06] p-4">
+          <Avatar name={mvp.name} size="lg" ring="accent" />
+          <div className="min-w-0 flex-1">
+            <p className="label text-accent-text">Player of the night</p>
+            <p className="display mt-1 text-2xl">{displayName(mvp.name)}</p>
+            <p className="text-xs text-muted">
+              {mvp.wins}/{mvp.played} wins
+            </p>
+          </div>
+          <div className="text-right">
+            <Delta value={mvp.delta} className="display text-3xl" />
+            <p className="text-[11px] text-faint">Elo</p>
+          </div>
+        </div>
+      )}
+      <div className="space-y-2">
+        {day.matches.slice(0, 5).map((m) => (
+          <MatchCard key={m.id} match={m} elo={data.engine.perMatch.get(m.id)} className="shadow-none" />
+        ))}
+      </div>
+      {summary.length > 1 && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {summary.map((s) => (
+            <span key={s.name} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 py-1 pl-1 pr-2.5 text-xs">
+              <Avatar name={s.name} size="xs" />
+              {displayName(s.name)}
+              <Delta value={s.delta} />
+            </span>
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+}
+
+function HotCold({ data }: { data: Analytics }) {
+  const streaks = data.ranking
+    .filter((p) => p.stats?.current && p.stats.current.count >= 2)
+    .map((p) => ({ p, s: p.stats!.current! }));
+  const hot = streaks.filter((x) => x.s.type === "W").sort((a, b) => b.s.count - a.s.count);
+  const cold = streaks.filter((x) => x.s.type === "L").sort((a, b) => b.s.count - a.s.count);
+  const row = (name: string, label: string, tone: "win" | "loss" | "draw", icon: ReactNode) => (
+    <Link
+      key={name + label}
+      to={`/players/${encodeURIComponent(name)}`}
+      className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-surface-2"
+    >
+      <Avatar name={name} size="sm" />
+      <span className="flex-1 text-sm font-medium">{displayName(name)}</span>
+      <Pill tone={tone}>
+        {icon} {label}
+      </Pill>
+    </Link>
+  );
+  const formTable = [...data.ranking]
+    .filter((p) => (p.stats?.outcomes.length ?? 0) >= 3)
+    .map((p) => ({
+      p,
+      pts: p.stats!.outcomes.slice(0, 5).reduce((a, o) => a + (o === "W" ? 3 : o === "D" ? 1 : 0), 0),
+    }))
+    .sort((a, b) => b.pts - a.pts);
+
+  return (
+    <Panel title="Hot & cold" subtitle="Current streaks and form" icon={<Flame className="size-4" />} className="lg:col-span-5">
+      <div className="space-y-1">
+        {hot.map(({ p, s }) => row(p.name, `${s.count} wins`, "win", <Flame className="size-3" />))}
+        {cold.map(({ p, s }) => row(p.name, `${s.count} losses`, "loss", <Snowflake className="size-3" />))}
+        {!hot.length && !cold.length && <p className="px-2 py-3 text-sm text-muted">No active streaks right now.</p>}
+      </div>
+      <div className="hairline my-4" />
+      <p className="label mb-3">Form table · last 5</p>
+      <div className="space-y-2.5">
+        {formTable.slice(0, 6).map(({ p, pts }) => (
+          <div key={p.id} className="flex items-center gap-3">
+            <Avatar name={p.name} size="xs" />
+            <span className="w-20 truncate text-sm">{displayName(p.name)}</span>
+            <FormPills outcomes={p.stats!.outcomes} size="sm" />
+            <span className="ml-auto display tabular text-lg">{pts}</span>
+            <span className="text-[10px] text-faint">PTS</span>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+}
+
+function RecordTile({
+  icon,
+  label,
+  title,
+  detail,
+  to,
+  i,
+}: {
+  icon: ReactNode;
+  label: string;
+  title: ReactNode;
+  detail: ReactNode;
+  to?: string;
+  i: number;
+}) {
+  const body = (
+    <motion.div {...fade(i)} className="card card-hover h-full p-5">
+      <div className="flex items-center gap-2 text-accent-text">
+        {icon}
+        <span className="label text-accent-text">{label}</span>
+      </div>
+      <div className="mt-3 text-lg font-semibold">{title}</div>
+      <div className="mt-1 text-xs text-muted">{detail}</div>
+    </motion.div>
+  );
+  return to ? <Link to={to}>{body}</Link> : body;
+}
+
+const scoreline = (m: ParsedMatch) => (
+  <span className="inline-flex items-center gap-2">
+    <ClubCrest name={m.clubA} size="xs" />
+    <span className="tabular">
+      {m.scoreA}–{m.scoreB}
+    </span>
+    <ClubCrest name={m.clubB} size="xs" />
+  </span>
+);
+
+function Records({ data }: { data: Analytics }) {
+  const r = data.records;
+  const teams = (m: ParsedMatch) =>
+    `${m.teamA.map(displayName).join(" & ")} vs ${m.teamB.map(displayName).join(" & ")}`;
+  return (
+    <section>
+      <div className="mb-4 flex items-center gap-2">
+        <Medal className="size-4 text-gold" />
+        <h2 className="text-[15px] font-semibold">Hall of records</h2>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {r.biggestWin && (
+          <RecordTile i={1} icon={<Target className="size-4" />} label="Biggest win" title={scoreline(r.biggestWin)} detail={teams(r.biggestWin)} />
+        )}
+        {r.goalFest && (
+          <RecordTile
+            i={2}
+            icon={<Goal className="size-4" />}
+            label="Goal fest"
+            title={
+              <>
+                {scoreline(r.goalFest)}{" "}
+                <span className="text-sm text-muted">· {r.goalFest.scoreA + r.goalFest.scoreB} goals</span>
+              </>
+            }
+            detail={teams(r.goalFest)}
+          />
+        )}
+        {r.longestWinStreak && (
+          <RecordTile
+            i={3}
+            icon={<Flame className="size-4" />}
+            label="Longest win streak"
+            to={`/players/${encodeURIComponent(r.longestWinStreak.name)}`}
+            title={
+              <span className="flex items-center gap-2">
+                <Avatar name={r.longestWinStreak.name} size="sm" /> {displayName(r.longestWinStreak.name)}
+              </span>
+            }
+            detail={`${r.longestWinStreak.count} wins in a row`}
+          />
+        )}
+        {r.longestUnbeaten && (
+          <RecordTile
+            i={4}
+            icon={<Zap className="size-4" />}
+            label="Longest unbeaten run"
+            to={`/players/${encodeURIComponent(r.longestUnbeaten.name)}`}
+            title={
+              <span className="flex items-center gap-2">
+                <Avatar name={r.longestUnbeaten.name} size="sm" /> {displayName(r.longestUnbeaten.name)}
+              </span>
+            }
+            detail={`${r.longestUnbeaten.count} matches without defeat`}
+          />
+        )}
+        {r.bestDuo && (
+          <RecordTile
+            i={5}
+            icon={<Handshake className="size-4" />}
+            label="Deadliest duo"
+            title={
+              <span className="flex items-center gap-2">
+                <span className="flex -space-x-2">
+                  {r.bestDuo.names.map((n) => (
+                    <Avatar key={n} name={n} size="sm" className="ring-2 ring-surface" />
+                  ))}
+                </span>
+                {r.bestDuo.names.map(displayName).join(" & ")}
+              </span>
+            }
+            detail={`${winRate(r.bestDuo).toFixed(0)}% wins · ${r.bestDuo.wins}W ${r.bestDuo.draws}D ${r.bestDuo.losses}L`}
+          />
+        )}
+        {r.busiestNight && (
+          <RecordTile
+            i={6}
+            icon={<Sparkles className="size-4" />}
+            label="Marathon night"
+            title={formatWeekday(dayFromKey(r.busiestNight.key))}
+            detail={`${r.busiestNight.matches.length} matches · ${r.busiestNight.goals} goals`}
+          />
+        )}
+      </div>
+    </section>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <DataGate>
+      {(data) => {
+        const goals = data.parsed.reduce((a, m) => a + m.scoreA + m.scoreB, 0);
+        const matches = data.parsed.length;
+        const top = data.ranking.slice(0, 6).map((p) => ({ name: p.name, history: p.history }));
+        return (
+          <div className="space-y-6">
+            <PageHeader
+              eyebrow="Season overview"
+              title="The Pitch"
+              description="Ratings, streaks and stories from every FIFA night."
+            />
+
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+              <Kpi i={1} label="Matches" value={matches} icon={<Trophy className="size-4" />} hint={`${data.matchdays.length} matchdays`} />
+              <Kpi i={2} label="Goals" value={goals} icon={<Goal className="size-4" />} hint={`${data.parsed.filter((m) => m.result === "D").length} draws`} />
+              <Kpi
+                i={3}
+                label="Goals / match"
+                value={matches ? goals / matches : 0}
+                format={(n) => n.toFixed(2)}
+                icon={<Target className="size-4" />}
+                hint="Both sides combined"
+              />
+              <Kpi i={4} label="Players" value={data.players.length} icon={<Users className="size-4" />} hint={`K-factor ${data.k}`} />
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-12">
+              <LeaderHero data={data} />
+              <PowerRankings data={data} />
+            </div>
+
+            <Panel
+              title="The race"
+              subtitle="Elo after every matchday · hover a name to focus, click to hide"
+              icon={<TrendingUp className="size-4" />}
+            >
+              <EloRaceChart series={top} />
+            </Panel>
+
+            <div className="grid gap-4 lg:grid-cols-12">
+              <LastMatchday data={data} />
+              <HotCold data={data} />
+            </div>
+
+            <Records data={data} />
+          </div>
+        );
+      }}
+    </DataGate>
+  );
+}
