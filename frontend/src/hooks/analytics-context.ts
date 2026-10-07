@@ -1,4 +1,5 @@
 import { createContext } from "react";
+import type { Appearance, DuoProfile, EloDna } from "../lib/analysis";
 import type { EloEngine, EloPoint } from "../lib/elo";
 import type { Matchday, ParsedMatch, PlayerStats, Records } from "../lib/stats";
 import type { Club, Match, Player } from "../lib/types";
@@ -35,6 +36,11 @@ export interface Analytics {
   eloByName: Map<string, number>;
   matchdays: Matchday[];
   records: Records;
+  /** every player's matches with the odds and Elo around them, oldest first */
+  appearances: Map<string, Appearance[]>;
+  /** how each player earns their Elo */
+  dna: Map<string, EloDna>;
+  duos: DuoProfile[];
   k: number;
 }
 

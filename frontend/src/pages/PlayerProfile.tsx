@@ -1,8 +1,11 @@
 import { motion } from "motion/react";
 import { useState, type ReactNode } from "react";
 import { Navigate, useParams } from "react-router-dom";
-import { ArrowLeft, Flame, HeartHandshake, Shield, Skull, Swords, Target, TrendingUp, Trophy } from "lucide-react";
+import { ArrowLeft, Crosshair, Flame, HeartHandshake, Shield, Skull, Swords, Target, TrendingUp, Trophy } from "lucide-react";
+import { MatchMapChart } from "../components/charts/InsightCharts";
 import { DataGate } from "../components/DataGate";
+import { EloDnaPanel } from "../components/insights/EloDnaPanel";
+import { RecordStrip } from "../components/insights/RecordStrip";
 import { PlayerEloChart } from "../components/charts/EloCharts";
 import { MatchCard } from "../components/match/MatchCard";
 import { PlayerCard } from "../components/PlayerCard";
@@ -10,6 +13,7 @@ import { Avatar, ClubCrest } from "../components/ui/Identity";
 import { AnimatedNumber, Button, Delta, FormPills, Panel, Pill, ProgressBar, RankMove } from "../components/ui/primitives";
 import type { Analytics, RankedPlayer } from "../hooks/analytics-context";
 import { cn } from "../lib/cn";
+import { vsDuosOf } from "../lib/analysis";
 import { cleanName, displayName, relativeTime } from "../lib/format";
 import { winRate, type Tally } from "../lib/stats";
 import { BoardLink } from "../components/board/BoardLink";
@@ -87,6 +91,9 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
   const key = cleanName(player.name);
   const matches = data.parsed.filter((m) => m.teamA.includes(key) || m.teamB.includes(key));
 
+  const apps = data.appearances.get(key) ?? [];
+  const dna = data.dna.get(key);
+  const vsDuos = vsDuosOf(apps);
   const partnerBest = pickExtreme(s?.teammates, true);
   const partnerWorst = pickExtreme(s?.teammates, false);
   const victim = pickExtreme(s?.opponents, true);
@@ -185,6 +192,53 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
           />
         </Panel>
       </div>
+
+      {dna && apps.length > 0 && (
+        <div className="grid gap-6 lg:grid-cols-12">
+          <EloDnaPanel dna={dna} name={player.name} className="lg:col-span-7" />
+          <div className="min-w-0 space-y-6 lg:col-span-5">
+            <Panel
+              title="Match map"
+              subtitle="Each dot is a match: win probability before kick-off vs Elo won or lost"
+              icon={<Crosshair className="size-4" />}
+            >
+              <MatchMapChart apps={apps} />
+              <div className="mt-3 flex justify-center gap-4 text-[11px] text-muted">
+                {(["Win", "Draw", "Loss"] as const).map((l, i) => (
+                  <span key={l} className="inline-flex items-center gap-1.5">
+                    <span className="size-2 rounded-full" style={{ background: ["var(--win)", "var(--draw)", "var(--loss)"][i] }} />
+                    {l}
+                  </span>
+                ))}
+              </div>
+            </Panel>
+            <Panel title="Against duos" subtitle="Record against each pair faced" icon={<Swords className="size-4" />}>
+              {vsDuos.length ? (
+                <ul className="space-y-2.5">
+                  {vsDuos.slice(0, 8).map((v) => (
+                    <li key={v.key} className="flex items-center gap-3">
+                      <BoardLink
+                        to={`/insights?duo=${encodeURIComponent(v.key)}`}
+                        className="flex w-36 min-w-0 items-center gap-2 hover:text-accent-text sm:w-44"
+                      >
+                        <span className="flex shrink-0 -space-x-2">
+                          {v.names.map((n) => (
+                            <Avatar key={n} name={n} size="xs" className="ring-2 ring-surface" />
+                          ))}
+                        </span>
+                        <span className="truncate text-sm">{v.names.map(displayName).join(" & ")}</span>
+                      </BoardLink>
+                      <RecordStrip record={v.record} className="flex-1" />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted">No duos faced yet.</p>
+              )}
+            </Panel>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <RelationCard title="Best partner" icon={<HeartHandshake className="size-4" />} name={partnerBest?.[0]} record={partnerBest?.[1]} tone="win" caption="together" />

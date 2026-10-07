@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from "react";
+import { buildAppearances, duoProfiles, eloDna } from "../lib/analysis";
 import { INITIAL_ELO, runElo } from "../lib/elo";
 import { cleanName } from "../lib/format";
 import { computePlayerStats, computeRecords, groupMatchdays, parseMatches } from "../lib/stats";
@@ -67,6 +68,8 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     // archived players are not ranked, but their profiles stay reachable from old matches
     const everyone = [...ranking, ...players.data.filter((p) => p.archived).map((p) => describe(p, 0))];
 
+    const appearances = buildAppearances(parsed, engine);
+
     return {
       players: players.data,
       clubs: clubs.data,
@@ -79,6 +82,9 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
       eloByName: new Map(everyone.map((r) => [cleanName(r.name), r.elo])),
       matchdays,
       records: computeRecords(parsed, stats),
+      appearances,
+      dna: new Map([...appearances].map(([name, apps]) => [name, eloDna(apps)])),
+      duos: duoProfiles(appearances),
       k,
     };
   }, [players.data, clubs.data, matches.data, settings.data]);

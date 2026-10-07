@@ -4,6 +4,7 @@ import {
   CalendarDays,
   Crown,
   Flame,
+  FlaskConical,
   Goal,
   Handshake,
   Medal,
@@ -16,11 +17,12 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { DataGate } from "../components/DataGate";
 import { EloRaceChart } from "../components/charts/EloCharts";
 import { PageHeader } from "../components/layout/AppShell";
 import { MatchCard } from "../components/match/MatchCard";
+import { AwardCard } from "../components/insights/AwardCard";
 import { PlayerCard } from "../components/PlayerCard";
 import { Avatar, ClubCrest } from "../components/ui/Identity";
 import {
@@ -37,6 +39,7 @@ import {
 import type { Analytics } from "../hooks/analytics-context";
 import { cn } from "../lib/cn";
 import { dayFromKey, displayName, formatWeekday, relativeTime } from "../lib/format";
+import { computeAwards } from "../lib/analysis";
 import { nightSummary } from "../lib/insights";
 import { winRate, type ParsedMatch } from "../lib/stats";
 import { BoardLink } from "../components/board/BoardLink";
@@ -469,6 +472,29 @@ function GettingStarted({ players }: { players: number }) {
   );
 }
 
+function FromTheLab({ data }: { data: Analytics }) {
+  const awards = useMemo(() => computeAwards(data.dna, data.ranking.map((p) => p.name)), [data]);
+  if (data.parsed.length < 10 || !awards.length) return null;
+  return (
+    <section>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <FlaskConical className="size-4 text-accent-text" />
+          <h2 className="text-[15px] font-semibold">From the lab</h2>
+        </div>
+        <BoardLink to="/insights" className="inline-flex items-center gap-1 text-xs font-medium text-muted hover:text-fg">
+          All awards, Elo DNA & duo matchups <ArrowRight className="size-3.5" />
+        </BoardLink>
+      </div>
+      <div className="grid gap-4 [perspective:1000px] sm:grid-cols-2 xl:grid-cols-4">
+        {awards.slice(0, 4).map((a, i) => (
+          <AwardCard key={a.key} award={a} index={i} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function Dashboard() {
   return (
     <DataGate>
@@ -518,6 +544,8 @@ export default function Dashboard() {
             </div>
 
             <Records data={data} />
+
+            <FromTheLab data={data} />
           </div>
         );
       }}

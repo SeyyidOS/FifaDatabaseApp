@@ -3,6 +3,7 @@ import {
   Gamepad2,
   LayoutDashboard,
   Settings,
+  Sparkles,
   Swords,
   Trophy,
   Users,
@@ -25,5 +26,6 @@ export const NAV: NavItem[] = [
   { to: "/matches", label: "Matches", short: "Matches", icon: CalendarDays, description: "Every result, night by night" },
   { to: "/players", label: "Players", short: "Players", icon: Users, description: "Profiles, ratings and rivalries" },
   { to: "/h2h", label: "Head to Head", short: "H2H", icon: Swords, description: "Compare any two players" },
+  { to: "/insights", label: "Insights", short: "Insights", icon: Sparkles, description: "Awards, Elo DNA and duo matchups" },
   { to: "/settings", label: "Settings", short: "Settings", icon: Settings, description: "Invite friends, passwords, players and matches" },
 ];

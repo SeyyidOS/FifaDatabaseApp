@@ -63,9 +63,9 @@ export interface Tally {
   ga: number;
 }
 
-const emptyTally = (): Tally => ({ played: 0, wins: 0, draws: 0, losses: 0, gf: 0, ga: 0 });
+export const emptyTally = (): Tally => ({ played: 0, wins: 0, draws: 0, losses: 0, gf: 0, ga: 0 });
 
-function addResult(r: Tally, o: Outcome, gf: number, ga: number) {
+export function addResult(r: Tally, o: Outcome, gf: number, ga: number) {
   r.played++;
   if (o === "W") r.wins++;
   else if (o === "D") r.draws++;

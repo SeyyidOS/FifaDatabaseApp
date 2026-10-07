@@ -91,7 +91,7 @@ export function Panel({
             )}
             <div className="min-w-0">
               {title && <h2 className="truncate text-[15px] font-semibold tracking-tight">{title}</h2>}
-              {subtitle && <p className="mt-0.5 truncate text-xs text-muted">{subtitle}</p>}
+              {subtitle && <p className="mt-0.5 line-clamp-2 text-xs text-muted">{subtitle}</p>}
             </div>
           </div>
           {action}
