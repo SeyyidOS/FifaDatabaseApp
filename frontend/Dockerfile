@@ -1,5 +1,5 @@
 # Production image: build the SPA, then serve it with nginx, which also proxies /api to the backend
-# and enforces the admin key on destructive endpoints (see nginx/default.conf.template).
+# (see nginx/default.conf.template).
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./

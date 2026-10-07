@@ -34,14 +34,20 @@ services:
       db:
         condition: service_healthy
     environment:
-      ENV: local
       DB_HOST: fifa_db
       DB_PORT: "5432"
       DB_NAME: fifa_db
       DB_USER: fifa
       DB_PASS: ${POSTGRES_PASSWORD:?set in secrets.env}
+      SECRET_KEY: ${SECRET_KEY:?set in secrets.env}
+      ADMIN_KEY: ${ADMIN_KEY:?set in secrets.env}
+      # only used once, when data from before boards existed becomes the "main" board
+      LEGACY_BOARD_PASSWORD: ${LEGACY_BOARD_PASSWORD:-}
+      LEGACY_BOARD_ADMIN_PASSWORD: ${LEGACY_BOARD_ADMIN_PASSWORD:-}
+      APP_TIMEZONE: Europe/Istanbul
+      CORS_ORIGINS: https://fifa.173.249.40.69.sslip.io
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/clubs', timeout=3)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)"]
       interval: 30s
       timeout: 5s
       start_period: 10s
@@ -66,8 +72,7 @@ services:
         condition: service_healthy
     environment:
       API_UPSTREAM: fifa_api:8080
-      ADMIN_KEY: ${ADMIN_KEY:?set in secrets.env}
-      NGINX_ENVSUBST_FILTER: "^(API_UPSTREAM|ADMIN_KEY)$"
+      NGINX_ENVSUBST_FILTER: "^API_UPSTREAM$"
     mem_limit: 128m
     cpus: 0.5
     security_opt: ["no-new-privileges:true"]

@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # Publish or update FIFA Manager on this server, next to the other sites behind Caddy:
-#   1. on first run, create $BASE/secrets.env (database password + admin key, never committed),
-#   2. build the web and api images and (re)start fifa_db, fifa_api and fifa_web (compose.public.yml),
+#   1. create any missing secrets in $BASE/secrets.env (never committed),
+#   2. back up the database, then build the images and (re)start fifa_db, fifa_api and fifa_web
+#      (compose.public.yml); the API applies pending schema migrations when it starts,
 #   3. insert/refresh the site block (Caddyfile.fifa) in the shared Caddy config, validated first,
 #   4. reload Caddy without a restart (the other sites keep running) and smoke-test the public URL.
 # Usage: deploy/deploy.sh                publish or update (safe to re-run)
 #        deploy/deploy.sh --import FILE  load a plain SQL dump into the empty database, then publish
 #        deploy/deploy.sh --backup       write a compressed database dump to $BASE/backups
-#        deploy/deploy.sh --admin-key    print the key that unlocks the Admin page
+#        deploy/deploy.sh --passwords    print the first passwords of the "main" board
+#        deploy/deploy.sh --admin-key    print the server admin key (admin on every board)
 #        deploy/deploy.sh --remove       unpublish (removes the site block and containers; data stays)
 set -euo pipefail
 
@@ -36,24 +38,37 @@ install_caddyfile() {  # $1 = candidate content
     docker exec "$CADDY" caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
 }
 
+random_text() { openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | cut -c1-"$1"; }
+
+ensure_secret() {  # $1 = name, $2 = value to store if it is missing
+    grep -q "^$1=" "$SECRETS" 2>/dev/null && return 0
+    (umask 077 && echo "$1=$2" >> "$SECRETS")
+    echo "==> added $1 to $SECRETS"
+}
+
 ensure_secrets() {
     mkdir -p "$BASE"
     chmod 700 "$BASE"
-    if [ ! -s "$SECRETS" ]; then
-        (
-            umask 077
-            echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)"
-            echo "ADMIN_KEY=$(openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | cut -c1-16)"
-        ) > "$SECRETS"
-        echo "==> created $SECRETS (database password and admin key)"
-    fi
+    ensure_secret POSTGRES_PASSWORD "$(openssl rand -hex 24)"
+    ensure_secret ADMIN_KEY "$(random_text 16)"
+    ensure_secret SECRET_KEY "$(openssl rand -hex 32)"          # signs the device tokens
+    ensure_secret LEGACY_BOARD_PASSWORD "$(random_text 10)"     # first passwords of the "main" board
+    ensure_secret LEGACY_BOARD_ADMIN_PASSWORD "$(random_text 12)"
+    chmod 600 "$SECRETS"
     # shellcheck disable=SC1090
     source "$SECRETS"
-    # an empty key would make nginx accept requests that send no key at all
-    if [ -z "${POSTGRES_PASSWORD:-}" ] || [ "${#ADMIN_KEY}" -lt 12 ]; then
-        echo "$SECRETS must set POSTGRES_PASSWORD and an ADMIN_KEY of at least 12 characters."
+    if [ -z "${POSTGRES_PASSWORD:-}" ] || [ "${#ADMIN_KEY}" -lt 12 ] || [ "${#SECRET_KEY}" -lt 32 ]; then
+        echo "$SECRETS must set POSTGRES_PASSWORD, ADMIN_KEY (12+ characters) and SECRET_KEY (32+ characters)."
         exit 1
     fi
+}
+
+backup() {
+    mkdir -p "$BASE/backups"
+    local out
+    out="$BASE/backups/fifa_db-$(date +%Y%m%d-%H%M%S).sql.gz"
+    docker exec fifa_db pg_dump -U fifa --no-owner fifa_db | gzip > "$out"
+    echo "$out"
 }
 
 wait_healthy() {  # $1 = container
@@ -70,10 +85,10 @@ smoke_test() {
     echo "==> checking https://$DOMAIN (the first request may wait for the certificate)"
     for _ in $(seq 1 30); do
         if curl -fsS --max-time 10 "https://$DOMAIN/api/clubs" 2>/dev/null | grep -q '"tier"'; then
-            # admin writes must be refused without the key
+            # board data must never be served without signing in
             local code
-            code=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE "https://$DOMAIN/api/admin/match/0")
-            [ "$code" = 401 ] || { echo "admin endpoint answered $code without a key (expected 401)"; return 1; }
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://$DOMAIN/api/boards/main/players")
+            [ "$code" = 401 ] || [ "$code" = 404 ] || { echo "board data answered $code without a token"; return 1; }
             echo "Live: https://$DOMAIN"
             return 0
         fi
@@ -90,11 +105,16 @@ case "${1:-}" in
         echo "$ADMIN_KEY"
         exit 0
         ;;
+    --passwords)
+        ensure_secrets
+        echo "Main board (https://$DOMAIN/#/b/main), as first set up:"
+        echo "  board password: $LEGACY_BOARD_PASSWORD"
+        echo "  admin password: $LEGACY_BOARD_ADMIN_PASSWORD"
+        echo "If an admin changed them in Settings since, the new ones apply."
+        exit 0
+        ;;
     --backup)
-        mkdir -p "$BASE/backups"
-        out="$BASE/backups/fifa_db-$(date +%Y%m%d-%H%M%S).sql.gz"
-        docker exec fifa_db pg_dump -U fifa --no-owner fifa_db | gzip > "$out"
-        echo "$out"
+        backup
         exit 0
         ;;
     --remove)
@@ -111,7 +131,7 @@ case "${1:-}" in
         ;;
     "") ;;
     *)
-        sed -n '7,11p' "$0"
+        sed -n '8,13p' "$0"
         exit 2
         ;;
 esac
@@ -127,6 +147,10 @@ if [ -n "$IMPORT" ]; then
         exit 1
     fi
     docker exec -i fifa_db psql -v ON_ERROR_STOP=1 -q -U fifa -d fifa_db < "$IMPORT"
+fi
+
+if [ "$(docker inspect --format '{{.State.Running}}' fifa_db 2>/dev/null)" = true ]; then
+    echo "==> backing up the database before anything changes: $(backup)"
 fi
 
 echo "==> building images and (re)starting fifa_db, fifa_api, fifa_web"

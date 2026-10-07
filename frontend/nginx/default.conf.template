@@ -1,22 +1,5 @@
-# Rendered at container start by the nginx image's envsubst step (only ${API_UPSTREAM} and
-# ${ADMIN_KEY} are substituted; nginx's own $variables are left alone).
-
-# Writes to /api/admin/* and /api/settings/* need the X-Admin-Key header; reads stay public.
-map $http_x_admin_key $admin_ok {
-    default 0;
-    "${ADMIN_KEY}" 1;
-}
-map $request_method $is_read {
-    default 0;
-    GET 1;
-    HEAD 1;
-}
-map "$is_read$admin_ok" $admin_allowed {
-    default 0;
-    "10" 1;
-    "11" 1;
-    "01" 1;
-}
+# Rendered at container start by the nginx image's envsubst step (only ${API_UPSTREAM} is
+# substituted; nginx's own $variables are left alone). The API itself checks the admin key.
 
 server {
     listen 8080;
@@ -28,24 +11,6 @@ server {
     location = /healthz {
         access_log off;
         return 200 "ok\n";
-    }
-
-    # Lets the Admin page check a key without changing anything.
-    location = /api/admin/verify {
-        if ($admin_ok = 0) {
-            return 401;
-        }
-        return 204;
-    }
-
-    location ~ ^/api/(admin|settings)/ {
-        if ($admin_allowed = 0) {
-            return 401;
-        }
-        rewrite ^/api/(.*)$ /$1 break;
-        proxy_pass http://${API_UPSTREAM};
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 
     location /api/ {
