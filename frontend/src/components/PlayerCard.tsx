@@ -155,7 +155,7 @@ export function PlayerCard({
                 {ovr}
               </span>
               <span className="display mt-1" style={{ fontSize: 15 * scale, color: t.sub }}>
-                #{player.rank}
+                {player.rank ? `#${player.rank}` : "—"}
               </span>
               <span className="my-1.5 block h-px w-6" style={{ background: t.line }} />
               {club && <ClubCrest name={club} size={size === "lg" ? "md" : "sm"} />}

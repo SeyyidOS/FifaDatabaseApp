@@ -23,10 +23,21 @@ export function AddPlayer({
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    const n = name.trim().toLowerCase();
+    const n = name.split(/\s+/).filter(Boolean).join(" ").toLowerCase();
     if (!n) return;
-    if (players.some((p) => p.name.toLowerCase() === n)) {
-      toast.error(`${displayName(n)} is already on the roster`);
+    // same rule as the API (backend/schemas.py); "&" joins the names of a duo
+    if (!/^[\p{L}\p{N}_][\p{L}\p{N}_ .'-]*$/u.test(n)) {
+      toast.error("Use letters and numbers", { description: "Spaces, dots, dashes and apostrophes are fine too." });
+      return;
+    }
+    const existing = players.find((p) => p.name.toLowerCase() === n);
+    if (existing) {
+      toast.error(
+        existing.archived
+          ? `${displayName(n)} is archived`
+          : `${displayName(n)} is already on the roster`,
+        existing.archived ? { description: "An admin can restore them in Settings." } : undefined,
+      );
       return;
     }
     try {
@@ -58,7 +69,7 @@ export function AddPlayer({
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
               placeholder="Player name"
-              maxLength={100}
+              maxLength={30}
               className="input h-9 w-40"
             />
             <Button type="submit" size="icon" variant="primary" loading={add.isPending} aria-label="Add">

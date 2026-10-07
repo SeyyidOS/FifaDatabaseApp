@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from "react";
 import { INITIAL_ELO, runElo } from "../lib/elo";
 import { cleanName } from "../lib/format";
 import { computePlayerStats, computeRecords, groupMatchdays, parseMatches } from "../lib/stats";
+import type { Player } from "../lib/types";
 import {
   AnalyticsContext,
   PROVISIONAL_GAMES,
@@ -9,13 +10,13 @@ import {
   type AnalyticsState,
   type RankedPlayer,
 } from "./analytics-context";
-import { useClubs, useEloSettings, useMatches, usePlayers } from "./useData";
+import { useClubs, useMatches, useMe, usePlayers } from "./useData";
 
 export function AnalyticsProvider({ children }: { children: ReactNode }) {
   const players = usePlayers();
   const clubs = useClubs();
   const matches = useMatches();
-  const settings = useEloSettings();
+  const settings = useMe();
 
   const data = useMemo<Analytics | null>(() => {
     if (!players.data || !clubs.data || !matches.data || !settings.data) return null;
@@ -36,30 +37,35 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
         )
       : engine;
 
+    // archived players keep shaping everyone's history, but leave the rankings
+    const active = players.data.filter((p) => !p.archived);
     const order = (ratings: Map<number, number>) =>
-      [...players.data]
+      [...active]
         .sort((a, b) => (ratings.get(b.id) ?? INITIAL_ELO) - (ratings.get(a.id) ?? INITIAL_ELO))
         .map((p) => p.id);
     const prevRank = new Map(order(before.ratings).map((id, i) => [id, i + 1]));
 
-    const ranking: RankedPlayer[] = order(engine.ratings).map((id, i) => {
-      const p = players.data.find((x) => x.id === id)!;
-      const elo = Math.round(engine.ratings.get(id) ?? INITIAL_ELO);
-      const history = engine.history.get(id) ?? [];
+    const describe = (p: Player, rank: number): RankedPlayer => {
+      const elo = Math.round(engine.ratings.get(p.id) ?? INITIAL_ELO);
+      const history = engine.history.get(p.id) ?? [];
       const s = stats.get(cleanName(p.name));
       return {
-        id,
+        id: p.id,
         name: p.name,
         elo,
-        rank: i + 1,
-        rankDelta: (prevRank.get(id) ?? i + 1) - (i + 1),
-        eloDelta: elo - Math.round(before.ratings.get(id) ?? INITIAL_ELO),
+        rank,
+        rankDelta: rank ? (prevRank.get(p.id) ?? rank) - rank : 0,
+        eloDelta: elo - Math.round(before.ratings.get(p.id) ?? INITIAL_ELO),
         peak: Math.round(Math.max(INITIAL_ELO, ...history.map((h) => h.elo))),
         provisional: (s?.played ?? 0) < PROVISIONAL_GAMES,
+        archived: p.archived,
         history,
         stats: s,
       };
-    });
+    };
+    const ranking = order(engine.ratings).map((id, i) => describe(players.data.find((x) => x.id === id)!, i + 1));
+    // archived players are not ranked, but their profiles stay reachable from old matches
+    const everyone = [...ranking, ...players.data.filter((p) => p.archived).map((p) => describe(p, 0))];
 
     return {
       players: players.data,
@@ -69,8 +75,8 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
       engine,
       stats,
       ranking,
-      byName: new Map(ranking.map((r) => [cleanName(r.name), r])),
-      eloByName: new Map(ranking.map((r) => [cleanName(r.name), r.elo])),
+      byName: new Map(everyone.map((r) => [cleanName(r.name), r])),
+      eloByName: new Map(everyone.map((r) => [cleanName(r.name), r.elo])),
       matchdays,
       records: computeRecords(parsed, stats),
       k,

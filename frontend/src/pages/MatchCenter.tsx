@@ -24,6 +24,7 @@ import { Avatar, ClubCrest } from "../components/ui/Identity";
 import { Button, Delta, EmptyState, Panel, Pill, Segmented, Switch } from "../components/ui/primitives";
 import type { Analytics } from "../hooks/analytics-context";
 import { useAddMatch } from "../hooks/useData";
+import { useBoard } from "../hooks/useBoard";
 import { useSessionState } from "../hooks/useSessionState";
 import { choiceName, type ClubChoice } from "../lib/clubChoice";
 import { cn } from "../lib/cn";
@@ -299,17 +300,19 @@ function ScoreRow({
 /* ---------------------------------- Page ----------------------------------- */
 
 function MatchCenterInner({ data }: { data: Analytics }) {
+  // drafts are per board: names can repeat across boards
+  const { slug } = useBoard();
   const allNames = useMemo(() => data.ranking.map((p) => p.name), [data.ranking]);
-  const [absent, setAbsent] = useSessionState<string[]>("mc-absent", []);
-  const [mode, setMode] = useSessionState<TeamMode>("mc-mode", "2v2");
-  const [balance, setBalance] = useSessionState("mc-balance", true);
-  const [teamARaw, setTeamA] = useSessionState<string[]>("mc-team-a", []);
-  const [teamBRaw, setTeamB] = useSessionState<string[]>("mc-team-b", []);
-  const [clubA, setClubA] = useSessionState<ClubChoice>("mc-club-a", null);
-  const [clubB, setClubB] = useSessionState<ClubChoice>("mc-club-b", null);
-  const [margin, setMargin] = useSessionState("mc-margin", 75);
-  const [scoreA, setScoreA] = useSessionState("mc-score-a", 0);
-  const [scoreB, setScoreB] = useSessionState("mc-score-b", 0);
+  const [absent, setAbsent] = useSessionState<string[]>(`${slug}:mc-absent`, []);
+  const [mode, setMode] = useSessionState<TeamMode>(`${slug}:mc-mode`, "2v2");
+  const [balance, setBalance] = useSessionState(`${slug}:mc-balance`, true);
+  const [teamARaw, setTeamA] = useSessionState<string[]>(`${slug}:mc-team-a`, []);
+  const [teamBRaw, setTeamB] = useSessionState<string[]>(`${slug}:mc-team-b`, []);
+  const [clubA, setClubA] = useSessionState<ClubChoice>(`${slug}:mc-club-a`, null);
+  const [clubB, setClubB] = useSessionState<ClubChoice>(`${slug}:mc-club-b`, null);
+  const [margin, setMargin] = useSessionState(`${slug}:mc-margin`, 75);
+  const [scoreA, setScoreA] = useSessionState(`${slug}:mc-score-a`, 0);
+  const [scoreB, setScoreB] = useSessionState(`${slug}:mc-score-b`, 0);
   const [clubHint, setClubHint] = useState<string | null>(null);
   const addMatch = useAddMatch();
 

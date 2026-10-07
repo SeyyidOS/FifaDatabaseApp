@@ -1,5 +1,4 @@
 import { motion } from "motion/react";
-import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
   CalendarDays,
@@ -40,6 +39,9 @@ import { cn } from "../lib/cn";
 import { dayFromKey, displayName, formatWeekday, relativeTime } from "../lib/format";
 import { nightSummary } from "../lib/insights";
 import { winRate, type ParsedMatch } from "../lib/stats";
+import { BoardLink } from "../components/board/BoardLink";
+import { useBoard } from "../hooks/useBoard";
+import { useBoardNavigate } from "../hooks/useBoardNavigate";
 
 const fade = (i: number) => ({
   initial: { opacity: 0, y: 14 },
@@ -75,7 +77,7 @@ function Kpi({
 }
 
 function LeaderHero({ data }: { data: Analytics }) {
-  const navigate = useNavigate();
+  const navigate = useBoardNavigate();
   const leader = data.ranking.find((p) => !p.provisional) ?? data.ranking[0];
   if (!leader) return null;
   const s = leader.stats;
@@ -156,15 +158,15 @@ function PowerRankings({ data }: { data: Analytics }) {
       className="lg:col-span-4"
       bodyClassName="px-2 pb-3 pt-3"
       action={
-        <Link to="/leaderboard" className="text-xs font-medium text-muted hover:text-fg">
+        <BoardLink to="/leaderboard" className="text-xs font-medium text-muted hover:text-fg">
           Full table
-        </Link>
+        </BoardLink>
       }
     >
       <ol>
         {data.ranking.map((p, i) => (
           <motion.li key={p.id} {...fade(i + 2)}>
-            <Link
+            <BoardLink
               to={`/players/${encodeURIComponent(p.name)}`}
               className="group flex items-center gap-3 rounded-xl px-3 py-2 transition-colors hover:bg-surface-2"
             >
@@ -188,7 +190,7 @@ function PowerRankings({ data }: { data: Analytics }) {
                 <RankMove value={p.rankDelta} />
               </span>
               <span className="display tabular w-12 text-right text-xl">{p.elo}</span>
-            </Link>
+            </BoardLink>
           </motion.li>
         ))}
       </ol>
@@ -214,9 +216,9 @@ function LastMatchday({ data }: { data: Analytics }) {
       icon={<CalendarDays className="size-4" />}
       className="lg:col-span-7"
       action={
-        <Link to="/matches" className="text-xs font-medium text-muted hover:text-fg">
+        <BoardLink to="/matches" className="text-xs font-medium text-muted hover:text-fg">
           All matches
-        </Link>
+        </BoardLink>
       }
     >
       {mvp && (
@@ -262,7 +264,7 @@ function HotCold({ data }: { data: Analytics }) {
   const hot = streaks.filter((x) => x.s.type === "W").sort((a, b) => b.s.count - a.s.count);
   const cold = streaks.filter((x) => x.s.type === "L").sort((a, b) => b.s.count - a.s.count);
   const row = (name: string, label: string, tone: "win" | "loss" | "draw", icon: ReactNode) => (
-    <Link
+    <BoardLink
       key={name + label}
       to={`/players/${encodeURIComponent(name)}`}
       className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-surface-2"
@@ -272,7 +274,7 @@ function HotCold({ data }: { data: Analytics }) {
       <Pill tone={tone}>
         {icon} {label}
       </Pill>
-    </Link>
+    </BoardLink>
   );
   const formTable = [...data.ranking]
     .filter((p) => (p.stats?.outcomes.length ?? 0) >= 3)
@@ -331,7 +333,7 @@ function RecordTile({
       <div className="mt-1 text-xs text-muted">{detail}</div>
     </motion.div>
   );
-  return to ? <Link to={to}>{body}</Link> : body;
+  return to ? <BoardLink to={to}>{body}</BoardLink> : body;
 }
 
 const scoreline = (m: ParsedMatch) => (
@@ -432,6 +434,41 @@ function Records({ data }: { data: Analytics }) {
   );
 }
 
+function GettingStarted({ players }: { players: number }) {
+  const { name } = useBoard();
+  const steps = [
+    { done: players >= 2, title: "Add your players", text: "Everyone starts at 1000 Elo.", to: "/play", cta: "Add players" },
+    { done: false, title: "Log the first match", text: "Draft fair teams, pick clubs, enter the score.", to: "/play", cta: "Match center" },
+    { done: false, title: "Invite the group", text: "Share the link and the board password.", to: "/settings", cta: "Invite" },
+  ];
+  return (
+    <div className="space-y-6">
+      <PageHeader eyebrow="Welcome" title={name} description="Your board is empty for now. Three steps and the stories start writing themselves." />
+      <div className="grid gap-4 md:grid-cols-3">
+        {steps.map((s, i) => (
+          <motion.div key={s.title} {...fade(i)} className="card flex flex-col p-6">
+            <span
+              className={cn(
+                "grid size-9 place-items-center rounded-full font-display text-lg font-bold",
+                s.done ? "bg-accent text-accent-ink" : "bg-surface-3 text-muted ring-1 ring-line-strong",
+              )}
+            >
+              {i + 1}
+            </span>
+            <h2 className="mt-4 text-lg font-semibold">{s.title}</h2>
+            <p className="mt-1 flex-1 text-sm text-muted">{s.text}</p>
+            <BoardLink to={s.to} className="mt-5">
+              <Button variant={i === (players >= 2 ? 1 : 0) ? "primary" : "secondary"} className="w-full">
+                {s.cta} <ArrowRight className="size-4" />
+              </Button>
+            </BoardLink>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   return (
     <DataGate>
@@ -439,6 +476,7 @@ export default function Dashboard() {
         const goals = data.parsed.reduce((a, m) => a + m.scoreA + m.scoreB, 0);
         const matches = data.parsed.length;
         const top = data.ranking.slice(0, 6).map((p) => ({ name: p.name, history: p.history }));
+        if (!matches) return <GettingStarted players={data.ranking.length} />;
         return (
           <div className="space-y-6">
             <PageHeader

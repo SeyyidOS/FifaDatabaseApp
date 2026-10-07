@@ -8,7 +8,6 @@ import "@fontsource/barlow-condensed/600.css";
 import "@fontsource/barlow-condensed/700.css";
 import "./index.css";
 import App from "./App";
-import { AnalyticsProvider } from "./hooks/AnalyticsProvider";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,11 +18,9 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <AnalyticsProvider>
-        <HashRouter>
-          <App />
-        </HashRouter>
-      </AnalyticsProvider>
+      <HashRouter>
+        <App />
+      </HashRouter>
     </QueryClientProvider>
   </StrictMode>,
 );

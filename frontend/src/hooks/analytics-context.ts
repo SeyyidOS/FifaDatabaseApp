@@ -7,6 +7,7 @@ export interface RankedPlayer {
   id: number;
   name: string;
   elo: number;
+  /** 1-based position among active players; 0 for archived players. */
   rank: number;
   /** Positions gained (+) or lost (−) over the latest matchday. */
   rankDelta: number;
@@ -14,6 +15,8 @@ export interface RankedPlayer {
   eloDelta: number;
   peak: number;
   provisional: boolean;
+  /** Left the roster: not ranked (rank 0), but their matches still count. */
+  archived: boolean;
   history: EloPoint[];
   stats?: PlayerStats;
 }
@@ -25,7 +28,9 @@ export interface Analytics {
   parsed: ParsedMatch[];
   engine: EloEngine;
   stats: Map<string, PlayerStats>;
+  /** Active players, best first. */
   ranking: RankedPlayer[];
+  /** Everyone, archived players included. */
   byName: Map<string, RankedPlayer>;
   eloByName: Map<string, number>;
   matchdays: Matchday[];

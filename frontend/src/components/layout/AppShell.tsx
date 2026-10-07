@@ -1,16 +1,18 @@
-import { motion } from "motion/react";
-import { useEffect, useState, type ReactNode } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { useIsFetching } from "@tanstack/react-query";
-import { Menu, Moon, Plus, Search, Sun, X } from "lucide-react";
-import { Toaster } from "sonner";
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useIsFetching, useQueryClient } from "@tanstack/react-query";
+import { Check, ChevronsUpDown, LayoutGrid, LogOut, Menu, Plus, Search, X } from "lucide-react";
 import { useAnalytics } from "../../hooks/useAnalytics";
-import { useTheme } from "../../hooks/useTheme";
+import { useBoard, useSessions } from "../../hooks/useBoard";
 import { cn } from "../../lib/cn";
+import { removeSession, roleLabel } from "../../lib/session";
+import { Avatar } from "../ui/Identity";
 import { Button } from "../ui/primitives";
 import { CommandPalette } from "./CommandPalette";
 import { Logo } from "./Logo";
 import { NAV } from "./nav";
+import { ThemeButton } from "./ThemeButton";
 
 function SyncStatus({ compact }: { compact?: boolean }) {
   const { error, data } = useAnalytics();
@@ -32,29 +34,103 @@ function SyncStatus({ compact }: { compact?: boolean }) {
   );
 }
 
-function ThemeButton() {
-  const { theme, toggle } = useTheme();
+/** Forget this board on this device and go back to the board list. */
+function useSignOut() {
+  const { slug } = useBoard();
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  return () => {
+    removeSession(slug);
+    qc.removeQueries({ queryKey: ["board", slug] });
+    navigate("/");
+  };
+}
+
+function BoardSwitcher() {
+  const { slug, name, role } = useBoard();
+  const sessions = useSessions();
+  const signOut = useSignOut();
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (root.current && !root.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const item = "flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-surface-3";
   return (
-    <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
-      {theme === "dark" ? <Sun className="size-[18px]" /> : <Moon className="size-[18px]" />}
-    </Button>
+    <div ref={root} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-3 rounded-2xl border border-line bg-surface/70 p-2.5 text-left transition-colors hover:border-line-strong"
+      >
+        <Avatar name={name} size="md" className="rounded-xl" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold">{name}</span>
+          <span className="block truncate text-[11px] text-muted">
+            {roleLabel(role)} · {slug}
+          </span>
+        </span>
+        <ChevronsUpDown className="size-4 shrink-0 text-faint" />
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.15 }}
+            className="card absolute inset-x-0 top-full z-40 mt-2 p-1.5 shadow-2xl"
+          >
+            <p className="label px-2.5 pt-1.5 pb-1">Your boards</p>
+            {sessions.map((s) => (
+              <Link key={s.slug} to={`/b/${s.slug}`} className={item}>
+                <Avatar name={s.name} size="sm" className="rounded-lg" />
+                <span className="min-w-0 flex-1 truncate">{s.name}</span>
+                {s.slug === slug && <Check className="size-4 text-accent-text" />}
+              </Link>
+            ))}
+            <div className="hairline my-1.5" />
+            <Link to="/" className={item}>
+              <LayoutGrid className="size-4 text-muted" /> Join or create a board
+            </Link>
+            <button onClick={signOut} className={cn(item, "text-loss")}>
+              <LogOut className="size-4" /> Sign out on this device
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
 function Sidebar() {
   const { data } = useAnalytics();
+  const { path } = useBoard();
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-bg-elev/80 backdrop-blur-xl lg:flex">
-      <div className="px-5 pt-6 pb-8">
+      <Link to="/" className="px-5 pt-6 pb-6">
         <Logo />
+      </Link>
+      <div className="px-3 pb-6">
+        <BoardSwitcher />
       </div>
       <nav className="flex-1 space-y-1 px-3">
         <p className="label px-3 pb-2">Menu</p>
         {NAV.map((n) => (
           <NavLink
             key={n.to}
-            to={n.to}
-            end={n.to === "/"}
+            to={path(n.to)}
+            end={n.to === ""}
             className={({ isActive }) =>
               cn(
                 "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
@@ -96,7 +172,7 @@ function Sidebar() {
         </div>
         {data && (
           <p className="mt-2 text-xs text-faint">
-            {data.parsed.length} matches · {data.players.length} players · K {data.k}
+            {data.parsed.length} matches · {data.ranking.length} players · K {data.k}
           </p>
         )}
       </div>
@@ -106,6 +182,8 @@ function Sidebar() {
 
 function TopBar({ onSearch }: { onSearch: () => void }) {
   const navigate = useNavigate();
+  const { path, name } = useBoard();
+  const signOut = useSignOut();
   const [menu, setMenu] = useState(false);
   const location = useLocation();
   useEffect(() => {
@@ -115,9 +193,9 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
   return (
     <header className="sticky top-0 z-20 border-b border-line/70 bg-bg/70 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-3 px-4 sm:px-6 lg:px-8">
-        <span className="lg:hidden">
+        <Link to="/" className="lg:hidden">
           <Logo compact />
-        </span>
+        </Link>
         <button
           onClick={onSearch}
           className="group flex h-10 min-w-0 flex-1 items-center gap-3 rounded-xl border border-line bg-surface/60 px-3 text-sm text-faint transition-colors hover:border-line-strong hover:text-muted sm:max-w-md"
@@ -136,7 +214,7 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
             <ThemeButton />
           </span>
           <span className="hidden sm:block">
-            <Button variant="primary" onClick={() => navigate("/play")}>
+            <Button variant="primary" onClick={() => navigate(path("/play"))}>
               <Plus className="size-4" strokeWidth={2.5} />
               New match
             </Button>
@@ -152,24 +230,36 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
         <motion.nav
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-2 gap-2 border-t border-line px-4 py-4 lg:hidden"
+          className="border-t border-line px-4 py-4 lg:hidden"
         >
-          {NAV.map((n) => (
-            <NavLink
-              key={n.to}
-              to={n.to}
-              end={n.to === "/"}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-2.5 rounded-xl border px-3 py-3 text-sm font-medium",
-                  isActive ? "border-line-strong bg-surface-2 text-fg" : "border-line text-muted",
-                )
-              }
+          <p className="label mb-3 truncate">{name}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {NAV.map((n) => (
+              <NavLink
+                key={n.to}
+                to={path(n.to)}
+                end={n.to === ""}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-2.5 rounded-xl border px-3 py-3 text-sm font-medium",
+                    isActive ? "border-line-strong bg-surface-2 text-fg" : "border-line text-muted",
+                  )
+                }
+              >
+                <n.icon className="size-4" />
+                {n.label}
+              </NavLink>
+            ))}
+            <Link to="/" className="flex items-center gap-2.5 rounded-xl border border-line px-3 py-3 text-sm font-medium text-muted">
+              <LayoutGrid className="size-4" /> All boards
+            </Link>
+            <button
+              onClick={signOut}
+              className="flex items-center gap-2.5 rounded-xl border border-line px-3 py-3 text-left text-sm font-medium text-loss"
             >
-              <n.icon className="size-4" />
-              {n.label}
-            </NavLink>
-          ))}
+              <LogOut className="size-4" /> Sign out
+            </button>
+          </div>
         </motion.nav>
       )}
     </header>
@@ -177,14 +267,16 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
 }
 
 function BottomNav() {
-  const items = NAV.filter((n) => ["/", "/leaderboard", "/matches", "/players"].includes(n.to));
+  const { path } = useBoard();
+  const items = NAV.filter((n) => ["", "/leaderboard", "/matches", "/players"].includes(n.to));
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const onPlay = pathname === path("/play");
   const cell = (n: (typeof NAV)[number]) => (
     <NavLink
       key={n.to}
-      to={n.to}
-      end={n.to === "/"}
+      to={path(n.to)}
+      end={n.to === ""}
       className={({ isActive }) =>
         cn(
           "flex flex-1 flex-col items-center gap-1 py-2 text-[10px] font-semibold tracking-wide",
@@ -206,14 +298,14 @@ function BottomNav() {
         {items.slice(0, 2).map(cell)}
         <div className="flex flex-1 justify-center">
           <button
-            onClick={() => navigate("/play")}
+            onClick={() => navigate(path("/play"))}
             aria-label="Match center"
             className={cn(
               "-mt-6 grid size-14 place-items-center rounded-2xl bg-accent text-accent-ink shadow-[0_10px_30px_-8px_var(--accent)] ring-4 ring-bg transition-transform active:scale-95",
-              pathname === "/play" && "rotate-45",
+              onPlay && "rotate-45",
             )}
           >
-            <Plus className={cn("size-6 transition-transform", pathname === "/play" && "-rotate-45")} strokeWidth={2.5} />
+            <Plus className={cn("size-6 transition-transform", onPlay && "-rotate-45")} strokeWidth={2.5} />
           </button>
         </div>
         {items.slice(2).map(cell)}
@@ -225,7 +317,6 @@ function BottomNav() {
 export function AppShell({ children }: { children: ReactNode }) {
   const [palette, setPalette] = useState(false);
   const location = useLocation();
-  const { theme } = useTheme();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -260,17 +351,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       </div>
       <BottomNav />
       <CommandPalette open={palette} onOpenChange={setPalette} />
-      <Toaster
-        position="top-center"
-        theme={theme}
-        offset={20}
-        toastOptions={{
-          classNames: {
-            toast: "!rounded-2xl !border !border-line !bg-surface !text-fg !shadow-2xl !font-sans",
-            description: "!text-muted",
-          },
-        }}
-      />
     </div>
   );
 }

@@ -118,7 +118,7 @@ function Fighter({ p, side }: { p?: RankedPlayer; side: "A" | "B" }) {
       <div>
         <p className="display text-3xl sm:text-4xl">{displayName(p.name)}</p>
         <p className="mt-1 text-xs text-muted">
-          #{p.rank} · <span className="tabular font-semibold text-fg">{p.elo}</span> Elo
+          {p.rank ? `#${p.rank}` : "Archived"} · <span className="tabular font-semibold text-fg">{p.elo}</span> Elo
         </p>
       </div>
       <FormPills outcomes={p.stats?.outcomes ?? []} size="sm" />

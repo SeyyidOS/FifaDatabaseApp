@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { Flame, Zap } from "lucide-react";
 import { cn } from "../../lib/cn";
 import type { MatchElo } from "../../lib/elo";
@@ -8,6 +7,7 @@ import { outcomeFor, type ParsedMatch } from "../../lib/stats";
 import type { Side } from "../../lib/types";
 import { Avatar, ClubCrest } from "../ui/Identity";
 import { Delta, OutcomeBadge, Pill } from "../ui/primitives";
+import { BoardLink } from "../board/BoardLink";
 
 function SideBlock({
   side,
@@ -32,7 +32,7 @@ function SideBlock({
         <p className={cn("truncate text-sm font-semibold", lost && "text-muted")}>{club}</p>
         <div className={cn("mt-1 flex flex-wrap items-center gap-x-2 gap-y-1", align === "right" && "justify-end")}>
           {team.map((n) => (
-            <Link
+            <BoardLink
               key={n}
               to={`/players/${encodeURIComponent(n)}`}
               className="inline-flex items-center gap-1 text-xs text-muted hover:text-fg"
@@ -40,7 +40,7 @@ function SideBlock({
             >
               <Avatar name={n} size="xs" />
               {displayName(n)}
-            </Link>
+            </BoardLink>
           ))}
           {delta !== undefined && <Delta value={delta} />}
         </div>

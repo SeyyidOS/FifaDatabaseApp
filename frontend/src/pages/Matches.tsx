@@ -7,6 +7,7 @@ import { MatchCard } from "../components/match/MatchCard";
 import { Avatar } from "../components/ui/Identity";
 import { Button, Delta, EmptyState, Pill, Segmented } from "../components/ui/primitives";
 import type { Analytics } from "../hooks/analytics-context";
+import { useBoard } from "../hooks/useBoard";
 import { useSessionState } from "../hooks/useSessionState";
 import { cn } from "../lib/cn";
 import { dayFromKey, displayName, formatWeekday, relativeTime } from "../lib/format";
@@ -16,10 +17,11 @@ import { groupMatchdays } from "../lib/stats";
 type ResultFilter = "all" | "decisive" | "draws" | "upsets";
 
 function MatchesInner({ data }: { data: Analytics }) {
-  const [player, setPlayer] = useSessionState<string | null>("mh-player", null);
+  const { slug } = useBoard();
+  const [player, setPlayer] = useSessionState<string | null>(`${slug}:mh-player`, null);
   const [query, setQuery] = useState("");
-  const [from, setFrom] = useSessionState("mh-from", "");
-  const [result, setResult] = useSessionState<ResultFilter>("mh-result", "all");
+  const [from, setFrom] = useSessionState(`${slug}:mh-from`, "");
+  const [result, setResult] = useSessionState<ResultFilter>(`${slug}:mh-result`, "all");
   const [shown, setShown] = useState(6);
 
   const filtered = useMemo(() => {

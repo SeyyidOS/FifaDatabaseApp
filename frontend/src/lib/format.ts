@@ -59,8 +59,7 @@ export function relativeTime(d: Date, now = new Date()): string {
 /** Same normalisation the backend uses for names inside team strings. */
 export const cleanName = (s: string) => s.replace(/[{}()]/g, "").trim().toLowerCase();
 
-export const parseTeam = (team: string | null | undefined) =>
-  (team ?? "").split(",").map(cleanName).filter(Boolean);
+export const parseTeam = (team: string[] | null | undefined) => (team ?? []).map(cleanName).filter(Boolean);
 
 export const displayName = (name: string) =>
   name

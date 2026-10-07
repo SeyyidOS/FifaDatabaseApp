@@ -1,6 +1,8 @@
 export interface Player {
   id: number;
   name: string;
+  /** Archived players left the roster; their matches still count. */
+  archived: boolean;
 }
 
 export interface Club {
@@ -10,14 +12,14 @@ export interface Club {
   elo?: number | null;
 }
 
-/** Raw match row as returned by the API (teams are Postgres-array strings, e.g. "{kerem,seyyid}"). */
+/** Match row as returned by the API; teams are player names in the order they were entered. */
 export interface Match {
   id: number;
   time: string;
   club_a: string;
   club_b: string;
-  team_a: string;
-  team_b: string;
+  team_a: string[] | null;
+  team_b: string[] | null;
   score_a: number;
   score_b: number;
 }
@@ -43,8 +45,26 @@ export interface StandingStats {
 }
 
 export type PlayerStanding = StandingStats & { name: string };
-export type ClubStanding = StandingStats & { team: string };
-export type DuoStanding = StandingStats & { team_name: string };
+export type ClubStanding = StandingStats & { club: string };
+export type DuoStanding = StandingStats & { duo: string };
+
+export type Role = "member" | "admin";
+
+export interface BoardInfo {
+  slug: string;
+  name: string;
+}
+
+export interface BoardMe extends BoardInfo {
+  role: Role;
+  kFactor: number;
+}
+
+/** What sign-in and board creation return. */
+export interface SignIn extends BoardInfo {
+  role: Role;
+  token: string;
+}
 
 export type Outcome = "W" | "D" | "L";
 export type Side = "A" | "B";

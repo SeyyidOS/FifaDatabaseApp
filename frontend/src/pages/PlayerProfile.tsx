@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { useState, type ReactNode } from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { Navigate, useParams } from "react-router-dom";
 import { ArrowLeft, Flame, HeartHandshake, Shield, Skull, Swords, Target, TrendingUp, Trophy } from "lucide-react";
 import { DataGate } from "../components/DataGate";
 import { PlayerEloChart } from "../components/charts/EloCharts";
@@ -12,6 +12,9 @@ import type { Analytics, RankedPlayer } from "../hooks/analytics-context";
 import { cn } from "../lib/cn";
 import { cleanName, displayName, relativeTime } from "../lib/format";
 import { winRate, type Tally } from "../lib/stats";
+import { BoardLink } from "../components/board/BoardLink";
+import { useBoard } from "../hooks/useBoard";
+import { useBoardNavigate } from "../hooks/useBoardNavigate";
 
 const MIN_PAIR = 3;
 
@@ -51,7 +54,7 @@ function RelationCard({
         </span>
       </div>
       {name && record ? (
-        <Link to={to ?? `/players/${encodeURIComponent(name)}`} className="mt-3 flex items-center gap-3 hover:opacity-90">
+        <BoardLink to={to ?? `/players/${encodeURIComponent(name)}`} className="mt-3 flex items-center gap-3 hover:opacity-90">
           <Avatar name={name} size="md" />
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold">{displayName(name)}</p>
@@ -62,7 +65,7 @@ function RelationCard({
           <span className={cn("display tabular text-2xl", tone === "win" ? "text-win" : "text-loss")}>
             {winRate(record).toFixed(0)}%
           </span>
-        </Link>
+        </BoardLink>
       ) : (
         <p className="mt-3 text-sm text-muted">Not enough games yet ({MIN_PAIR}+ needed)</p>
       )}
@@ -79,7 +82,7 @@ function pickExtreme(map: Map<string, Tally> | undefined, best: boolean): [strin
 
 function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
   const [showAll, setShowAll] = useState(false);
-  const navigate = useNavigate();
+  const navigate = useBoardNavigate();
   const s = player.stats;
   const key = cleanName(player.name);
   const matches = data.parsed.filter((m) => m.teamA.includes(key) || m.teamB.includes(key));
@@ -95,9 +98,9 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
 
   return (
     <div className="space-y-6">
-      <Link to="/players" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-fg">
+      <BoardLink to="/players" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-fg">
         <ArrowLeft className="size-4" /> All players
-      </Link>
+      </BoardLink>
 
       {/* Hero */}
       <section className="card relative overflow-hidden">
@@ -111,7 +114,7 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
           <PlayerCard player={player} size="lg" />
           <div className="w-full min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <Pill tone="accent">#{player.rank} by Elo</Pill>
+              {player.archived ? <Pill>Archived</Pill> : <Pill tone="accent">#{player.rank} by Elo</Pill>}
               <RankMove value={player.rankDelta} hideZero />
               {player.provisional && <Pill>Provisional</Pill>}
               {current && current.count >= 2 && (
@@ -210,13 +213,13 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
         <Panel title="Partnerships" subtitle="Record with each teammate" icon={<HeartHandshake className="size-4" />}>
           <div className="space-y-3">
             {teammates.map(([name, r]) => (
-              <Link key={name} to={`/players/${encodeURIComponent(name)}`} className="flex items-center gap-3 rounded-lg hover:bg-surface-2/60">
+              <BoardLink key={name} to={`/players/${encodeURIComponent(name)}`} className="flex items-center gap-3 rounded-lg hover:bg-surface-2/60">
                 <Avatar name={name} size="sm" />
                 <span className="w-24 truncate text-sm font-medium">{displayName(name)}</span>
                 <ProgressBar value={winRate(r)} className="flex-1" barClassName={winRate(r) >= 50 ? "bg-win" : "bg-loss"} />
                 <span className="tabular w-10 text-right text-sm">{winRate(r).toFixed(0)}%</span>
                 <span className="tabular w-14 text-right text-xs text-muted">{r.played} gp</span>
-              </Link>
+              </BoardLink>
             ))}
             {!teammates.length && <p className="text-sm text-muted">No partnerships yet.</p>}
           </div>
@@ -263,11 +266,12 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
 
 export default function PlayerProfile() {
   const { name = "" } = useParams();
+  const { path } = useBoard();
   return (
     <DataGate>
       {(data) => {
         const player = data.byName.get(cleanName(decodeURIComponent(name)));
-        if (!player) return <Navigate to="/players" replace />;
+        if (!player) return <Navigate to={path("/players")} replace />;
         return <Profile key={player.id} data={data} player={player} />;
       }}
     </DataGate>

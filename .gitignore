@@ -55,7 +55,6 @@ frontend/.env
 # -------------------
 # Docker
 # -------------------
-backend/.dockerignore
 docker-compose.override.yml
 
 # -------------------

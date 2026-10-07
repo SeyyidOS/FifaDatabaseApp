@@ -1,5 +1,5 @@
 /**
- * Client-side replica of backend/elo_service.py.
+ * Client-side replica of backend/elo.py.
  *
  * The server only exposes final ratings; replaying the same algorithm here
  * gives us per-match history (charts, deltas) and lets us preview the Elo
@@ -10,7 +10,7 @@ import { cleanName, parseApiTime, parseTeam } from "./format";
 import type { Club, Match, Player } from "./types";
 
 export const INITIAL_ELO = 1000;
-/** Frontend fallback for clubs without a rating (matchmaking only). */
+/** Rating used for clubs that are not in the clubs table (custom names). */
 export const DEFAULT_CLUB_ELO = 500;
 
 export function expectedScore(a: number, b: number): number {
@@ -67,8 +67,6 @@ export interface EloEngine {
   history: Map<number, EloPoint[]>;
   perMatch: Map<number, MatchElo>;
   nameToId: Map<string, number>;
-  /** Club ratings carried between matches (backend quirk, see resolveClubs). */
-  carry: { a?: number; b?: number };
   clubElo: Map<string, number>;
 }
 
@@ -120,29 +118,7 @@ function step(ratings: Map<number, number>, k: number, input: StepInput): StepRe
   };
 }
 
-/**
- * The backend scans clubs in id order with `if name == club_a … elif name == club_b`,
- * and the two rating variables persist across matches. So a club that isn't in the
- * table (custom name), or club_b == club_a, silently reuses the previous match's value.
- * Replicate that so our numbers match the server exactly.
- */
-function resolveClubs(
-  clubElo: Map<string, number>,
-  carry: { a?: number; b?: number },
-  clubA: string,
-  clubB: string,
-) {
-  const a = clubElo.get(clubA);
-  const b = clubElo.get(clubB);
-  const next = { ...carry };
-  if (a !== undefined) next.a = a;
-  if (b !== undefined && clubB !== clubA) next.b = b;
-  return {
-    next,
-    clubARating: next.a ?? DEFAULT_CLUB_ELO,
-    clubBRating: next.b ?? DEFAULT_CLUB_ELO,
-  };
-}
+const clubRating = (clubElo: Map<string, number>, club: string) => clubElo.get(club) ?? DEFAULT_CLUB_ELO;
 
 export function buildClubEloMap(clubs: Club[]): Map<string, number> {
   const m = new Map<string, number>();
@@ -167,14 +143,13 @@ export function runElo(players: Player[], clubs: Club[], matches: Match[], k: nu
 
   const clubElo = buildClubEloMap(clubs);
   const perMatch = new Map<number, MatchElo>();
-  let carry: { a?: number; b?: number } = {};
 
   const ordered = matches
     .map((m) => ({ m, t: parseApiTime(m.time) }))
     .sort((x, y) => x.t.getTime() - y.t.getTime() || x.m.id - y.m.id);
 
   for (const { m, t } of ordered) {
-    const ids = (team: string) =>
+    const ids = (team: string[] | null) =>
       parseTeam(team)
         .map((n) => nameToId.get(n))
         .filter((id): id is number => id !== undefined);
@@ -182,15 +157,13 @@ export function runElo(players: Player[], clubs: Club[], matches: Match[], k: nu
     const teamBIds = ids(m.team_b);
     if (!teamAIds.length || !teamBIds.length) continue;
 
-    const resolved = resolveClubs(clubElo, carry, m.club_a, m.club_b);
-    carry = resolved.next;
 
     const before = new Map(ratings);
     const r = step(ratings, k, {
       teamAIds,
       teamBIds,
-      clubARating: resolved.clubARating,
-      clubBRating: resolved.clubBRating,
+      clubARating: clubRating(clubElo, m.club_a),
+      clubBRating: clubRating(clubElo, m.club_b),
       scoreA: Number(m.score_a) || 0,
       scoreB: Number(m.score_b) || 0,
     });
@@ -222,7 +195,7 @@ export function runElo(players: Player[], clubs: Club[], matches: Match[], k: nu
     );
   }
 
-  return { k, ratings, history, perMatch, nameToId, carry, clubElo };
+  return { k, ratings, history, perMatch, nameToId, clubElo };
 }
 
 export interface MatchPreview {
@@ -256,9 +229,8 @@ export function previewMatch(
   let clubARating = 0;
   let clubBRating = 0;
   if (opts.clubA && opts.clubB) {
-    const r = resolveClubs(engine.clubElo, engine.carry, opts.clubA, opts.clubB);
-    clubARating = r.clubARating;
-    clubBRating = r.clubBRating;
+    clubARating = clubRating(engine.clubElo, opts.clubA);
+    clubBRating = clubRating(engine.clubElo, opts.clubB);
   }
   const hasScore =
     opts.scoreA !== null && opts.scoreA !== undefined && opts.scoreB !== null && opts.scoreB !== undefined;

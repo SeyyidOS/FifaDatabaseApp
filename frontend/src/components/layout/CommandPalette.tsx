@@ -1,7 +1,8 @@
 import { Command } from "cmdk";
 import { useNavigate } from "react-router-dom";
-import { CornerDownLeft, Moon, Plus, Search, Sun } from "lucide-react";
+import { CornerDownLeft, LayoutGrid, Moon, Plus, Search, Sun } from "lucide-react";
 import { useAnalytics } from "../../hooks/useAnalytics";
+import { useBoard, useSessions } from "../../hooks/useBoard";
 import { useTheme } from "../../hooks/useTheme";
 import { displayName } from "../../lib/format";
 import { Avatar } from "../ui/Identity";
@@ -11,10 +12,13 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   const navigate = useNavigate();
   const { data } = useAnalytics();
   const { theme, toggle } = useTheme();
+  const { slug, path } = useBoard();
+  const sessions = useSessions();
 
-  const go = (to: string) => {
+  /** `to` is a path inside the board unless `absolute` */
+  const go = (to: string, absolute = false) => {
     onOpenChange(false);
-    navigate(to);
+    navigate(absolute ? to : path(to));
   };
 
   const itemCls =
@@ -72,6 +76,28 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
               <span className="ml-auto hidden truncate text-xs text-faint sm:block">{n.description}</span>
             </Command.Item>
           ))}
+        </Command.Group>
+
+        <Command.Group heading="Boards">
+          {sessions
+            .filter((s) => s.slug !== slug)
+            .map((s) => (
+              <Command.Item
+                key={s.slug}
+                className={itemCls}
+                onSelect={() => go(`/b/${s.slug}`, true)}
+                value={`board switch ${s.name} ${s.slug}`}
+              >
+                <Avatar name={s.name} size="sm" className="rounded-lg" />
+                Switch to {s.name}
+              </Command.Item>
+            ))}
+          <Command.Item className={itemCls} onSelect={() => go("/", true)} value="all boards join create board">
+            <span className="grid size-7 place-items-center rounded-lg bg-surface-2 text-muted ring-1 ring-line">
+              <LayoutGrid className="size-4" />
+            </span>
+            Join or create a board
+          </Command.Item>
         </Command.Group>
 
         {data && (

@@ -1,5 +1,4 @@
 import { motion } from "motion/react";
-import { Link } from "react-router-dom";
 import { AddPlayer } from "../components/AddPlayer";
 import { DataGate } from "../components/DataGate";
 import { PageHeader } from "../components/layout/AppShell";
@@ -7,6 +6,7 @@ import { PlayerCard } from "../components/PlayerCard";
 import { Segmented } from "../components/ui/primitives";
 import { useSessionState } from "../hooks/useSessionState";
 import { winRate } from "../lib/stats";
+import { BoardLink } from "../components/board/BoardLink";
 
 type Order = "elo" | "win" | "played" | "name";
 
@@ -53,10 +53,10 @@ export default function Players() {
                   animate={{ opacity: 1, y: 0, rotateX: 0 }}
                   transition={{ delay: i * 0.05, type: "spring", bounce: 0.25, duration: 0.7 }}
                 >
-                  <Link to={`/players/${encodeURIComponent(p.name)}`} className="block">
+                  <BoardLink to={`/players/${encodeURIComponent(p.name)}`} className="block">
                     <PlayerCard player={p} size="md" className="hidden sm:block" />
                     <PlayerCard player={p} size="sm" className="sm:hidden" interactive={false} />
-                  </Link>
+                  </BoardLink>
                 </motion.div>
               ))}
             </div>

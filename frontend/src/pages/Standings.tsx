@@ -1,6 +1,5 @@
 import { motion } from "motion/react";
 import { useMemo, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
 import { ArrowDownWideNarrow, CalendarRange, Crown, Trophy } from "lucide-react";
 import { DataGate } from "../components/DataGate";
 import { PageHeader } from "../components/layout/AppShell";
@@ -13,6 +12,7 @@ import { cn } from "../lib/cn";
 import { clubStars } from "../lib/elo";
 import { cleanName, daysAgoIso, displayName } from "../lib/format";
 import type { StandingStats } from "../lib/types";
+import { BoardLink } from "../components/board/BoardLink";
 
 type Tab = "players" | "clubs" | "duos";
 type Range = "7" | "30" | "90" | "365" | "all" | "custom";
@@ -78,9 +78,9 @@ function Podium({ rows, metric }: { rows: Row[]; metric: (r: Row) => ReactNode }
             {ranks[i] === 1 && <Crown className="mb-1 size-6 text-gold drop-shadow-[0_0_12px_var(--gold)]" />}
             <div className="mb-2">{r.entity}</div>
             {r.to ? (
-              <Link to={r.to} className="max-w-full truncate text-sm font-semibold hover:underline">
+              <BoardLink to={r.to} className="max-w-full truncate text-sm font-semibold hover:underline">
                 {r.label}
-              </Link>
+              </BoardLink>
             ) : (
               <span className="max-w-full truncate text-sm font-semibold">{r.label}</span>
             )}
@@ -162,22 +162,22 @@ function StandingsInner({ data }: { data: Analytics }) {
       });
     if (tab === "clubs")
       return (clubs.data ?? []).map((r) => {
-        const club = data.clubs.find((c) => c.name === r.team);
+        const club = data.clubs.find((c) => c.name === r.club);
         return {
           ...r,
-          key: r.team,
-          label: r.team,
-          entity: <ClubCrest name={r.team} size="xl" />,
-          small: <ClubCrest name={r.team} size="sm" />,
+          key: r.club,
+          label: r.club,
+          entity: <ClubCrest name={r.club} size="xl" />,
+          small: <ClubCrest name={r.club} size="sm" />,
           elo: club?.elo ?? undefined,
           extra: club ? <Stars value={clubStars(club.elo)} /> : null,
         };
       });
     return (duos.data ?? []).map((r) => {
-      const names = r.team_name.split(" & ");
+      const names = r.duo.split(" & ");
       return {
         ...r,
-        key: r.team_name,
+        key: r.duo,
         label: names.map(displayName).join(" & "),
         entity: (
           <span className="flex -space-x-3">
@@ -347,9 +347,9 @@ function StandingsInner({ data }: { data: Analytics }) {
                             {r.small}
                             <div className="min-w-0">
                               {r.to ? (
-                                <Link to={r.to} className="block truncate font-semibold hover:underline">
+                                <BoardLink to={r.to} className="block truncate font-semibold hover:underline">
                                   {r.label}
-                                </Link>
+                                </BoardLink>
                               ) : (
                                 <span className="block truncate font-semibold">{r.label}</span>
                               )}

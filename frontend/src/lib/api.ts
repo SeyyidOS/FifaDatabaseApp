@@ -1,4 +1,7 @@
+import { removeSession } from "./session";
 import type {
+  BoardInfo,
+  BoardMe,
   Club,
   ClubStanding,
   DuoStanding,
@@ -6,11 +9,10 @@ import type {
   NewMatch,
   Player,
   PlayerStanding,
+  SignIn,
 } from "./types";
 
-export const API_URL = (
-  import.meta.env.VITE_API_URL ?? "https://fifadatabaseapp.onrender.com"
-).replace(/\/$/, "");
+export const API_URL = (import.meta.env.VITE_API_URL ?? "/api").replace(/\/$/, "");
 
 export class ApiError extends Error {
   status: number;
@@ -20,15 +22,13 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init: RequestInit = {}, token?: string): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (init.body) headers["Content-Type"] = "application/json";
+  if (token) headers.Authorization = `Bearer ${token}`;
   let res: Response;
   try {
-    res = await fetch(`${API_URL}${path}`, {
-      ...init,
-      headers: init?.body
-        ? { "Content-Type": "application/json", ...init.headers }
-        : init?.headers,
-    });
+    res = await fetch(`${API_URL}${path}`, { ...init, headers });
   } catch {
     throw new ApiError(0, "Can't reach the server. Check your connection.");
   }
@@ -37,6 +37,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     try {
       const body = await res.json();
       if (typeof body?.detail === "string") detail = body.detail;
+      // FastAPI validation errors: [{ loc: [...], msg: "..." }, ...]
+      else if (Array.isArray(body?.detail))
+        detail = body.detail.map((d: { msg?: string }) => d.msg?.replace(/^Value error, /, "")).join("; ");
     } catch {
       /* non-JSON error body */
     }
@@ -50,64 +53,49 @@ const json = (method: string, body?: unknown): RequestInit => ({
   body: body === undefined ? undefined : JSON.stringify(body),
 });
 
-/** Admin key entered on the Admin page; the self-hosted gateway requires it for admin writes. */
-export const ADMIN_KEY_STORAGE = "fm-admin-key";
-
-function adminKey(): string {
-  try {
-    return JSON.parse(sessionStorage.getItem(ADMIN_KEY_STORAGE) ?? "null") ?? "";
-  } catch {
-    return "";
-  }
-}
-
-const admin = (init: RequestInit): RequestInit => ({
-  ...init,
-  headers: { ...init.headers, "X-Admin-Key": adminKey() },
-});
-
-// Without the gateway (e.g. the GitHub Pages build talking straight to the API) there is no
-// server-side check, so fall back to the original client-side password.
-const LEGACY_ADMIN_PASSWORD = "admin123";
-
-/** true = key accepted, false = rejected. */
-export async function verifyAdminKey(key: string): Promise<boolean> {
-  let res: Response;
-  try {
-    res = await fetch(`${API_URL}/admin/verify`, { headers: { "X-Admin-Key": key } });
-  } catch {
-    throw new ApiError(0, "Can't reach the server. Check your connection.");
-  }
-  if (res.status === 204) return true;
-  if (res.status === 401) return false;
-  return key === LEGACY_ADMIN_PASSWORD;
-}
-
-export const api = {
-  players: () => request<Player[]>("/players"),
+/** Endpoints that need no sign-in. */
+export const publicApi = {
   clubs: () => request<Club[]>("/clubs"),
-  matches: () => request<Match[]>("/matches"),
-  elo: () =>
-    request<{ ratings: { playerId: number; elo: number }[] }>("/elo"),
-  eloSettings: () => request<{ kFactor: number }>("/settings/elo"),
-
-  addPlayer: (name: string) =>
-    request<{ message: string }>("/players", json("POST", { name })),
-  addMatch: (match: NewMatch) =>
-    request<{ message: string }>("/matches", json("POST", match)),
-  updateKFactor: (kFactor: number) =>
-    request<{ kFactor: number }>("/settings/elo", admin(json("PUT", { kFactor }))),
-  deletePlayer: (id: number) =>
-    request<{ message: string }>(`/admin/player/${id}`, admin(json("DELETE"))),
-  deleteMatch: (id: number) =>
-    request<{ message: string }>(`/admin/match/${id}`, admin(json("DELETE"))),
-
-  leaderboard: {
-    players: (start: string) =>
-      request<PlayerStanding[]>(`/leaderboard/players?start_time=${start}`),
-    clubs: (start: string) =>
-      request<ClubStanding[]>(`/leaderboard/teams?start_time=${start}`),
-    duos: (start: string) =>
-      request<DuoStanding[]>(`/leaderboard/duos?start_time=${start}`),
-  },
+  board: (slug: string) => request<BoardInfo>(`/boards/${encodeURIComponent(slug)}`),
+  createBoard: (body: { name: string; password: string; adminPassword: string }) =>
+    request<SignIn>("/boards", json("POST", body)),
+  signIn: (slug: string, password: string) =>
+    request<SignIn>(`/boards/${encodeURIComponent(slug)}/login`, json("POST", { password })),
 };
+
+export type BoardApi = ReturnType<typeof boardApi>;
+
+/** Endpoints of one board, called with this device's token for it. */
+export function boardApi(slug: string, token: string) {
+  const base = `/boards/${encodeURIComponent(slug)}`;
+  const call = async <T>(path: string, init?: RequestInit): Promise<T> => {
+    try {
+      return await request<T>(`${base}${path}`, init, token);
+    } catch (e) {
+      // a rejected token (password changed, board gone) means signing in again
+      if (e instanceof ApiError && e.status === 401) removeSession(slug, token);
+      throw e;
+    }
+  };
+  return {
+    me: () => call<BoardMe>("/me"),
+    update: (changes: { name?: string; kFactor?: number; password?: string; adminPassword?: string }) =>
+      call<BoardMe & { token?: string }>("", json("PATCH", changes)),
+
+    players: () => call<Player[]>("/players"),
+    addPlayer: (name: string) => call<Player>("/players", json("POST", { name })),
+    updatePlayer: (id: number, changes: { name?: string; archived?: boolean }) =>
+      call<Player>(`/players/${id}`, json("PATCH", changes)),
+    deletePlayer: (id: number) => call<{ message: string }>(`/players/${id}`, json("DELETE")),
+
+    matches: () => call<Match[]>("/matches"),
+    addMatch: (match: NewMatch) => call<{ message: string; id: number }>("/matches", json("POST", match)),
+    deleteMatch: (id: number) => call<{ message: string }>(`/matches/${id}`, json("DELETE")),
+
+    leaderboard: {
+      players: (start: string) => call<PlayerStanding[]>(`/leaderboard/players?start_time=${start}`),
+      clubs: (start: string) => call<ClubStanding[]>(`/leaderboard/clubs?start_time=${start}`),
+      duos: (start: string) => call<DuoStanding[]>(`/leaderboard/duos?start_time=${start}`),
+    },
+  };
+}

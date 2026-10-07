@@ -1,20 +1,16 @@
-# Use Python base image
 FROM python:3.11-slim
 
-# Set work directory
-WORKDIR /backend
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-# Copy requirements
+WORKDIR /app
 COPY requirements.txt .
-
-# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy app code
 COPY . .
+RUN useradd --system --uid 10001 app
+USER app
 
-# Expose port
 EXPOSE 8080
-
-# Run the FastAPI server
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+# behind nginx on a private network: trust X-Forwarded-For for the client address (rate limits)
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips", "*"]
