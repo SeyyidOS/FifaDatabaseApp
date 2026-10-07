@@ -10,6 +10,8 @@ import { MatchCard } from "../match/MatchCard";
 import { Avatar, ClubCrest } from "../ui/Identity";
 import { EmptyState } from "../ui/primitives";
 import { RecordStrip } from "./RecordStrip";
+import { useT } from "../../hooks/useI18n";
+import { insightMessages } from "./messages";
 
 function Stat({ label, value, hint, tone }: { label: string; value: ReactNode; hint?: ReactNode; tone?: string }) {
   return (
@@ -78,8 +80,9 @@ export function DuoExplorer({
   onSelect: (key: string) => void;
   engine: EloEngine;
 }) {
+  const t = useT(insightMessages);
   if (!duos.length)
-    return <EmptyState icon={<Users className="size-5" />} title="No duos yet" description="Play some 2v2 matches first." />;
+    return <EmptyState icon={<Users className="size-5" />} title={t("noDuos")} description={t("noDuosHint")} />;
   const d = selected ?? duos[0];
   const perGame = (n: number) => (d.record.played ? n / d.record.played : 0).toFixed(1);
   return (
@@ -88,11 +91,11 @@ export function DuoExplorer({
         value={d.key}
         onChange={(e) => onSelect(e.target.value)}
         className="input mb-6 h-11 sm:max-w-sm"
-        aria-label="Choose a duo"
+        aria-label={t("chooseDuo")}
       >
         {duos.map((x) => (
           <option key={x.key} value={x.key}>
-            {x.names.map(displayName).join(" & ")} · {x.record.played} games
+            {t("duoOption", { names: x.names.map(displayName).join(" & "), n: x.record.played })}
           </option>
         ))}
       </select>
@@ -113,28 +116,28 @@ export function DuoExplorer({
         </div>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat label="Games" value={d.record.played} hint={`${perGame(d.record.gf)} scored · ${perGame(d.record.ga)} conceded per game`} />
-          <Stat label="Points taken" value={`${Math.round(scoreRate(d.record))}%`} hint="win 1, draw ½" />
+          <Stat label={t("gamesLabel")} value={d.record.played} hint={t("perGame", { f: perGame(d.record.gf), a: perGame(d.record.ga) })} />
+          <Stat label={t("pointsTaken")} value={t("pct", { n: Math.round(scoreRate(d.record)) })} hint={t("pointsHint")} />
           <Stat
-            label="Elo together"
+            label={t("eloTogether")}
             value={`${d.record.delta >= 0 ? "+" : "−"}${Math.abs(Math.round(d.record.delta))}`}
             tone={d.record.delta >= 0 ? "text-win" : "text-loss"}
-            hint="each, over all their games"
+            hint={t("eloTogetherHint")}
           />
           <Stat
-            label="Chemistry"
+            label={t("chemistry")}
             value={d.chemistry === null ? "—" : `${d.chemistry >= 0 ? "+" : "−"}${Math.abs(Math.round(d.chemistry))}`}
             tone={d.chemistry === null ? undefined : d.chemistry >= 0 ? "text-win" : "text-loss"}
-            hint={d.chemistry === null ? "needs 3+ games together and apart" : "points-% vs their games apart"}
+            hint={d.chemistry === null ? t("chemistryNeeds") : t("chemistryHint")}
           />
         </div>
 
         <div className="grid gap-8 lg:grid-cols-2">
           <VsList
-            title="When this player is on the other side"
+            title={t("otherSide")}
             icon={<Swords className="size-4" />}
             rows={d.vsPlayers}
-            empty="No opponents yet."
+            empty={t("noOpponents")}
             render={(r) => (
               <BoardLink to={`/players/${encodeURIComponent(r.key)}`} className="flex min-w-0 items-center gap-2 hover:text-accent-text">
                 <Avatar name={r.key} size="xs" />
@@ -143,10 +146,10 @@ export function DuoExplorer({
             )}
           />
           <VsList
-            title="Against other duos"
+            title={t("otherDuos")}
             icon={<HeartHandshake className="size-4" />}
             rows={d.vsDuos}
-            empty="Hasn't met another duo yet."
+            empty={t("noOtherDuos")}
             render={(r) => (
               <button onClick={() => onSelect(r.key)} className="flex min-w-0 items-center gap-2 text-left hover:text-accent-text">
                 {pair(r.names)}
@@ -157,7 +160,7 @@ export function DuoExplorer({
 
         <div>
           <p className="mb-3 flex items-center gap-2 text-sm font-semibold">
-            <Shield className="size-4 text-accent-text" /> Their clubs
+            <Shield className="size-4 text-accent-text" /> {t("theirClubs")}
           </p>
           <div className="flex flex-wrap gap-2">
             {d.clubs.slice(0, 8).map((c) => (
@@ -173,7 +176,7 @@ export function DuoExplorer({
         </div>
 
         <div>
-          <p className="mb-3 text-sm font-semibold">Latest together</p>
+          <p className="mb-3 text-sm font-semibold">{t("latest")}</p>
           <div className="space-y-2">
             {d.matches.slice(0, 3).map((m) => (
               <MatchCard key={m.id} match={m} elo={engine.perMatch.get(m.id)} perspective={d.names[0]} className="shadow-none" />

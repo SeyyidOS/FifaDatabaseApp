@@ -134,10 +134,23 @@ export const scoreRate = (b: Pick<Bucket, "played" | "score">) => (b.played ? (b
 
 /* --------------------------------- Elo DNA --------------------------------- */
 
+export type ArchetypeKey =
+  | "rookie"
+  | "giantKiller"
+  | "overachiever"
+  | "flatTrackBully"
+  | "clubMerchant"
+  | "handicapper"
+  | "unlucky"
+  | "coinFlipper"
+  | "tiltProof"
+  | "nightOwl"
+  | "allRounder";
+
+/** A player's most telling pattern; the words live with the UI (components/insights/messages.ts). */
 export interface Archetype {
-  key: string;
-  title: string;
-  blurb: string;
+  key: ArchetypeKey;
+  vars: Record<string, string | number>;
 }
 
 export interface EloDna {
@@ -207,16 +220,9 @@ export function eloDna(apps: Appearance[]): EloDna {
   return { ...dna, archetype: archetypeOf(dna) };
 }
 
-const pct = (v: number) => `${Math.round(v)}%`;
-
 function archetypeOf(d: Omit<EloDna, "archetype">): Archetype {
   const played = d.all.played;
-  if (played < MIN_MATCHES)
-    return {
-      key: "rookie",
-      title: "Rookie",
-      blurb: `${played} rated matches so far: the profile takes shape after ${MIN_MATCHES}.`,
-    };
+  if (played < MIN_MATCHES) return { key: "rookie", vars: { n: played, min: MIN_MATCHES } };
   const gained = (["favourite", "even", "underdog"] as Role[]).reduce(
     (sum, r) => sum + Math.max(0, d.sources[r].W) + Math.max(0, d.sources[r].D),
     0,
@@ -232,93 +238,74 @@ function archetypeOf(d: Omit<EloDna, "archetype">): Archetype {
     d.afterMidnight.played >= 6 && d.beforeMidnight.played >= 6
       ? scoreRate(d.afterMidnight) - scoreRate(d.beforeMidnight)
       : 0;
+  const round = Math.round;
 
   const candidates: (Archetype & { score: number })[] = [
     {
-      key: "giant-killer",
-      title: "Giant Killer",
-      blurb: `${pct(underdogShare * 100)} of the Elo they won came from matches they were expected to lose.`,
+      key: "giantKiller",
+      vars: { pct: round(underdogShare * 100) },
       score: d.byRole.underdog.wins >= 3 ? underdogShare / 0.35 : 0,
     },
+    { key: "overachiever", vars: { n: d.overPerformance.toFixed(1) }, score: perMatch / 0.07 },
     {
-      key: "overachiever",
-      title: "Overachiever",
-      blurb: `${d.overPerformance.toFixed(1)} more results than the odds gave them.`,
-      score: perMatch / 0.07,
-    },
-    {
-      key: "flat-track-bully",
-      title: "Flat-Track Bully",
-      blurb: `${pct(favouriteShare * 100)} of their Elo comes from games they were favourites in.`,
+      key: "flatTrackBully",
+      vars: { pct: round(favouriteShare * 100) },
       score: d.avgExpected >= FAVOURITE_AT ? favouriteShare / 0.6 : 0,
     },
+    { key: "clubMerchant", vars: { n: round(d.avgClubDiff) }, score: d.avgClubDiff / 90 },
+    { key: "handicapper", vars: { n: round(-d.avgClubDiff) }, score: -d.avgClubDiff / 90 },
+    { key: "unlucky", vars: { n: (-d.overPerformance).toFixed(1) }, score: -perMatch / 0.07 },
+    { key: "coinFlipper", vars: { pct: round(evenShare * 100) }, score: evenShare / 0.5 },
     {
-      key: "club-merchant",
-      title: "Club Merchant",
-      blurb: `Plays with a club ${Math.round(d.avgClubDiff)} Elo stronger than the opponent's on average.`,
-      score: d.avgClubDiff / 90,
-    },
-    {
-      key: "handicapper",
-      title: "Handicapper",
-      blurb: `Hands the opponent a club ${Math.round(-d.avgClubDiff)} Elo stronger on average.`,
-      score: -d.avgClubDiff / 90,
-    },
-    {
-      key: "unlucky",
-      title: "Hard Luck",
-      blurb: `${(-d.overPerformance).toFixed(1)} fewer results than the odds gave them.`,
-      score: -perMatch / 0.07,
-    },
-    {
-      key: "coin-flipper",
-      title: "Coin-Flip King",
-      blurb: `${pct(evenShare * 100)} of their matches were coin flips (45–55% win probability).`,
-      score: evenShare / 0.5,
-    },
-    {
-      key: "tilt-proof",
-      title: "Tilt-Proof",
-      blurb: `Takes ${pct(scoreRate(d.afterLoss))} of the points right after a loss, ${pct(overall)} overall.`,
+      key: "tiltProof",
+      vars: { after: round(scoreRate(d.afterLoss)), overall: round(overall) },
       score: tiltGap / 12,
     },
     {
-      key: "night-owl",
-      title: "Night Owl",
-      blurb: `${pct(scoreRate(d.afterMidnight))} of points after midnight, ${pct(scoreRate(d.beforeMidnight))} before.`,
+      key: "nightOwl",
+      vars: { after: round(scoreRate(d.afterMidnight)), before: round(scoreRate(d.beforeMidnight)) },
       score: nightGap / 15,
     },
   ];
   const best = candidates.reduce((a, b) => (b.score > a.score ? b : a));
-  if (best.score < 1)
-    return { key: "all-rounder", title: "All-Rounder", blurb: "No single trick: points come from every kind of match." };
-  return { key: best.key, title: best.title, blurb: best.blurb };
+  if (best.score < 1) return { key: "allRounder", vars: {} };
+  return { key: best.key, vars: best.vars };
 }
 
 /* ---------------------------------- Awards --------------------------------- */
 
+export type AwardKey =
+  | "giantKiller"
+  | "flatTrackBully"
+  | "overachiever"
+  | "bottler"
+  | "clubMerchant"
+  | "tiltProof"
+  | "nightOwl"
+  | "closer";
+
+/** How an award's value reads: Elo points, results above the odds, club Elo edge, or a percentage. */
+export type AwardFormat = "elo" | "results" | "club" | "pct";
+
 export interface Award {
-  key: string;
-  title: string;
-  /** why it matters, in a few words */
-  caption: string;
+  key: AwardKey;
+  format: AwardFormat;
   winner: string;
-  value: string;
-  detail: string;
-  runnerUp?: { name: string; value: string };
+  value: number;
+  /** numbers for the award's detail line */
+  detail: Record<string, string | number>;
+  runnerUp?: { name: string; value: number };
 }
 
 export function computeAwards(dnas: Map<string, EloDna>, eligible: string[]): Award[] {
-  const pool = eligible.map((name) => ({ name, d: dnas.get(name) })).filter((x) => x.d && x.d.all.played >= MIN_MATCHES) as {
-    name: string;
-    d: EloDna;
-  }[];
+  const pool = eligible
+    .map((name) => ({ name, d: dnas.get(name) }))
+    .filter((x): x is { name: string; d: EloDna } => !!x.d && x.d.all.played >= MIN_MATCHES);
   const pick = (
-    key: string,
-    title: string,
-    caption: string,
+    key: AwardKey,
+    format: AwardFormat,
     metric: (d: EloDna) => number | null,
-    show: (d: EloDna, v: number) => [string, string],
+    detail: (d: EloDna) => Award["detail"],
     lowest = false,
   ): Award | null => {
     const ranked = pool
@@ -327,56 +314,41 @@ export function computeAwards(dnas: Map<string, EloDna>, eligible: string[]): Aw
       .sort((a, b) => (lowest ? a.v - b.v : b.v - a.v));
     const [best, second] = ranked;
     if (!best) return null;
-    const [value, detail] = show(best.d, best.v);
     return {
       key,
-      title,
-      caption,
+      format,
       winner: best.name,
-      value,
-      detail,
-      runnerUp: second ? { name: second.name, value: show(second.d, second.v)[0] } : undefined,
+      value: best.v,
+      detail: detail(best.d),
+      runnerUp: second ? { name: second.name, value: second.v } : undefined,
     };
   };
-  const elo = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(Math.round(v))} Elo`;
   const rate = (b: Bucket, min: number) => (b.played >= min ? scoreRate(b) : null);
   return [
-    pick("giant-killer", "Giant Killer", "Most Elo from wins as the underdog", (d) => d.sources.underdog.W, (d, v) => [
-      elo(v),
-      `${d.byRole.underdog.wins} wins as underdog · ${d.upsets.wins} big upsets`,
-    ]),
-    pick("flat-track-bully", "Flat-Track Bully", "Most Elo from wins as the favourite", (d) => d.sources.favourite.W, (d, v) => [
-      elo(v),
-      `${d.byRole.favourite.wins} of ${d.byRole.favourite.played} won as favourite`,
-    ]),
-    pick("overachiever", "Overachiever", "Most results above what the odds said", (d) => d.overPerformance, (d, v) => [
-      `+${v.toFixed(1)}`,
-      `${d.all.score.toFixed(1)} points from ${d.all.expected.toFixed(1)} expected`,
-    ]),
+    pick("giantKiller", "elo", (d) => d.sources.underdog.W, (d) => ({ wins: d.byRole.underdog.wins, upsets: d.upsets.wins })),
+    pick("flatTrackBully", "elo", (d) => d.sources.favourite.W, (d) => ({
+      wins: d.byRole.favourite.wins,
+      played: d.byRole.favourite.played,
+    })),
+    pick("overachiever", "results", (d) => d.overPerformance, (d) => ({
+      score: d.all.score.toFixed(1),
+      expected: d.all.expected.toFixed(1),
+    })),
     pick(
       "bottler",
-      "The Bottler",
-      "Most Elo dropped as the favourite",
+      "elo",
       (d) => (d.byRole.favourite.losses ? d.sources.favourite.L : null),
-      (d, v) => [elo(v), `${d.byRole.favourite.losses} losses as favourite · ${d.bottles.played} as heavy favourite`],
+      (d) => ({ losses: d.byRole.favourite.losses, heavy: d.bottles.played }),
       true,
     ),
-    pick("club-merchant", "Club Merchant", "Picks the strongest clubs", (d) => d.avgClubDiff, (d, v) => [
-      `${v >= 0 ? "+" : "−"}${Math.abs(Math.round(v))}`,
-      `club Elo over the opponent, on average · ${d.byClub.stronger.played} games with the stronger club`,
-    ]),
-    pick("tilt-proof", "Tilt-Proof", "Best right after a loss", (d) => rate(d.afterLoss, 6), (d, v) => [
-      `${Math.round(v)}%`,
-      `of points after a loss (${d.afterLoss.wins}W ${d.afterLoss.draws}D ${d.afterLoss.losses}L)`,
-    ]),
-    pick("night-owl", "Night Owl", "Best after midnight", (d) => rate(d.afterMidnight, 6), (d, v) => [
-      `${Math.round(v)}%`,
-      `of points after midnight, ${Math.round(scoreRate(d.beforeMidnight))}% before`,
-    ]),
-    pick("closer", "The Closer", "Best in the last match of the night", (d) => rate(d.lastOfNight, 4), (d, v) => [
-      `${Math.round(v)}%`,
-      `of points in a night's final match (${d.lastOfNight.played} nights)`,
-    ]),
+    pick("clubMerchant", "club", (d) => d.avgClubDiff, (d) => ({ games: d.byClub.stronger.played })),
+    pick("tiltProof", "pct", (d) => rate(d.afterLoss, 6), (d) => ({
+      w: d.afterLoss.wins,
+      d: d.afterLoss.draws,
+      l: d.afterLoss.losses,
+    })),
+    pick("nightOwl", "pct", (d) => rate(d.afterMidnight, 6), (d) => ({ before: Math.round(scoreRate(d.beforeMidnight)) })),
+    pick("closer", "pct", (d) => rate(d.lastOfNight, 4), (d) => ({ nights: d.lastOfNight.played })),
   ].filter((a): a is Award => a !== null);
 }
 

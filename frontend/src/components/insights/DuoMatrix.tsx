@@ -3,6 +3,8 @@ import { scoreRate, type Bucket, type DuoProfile } from "../../lib/analysis";
 import { cn } from "../../lib/cn";
 import { displayName } from "../../lib/format";
 import { Avatar } from "../ui/Identity";
+import { useT } from "../../hooks/useI18n";
+import { insightMessages } from "./messages";
 
 /** Background for a record: green when the row duo dominates, red when it struggles, faint with few games. */
 function heat(record: Bucket) {
@@ -24,6 +26,7 @@ export function DuoMatrix({
   selected?: string;
   onSelect: (key: string) => void;
 }) {
+  const t = useT(insightMessages);
   const cols = useMemo(
     () => players.filter((p) => duos.some((d) => d.vsPlayers.some((v) => v.key === p))),
     [duos, players],
@@ -34,7 +37,7 @@ export function DuoMatrix({
         <thead>
           <tr>
             <th className="sticky left-0 z-10 bg-surface px-2 text-left text-[11px] font-semibold uppercase tracking-wider text-faint">
-              Duo ↓ · vs →
+              {t("matrixCorner")}
             </th>
             {cols.map((p) => (
               <th key={p} className="px-1 pb-1 font-medium">
@@ -77,7 +80,7 @@ export function DuoMatrix({
                       key={p}
                       className="tabular rounded-lg px-2 py-1.5 text-center font-semibold whitespace-nowrap"
                       style={{ background: heat(r) }}
-                      title={`${d.names.map(displayName).join(" & ")} with ${displayName(p)} against them: ${r.wins}W ${r.draws}D ${r.losses}L`}
+                      title={t("cellTip", { duo: d.names.map(displayName).join(" & "), player: displayName(p), w: r.wins, d: r.draws, l: r.losses })}
                     >
                       {r.wins}-{r.draws}-{r.losses}
                     </td>

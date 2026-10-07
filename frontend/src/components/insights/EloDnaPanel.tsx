@@ -5,20 +5,23 @@ import { cn } from "../../lib/cn";
 import { displayName, formatDay } from "../../lib/format";
 import { Delta, Panel } from "../ui/primitives";
 import { RecordStrip } from "./RecordStrip";
+import { useT } from "../../hooks/useI18n";
+import { archetypeBlurb, archetypeTitle, insightMessages, type InsightT } from "./messages";
 
-const ROLES: { key: Role; label: string; hint: string }[] = [
-  { key: "favourite", label: "As favourite", hint: "55%+ to win" },
-  { key: "even", label: "Coin flips", hint: "45–55%" },
-  { key: "underdog", label: "As underdog", hint: "45% or less" },
-];
+const ROLES = [
+  { key: "favourite", label: "asFavourite", hint: "favouriteHint" },
+  { key: "even", label: "coinFlips", hint: "coinFlipsHint" },
+  { key: "underdog", label: "asUnderdog", hint: "underdogHint" },
+] as const satisfies readonly { key: Role; label: string; hint: string }[];
 
-const CLUBS: { key: ClubEdge; label: string }[] = [
-  { key: "stronger", label: "Stronger club" },
-  { key: "level", label: "Level clubs" },
-  { key: "weaker", label: "Weaker club" },
-];
+const CLUBS = [
+  { key: "stronger", label: "strongerClub" },
+  { key: "level", label: "levelClubs" },
+  { key: "weaker", label: "weakerClub" },
+] as const satisfies readonly { key: ClubEdge; label: string }[];
 
 function Situation({ label, hint, bucket, total }: { label: string; hint?: string; bucket: Bucket; total: number }) {
+  const t = useT(insightMessages);
   return (
     <div className="rounded-2xl border border-line bg-surface-2/50 p-4">
       <div className="flex items-baseline justify-between gap-2">
@@ -27,7 +30,9 @@ function Situation({ label, hint, bucket, total }: { label: string; hint?: strin
       </div>
       <p className="mt-0.5 text-[11px] text-faint">
         {hint ? `${hint} · ` : ""}
-        {bucket.played} games{total ? ` (${Math.round((bucket.played / total) * 100)}%)` : ""}
+        {total
+          ? t("gamesShare", { n: bucket.played, pct: Math.round((bucket.played / total) * 100) })
+          : t("games", { n: bucket.played })}
       </p>
       {bucket.played > 0 && <RecordStrip record={bucket} className="mt-3" />}
     </div>
@@ -47,76 +52,83 @@ function Fact({ icon, label, value, detail, tone }: { icon: ReactNode; label: st
   );
 }
 
-const vs = (a: Appearance) =>
-  `${a.gf}–${a.ga} vs ${a.opponents.map(displayName).join(" & ")} · ${Math.round(a.expected * 100)}% to win · ${formatDay(a.match.date)}`;
+const vs = (t: InsightT, a: Appearance) =>
+  t("swingDetail", {
+    gf: a.gf,
+    ga: a.ga,
+    opponents: a.opponents.map(displayName).join(" & "),
+    pct: Math.round(a.expected * 100),
+    date: formatDay(a.match.date),
+  });
 
 export function EloDnaPanel({ dna, name, className }: { dna: EloDna; name: string; className?: string }) {
+  const t = useT(insightMessages);
   const total = dna.all.played;
-  const pts = (b: Bucket) => `${Math.round(scoreRate(b))}%`;
+  const pts = (b: Bucket) => t("pct", { n: Math.round(scoreRate(b)) });
   return (
-    <Panel title="Elo DNA" subtitle={`How ${displayName(name)} earns (and loses) rating`} icon={<Dna className="size-4" />} className={className}>
+    <Panel title={t("dna")} subtitle={t("dnaSub", { name: displayName(name) })} icon={<Dna className="size-4" />} className={className}>
       <div className="relative overflow-hidden rounded-2xl border border-accent/25 bg-accent/[0.06] p-5">
-        <p className="label text-accent-text">Archetype</p>
-        <p className="display mt-1.5 text-4xl">{dna.archetype.title}</p>
-        <p className="mt-1 text-sm text-muted">{dna.archetype.blurb}</p>
+        <p className="label text-accent-text">{t("archetype")}</p>
+        <p className="display mt-1.5 text-4xl">{archetypeTitle(t, dna.archetype)}</p>
+        <p className="mt-1 text-sm text-muted">{archetypeBlurb(t, dna.archetype)}</p>
       </div>
 
-      <p className="label mt-6 mb-3">By the odds before kick-off</p>
+      <p className="label mt-6 mb-3">{t("byOdds")}</p>
       <div className="grid gap-3 sm:grid-cols-3">
         {ROLES.map((r) => (
-          <Situation key={r.key} label={r.label} hint={r.hint} bucket={dna.byRole[r.key]} total={total} />
+          <Situation key={r.key} label={t(r.label)} hint={t(r.hint)} bucket={dna.byRole[r.key]} total={total} />
         ))}
       </div>
 
-      <p className="label mt-6 mb-3">By club strength</p>
+      <p className="label mt-6 mb-3">{t("byClub")}</p>
       <div className="grid gap-3 sm:grid-cols-3">
         {CLUBS.map((c) => (
-          <Situation key={c.key} label={c.label} bucket={dna.byClub[c.key]} total={total} />
+          <Situation key={c.key} label={t(c.label)} bucket={dna.byClub[c.key]} total={total} />
         ))}
       </div>
 
       <div className="mt-6 grid gap-5 sm:grid-cols-2">
         <Fact
           icon={<Scale className="size-4" />}
-          label="Against the odds"
+          label={t("againstOdds")}
           value={`${dna.overPerformance >= 0 ? "+" : "−"}${Math.abs(dna.overPerformance).toFixed(1)}`}
           tone={dna.overPerformance >= 0 ? "text-win" : "text-loss"}
-          detail={`${dna.all.score.toFixed(1)} points taken, ${dna.all.expected.toFixed(1)} expected`}
+          detail={t("againstOddsDetail", { score: dna.all.score.toFixed(1), expected: dna.all.expected.toFixed(1) })}
         />
         <Fact
           icon={<RotateCcw className="size-4" />}
-          label="Right after a loss"
+          label={t("afterLoss")}
           value={dna.afterLoss.played ? pts(dna.afterLoss) : "—"}
-          detail={`of points (${dna.afterLoss.played} games) · ${pts(dna.afterWin)} after a win`}
+          detail={t("afterLossDetail", { n: dna.afterLoss.played, win: Math.round(scoreRate(dna.afterWin)) })}
         />
         <Fact
           icon={<MoonStar className="size-4" />}
-          label="After midnight"
+          label={t("afterMidnight")}
           value={dna.afterMidnight.played ? pts(dna.afterMidnight) : "—"}
-          detail={`of points (${dna.afterMidnight.played} games) · ${pts(dna.beforeMidnight)} before`}
+          detail={t("afterMidnightDetail", { n: dna.afterMidnight.played, before: Math.round(scoreRate(dna.beforeMidnight)) })}
         />
         <Fact
           icon={<Shield className="size-4" />}
-          label="Club edge on average"
+          label={t("clubEdge")}
           value={`${dna.avgClubDiff >= 0 ? "+" : "−"}${Math.abs(Math.round(dna.avgClubDiff))}`}
-          detail="club Elo over the opponent's"
+          detail={t("clubEdgeDetail")}
         />
         {dna.best && dna.best.delta > 0 && (
           <Fact
             icon={<TrendingUp className="size-4" />}
-            label="Biggest gain"
+            label={t("biggestGain")}
             value={`+${Math.round(dna.best.delta)}`}
             tone="text-win"
-            detail={vs(dna.best)}
+            detail={vs(t, dna.best)}
           />
         )}
         {dna.worst && dna.worst.delta < 0 && (
           <Fact
             icon={<TrendingDown className="size-4" />}
-            label="Biggest drop"
+            label={t("biggestDrop")}
             value={`−${Math.abs(Math.round(dna.worst.delta))}`}
             tone="text-loss"
-            detail={vs(dna.worst)}
+            detail={vs(t, dna.worst)}
           />
         )}
       </div>

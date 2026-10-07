@@ -13,6 +13,75 @@ import { cn } from "../lib/cn";
 import { expectedScore } from "../lib/elo";
 import { cleanName, displayName } from "../lib/format";
 import { headToHead, winRate } from "../lib/stats";
+import { useT } from "../hooks/useI18n";
+import { defineMessages } from "../lib/i18n";
+
+const msg = defineMessages({
+  en: {
+    pick: "Pick a player",
+    archived: "Archived",
+    eyebrow: "Rivalries",
+    title: "Head to Head",
+    description: "Pick any two players to see their record against each other, as partners, and how they stack up.",
+    swap: "Swap",
+    vs: "VS",
+    odds: "1v1 odds",
+    rivals: "As rivals",
+    rivalsSub: "{n} meeting on opposite sides|{n} meetings on opposite sides",
+    nameWins: "{name} wins",
+    draws: "draws",
+    goals: "Goals:",
+    neverFaced: "Never faced each other",
+    partners: "As partners",
+    partnersSub: "{n} match on the same side|{n} matches on the same side",
+    partnerRecord: "{w}W {d}D {l}L · {gf}–{ga} goals",
+    neverTeamed: "Never teamed up",
+    tape: "Tale of the tape",
+    elo: "Elo",
+    peak: "Peak Elo",
+    winRate: "Win rate",
+    scored: "Goals / game",
+    conceded: "Conceded / game",
+    matches: "Matches",
+    bestStreak: "Best win streak",
+    overTime: "Elo over time",
+    shared: "Shared matches",
+    choose: "Choose two players",
+    chooseHint: "Tap the avatars under each side to start the comparison.",
+  },
+  tr: {
+    pick: "Bir oyuncu seç",
+    archived: "Arşivde",
+    eyebrow: "Rekabetler",
+    title: "Karşılaştır",
+    description: "İki oyuncu seç: birbirlerine karşı ve ortak olarak kayıtlarını, kimin daha iyi olduğunu gör.",
+    swap: "Yer değiştir",
+    vs: "VS",
+    odds: "1'e 1 ihtimal",
+    rivals: "Rakip olarak",
+    rivalsSub: "Karşı karşıya {n} maç|Karşı karşıya {n} maç",
+    nameWins: "{name} kazandı",
+    draws: "beraberlik",
+    goals: "Goller:",
+    neverFaced: "Hiç karşılaşmadılar",
+    partners: "Ortak olarak",
+    partnersSub: "Aynı tarafta {n} maç|Aynı tarafta {n} maç",
+    partnerRecord: "{w}G {d}B {l}M · {gf}–{ga} gol",
+    neverTeamed: "Hiç aynı takımda oynamadılar",
+    tape: "Kozlar",
+    elo: "Elo",
+    peak: "Zirve Elo",
+    winRate: "Galibiyet oranı",
+    scored: "Maç başı attığı",
+    conceded: "Maç başı yediği",
+    matches: "Maç",
+    bestStreak: "En iyi galibiyet serisi",
+    overTime: "Zaman içinde Elo",
+    shared: "Ortak maçlar",
+    choose: "İki oyuncu seç",
+    chooseHint: "Karşılaştırmayı başlatmak için iki taraftaki avatarlara dokun.",
+  },
+});
 
 function PlayerSelect({
   ranking,
@@ -94,11 +163,12 @@ function CompareRow({
 }
 
 function Fighter({ p, side }: { p?: RankedPlayer; side: "A" | "B" }) {
+  const t = useT(msg);
   if (!p)
     return (
       <div className="flex flex-col items-center gap-3 text-center">
         <div className="grid size-28 place-items-center rounded-full border-2 border-dashed border-line-strong text-3xl text-faint">?</div>
-        <p className="text-sm text-muted">Pick a player</p>
+        <p className="text-sm text-muted">{t("pick")}</p>
       </div>
     );
   return (
@@ -118,7 +188,7 @@ function Fighter({ p, side }: { p?: RankedPlayer; side: "A" | "B" }) {
       <div>
         <p className="display text-3xl sm:text-4xl">{displayName(p.name)}</p>
         <p className="mt-1 text-xs text-muted">
-          {p.rank ? `#${p.rank}` : "Archived"} · <span className="tabular font-semibold text-fg">{p.elo}</span> Elo
+          {p.rank ? `#${p.rank}` : t("archived")} · <span className="tabular font-semibold text-fg">{p.elo}</span> Elo
         </p>
       </div>
       <FormPills outcomes={p.stats?.outcomes ?? []} size="sm" />
@@ -127,6 +197,7 @@ function Fighter({ p, side }: { p?: RankedPlayer; side: "A" | "B" }) {
 }
 
 function H2HInner({ data }: { data: Analytics }) {
+  const t = useT(msg);
   const [params, setParams] = useSearchParams();
   const find = (n: string | null) => (n ? data.byName.get(cleanName(n)) : undefined);
   const a = find(params.get("a"));
@@ -151,12 +222,12 @@ function H2HInner({ data }: { data: Analytics }) {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Rivalries"
-        title="Head to Head"
-        description="Pick any two players to see their record against each other, as partners, and how they stack up."
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
         actions={
           <Button variant="ghost" onClick={swap} disabled={!a && !b}>
-            <ArrowLeftRight className="size-4" /> Swap
+            <ArrowLeftRight className="size-4" /> {t("swap")}
           </Button>
         }
       />
@@ -172,10 +243,10 @@ function H2HInner({ data }: { data: Analytics }) {
         <div className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-4 p-6 sm:p-10">
           <Fighter p={a} side="A" />
           <div className="flex flex-col items-center gap-3">
-            <span className="display text-4xl text-faint sm:text-6xl">VS</span>
+            <span className="display text-4xl text-faint sm:text-6xl">{t("vs")}</span>
             {a && b && (
               <div className="text-center">
-                <p className="label">1v1 odds</p>
+                <p className="label">{t("odds")}</p>
                 <p className="tabular mt-1 text-sm font-semibold">
                   <span className="text-team-a">{Math.round(expectedScore(a.elo, b.elo) * 100)}%</span>
                   <span className="text-faint"> · </span>
@@ -195,21 +266,21 @@ function H2HInner({ data }: { data: Analytics }) {
       {a && b && h ? (
         <>
           <div className="grid gap-6 lg:grid-cols-2">
-            <Panel title="As rivals" subtitle={`${h.rivals.played} meetings on opposite sides`} icon={<Swords className="size-4" />}>
+            <Panel title={t("rivals")} subtitle={t("rivalsSub", { n: h.rivals.played })} icon={<Swords className="size-4" />}>
               {h.rivals.played ? (
                 <>
                   <div className="flex items-end justify-between">
                     <div>
                       <p className="display text-6xl text-team-a">{h.rivals.aWins}</p>
-                      <p className="text-xs text-muted">{displayName(a.name)} wins</p>
+                      <p className="text-xs text-muted">{t("nameWins", { name: displayName(a.name) })}</p>
                     </div>
                     <div className="text-center">
                       <p className="display text-4xl text-draw">{h.rivals.draws}</p>
-                      <p className="text-xs text-muted">draws</p>
+                      <p className="text-xs text-muted">{t("draws")}</p>
                     </div>
                     <div className="text-right">
                       <p className="display text-6xl text-team-b">{h.rivals.bWins}</p>
-                      <p className="text-xs text-muted">{displayName(b.name)} wins</p>
+                      <p className="text-xs text-muted">{t("nameWins", { name: displayName(b.name) })}</p>
                     </div>
                   </div>
                   <div className="mt-4 flex h-3 overflow-hidden rounded-full">
@@ -228,15 +299,15 @@ function H2HInner({ data }: { data: Analytics }) {
                     ))}
                   </div>
                   <p className="mt-3 text-center text-xs text-muted">
-                    Goals: <span className="tabular font-semibold text-team-a">{h.rivals.aGoals}</span> –{" "}
+                    {t("goals")} <span className="tabular font-semibold text-team-a">{h.rivals.aGoals}</span> –{" "}
                     <span className="tabular font-semibold text-team-b">{h.rivals.bGoals}</span>
                   </p>
                 </>
               ) : (
-                <EmptyState className="py-6" title="Never faced each other" />
+                <EmptyState className="py-6" title={t("neverFaced")} />
               )}
             </Panel>
-            <Panel title="As partners" subtitle={`${h.partners.played} matches on the same side`} icon={<HeartHandshake className="size-4" />}>
+            <Panel title={t("partners")} subtitle={t("partnersSub", { n: h.partners.played })} icon={<HeartHandshake className="size-4" />}>
               {h.partners.played ? (
                 <div className="flex items-center gap-6">
                   <div className="flex -space-x-4">
@@ -246,33 +317,33 @@ function H2HInner({ data }: { data: Analytics }) {
                   <div>
                     <p className="display text-6xl">{winRate(h.partners).toFixed(0)}%</p>
                     <p className="text-sm text-muted">
-                      {h.partners.wins}W {h.partners.draws}D {h.partners.losses}L · {h.partners.gf}–{h.partners.ga} goals
+                      {t("partnerRecord", { w: h.partners.wins, d: h.partners.draws, l: h.partners.losses, gf: h.partners.gf, ga: h.partners.ga })}
                     </p>
                   </div>
                 </div>
               ) : (
-                <EmptyState className="py-6" title="Never teamed up" />
+                <EmptyState className="py-6" title={t("neverTeamed")} />
               )}
             </Panel>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-12">
-            <Panel title="Tale of the tape" className="lg:col-span-5" bodyClassName="space-y-5 p-5">
-              <CompareRow label="Elo" a={a.elo} b={b.elo} />
-              <CompareRow label="Peak Elo" a={a.peak} b={b.peak} />
-              <CompareRow label="Win rate" a={sa ? winRate(sa) : 0} b={sb ? winRate(sb) : 0} format={(v) => `${v.toFixed(0)}%`} />
-              <CompareRow label="Goals / game" a={per(sa?.gf, sa?.played)} b={per(sb?.gf, sb?.played)} format={(v) => v.toFixed(2)} />
+            <Panel title={t("tape")} className="lg:col-span-5" bodyClassName="space-y-5 p-5">
+              <CompareRow label={t("elo")} a={a.elo} b={b.elo} />
+              <CompareRow label={t("peak")} a={a.peak} b={b.peak} />
+              <CompareRow label={t("winRate")} a={sa ? winRate(sa) : 0} b={sb ? winRate(sb) : 0} format={(v) => `${v.toFixed(0)}%`} />
+              <CompareRow label={t("scored")} a={per(sa?.gf, sa?.played)} b={per(sb?.gf, sb?.played)} format={(v) => v.toFixed(2)} />
               <CompareRow
-                label="Conceded / game"
+                label={t("conceded")}
                 a={per(sa?.ga, sa?.played)}
                 b={per(sb?.ga, sb?.played)}
                 format={(v) => v.toFixed(2)}
                 higherIsBetter={false}
               />
-              <CompareRow label="Matches" a={sa?.played ?? 0} b={sb?.played ?? 0} />
-              <CompareRow label="Best win streak" a={sa?.longestWin ?? 0} b={sb?.longestWin ?? 0} />
+              <CompareRow label={t("matches")} a={sa?.played ?? 0} b={sb?.played ?? 0} />
+              <CompareRow label={t("bestStreak")} a={sa?.longestWin ?? 0} b={sb?.longestWin ?? 0} />
             </Panel>
-            <Panel title="Elo over time" className="lg:col-span-7">
+            <Panel title={t("overTime")} className="lg:col-span-7">
               <EloRaceChart
                 series={[
                   { name: a.name, history: a.history },
@@ -286,7 +357,7 @@ function H2HInner({ data }: { data: Analytics }) {
 
           {[...h.rivals.matches, ...h.partners.matches].length > 0 && (
             <section>
-              <h2 className="mb-3 text-[15px] font-semibold">Shared matches</h2>
+              <h2 className="mb-3 text-[15px] font-semibold">{t("shared")}</h2>
               <div className="space-y-2">
                 {[...h.rivals.matches, ...h.partners.matches]
                   .sort((x, y) => y.date.getTime() - x.date.getTime())
@@ -300,7 +371,7 @@ function H2HInner({ data }: { data: Analytics }) {
         </>
       ) : (
         <div className="card">
-          <EmptyState icon={<Swords className="size-5" />} title="Choose two players" description="Tap the avatars under each side to start the comparison." />
+          <EmptyState icon={<Swords className="size-5" />} title={t("choose")} description={t("chooseHint")} />
         </div>
       )}
     </div>

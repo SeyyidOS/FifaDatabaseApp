@@ -42,7 +42,8 @@ export function teamAverage(names: string[], eloByName: Map<string, number>): nu
 
 export type TeamsResult =
   | { ok: true; teamA: string[]; teamB: string[]; diff: number }
-  | { ok: false; reason: string };
+  | { ok: false; reason: "too-few"; needed: number }
+  | { ok: false; reason: "no-split" };
 
 /**
  * Random teams that never reunite last match's partners. With `balance`, try many
@@ -59,7 +60,7 @@ export function generateTeams(opts: {
   const [sizeA, sizeB] = TEAM_SIZES[opts.mode];
   const needed = sizeA + sizeB;
   if (opts.pool.length < needed) {
-    return { ok: false, reason: `Pick at least ${needed} players for ${opts.mode}.` };
+    return { ok: false, reason: "too-few", needed };
   }
   const valid = (names: string[]) => {
     for (let i = 0; i < names.length; i++) {
@@ -87,10 +88,8 @@ export function generateTeams(opts: {
     }
   }
   if (best) return { ok: true, ...best };
-  return {
-    ok: false,
-    reason: "Every split reunites last match's partners. Add more players or change the mode.",
-  };
+  // every split reunites last match's partners
+  return { ok: false, reason: "no-split" };
 }
 
 export interface ClubPick {

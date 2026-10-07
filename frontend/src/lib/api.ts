@@ -11,6 +11,12 @@ import type {
   PlayerStanding,
   SignIn,
 } from "./types";
+import { defineMessages, translator } from "./i18n";
+
+const messages = defineMessages({
+  en: { offline: "Can't reach the server. Check your connection." },
+  tr: { offline: "Sunucuya ulaşılamıyor. Bağlantını kontrol et." },
+});
 
 export const API_URL = (import.meta.env.VITE_API_URL ?? "/api").replace(/\/$/, "");
 
@@ -30,7 +36,7 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string):
   try {
     res = await fetch(`${API_URL}${path}`, { ...init, headers });
   } catch {
-    throw new ApiError(0, "Can't reach the server. Check your connection.");
+    throw new ApiError(0, translator(messages)("offline"));
   }
   if (!res.ok) {
     let detail = res.statusText;

@@ -7,6 +7,38 @@ import { cn } from "../lib/cn";
 import { displayName } from "../lib/format";
 import type { Player } from "../lib/types";
 import { Button } from "./ui/primitives";
+import { useT } from "../hooks/useI18n";
+import { defineMessages } from "../lib/i18n";
+import { common } from "../lib/messages";
+
+const m = defineMessages({
+  en: {
+    badName: "Use letters and numbers",
+    badNameHint: "Spaces, dots, dashes and apostrophes are fine too.",
+    archived: "{name} is archived",
+    archivedHint: "An admin can restore them in Settings.",
+    exists: "{name} is already on the roster",
+    joined: "{name} joined the squad",
+    joinedHint: "Starting rating: 1000 Elo",
+    failed: "Couldn't add player",
+    placeholder: "Player name",
+    add: "Add",
+    addPlayer: "Add player",
+  },
+  tr: {
+    badName: "Harf ve rakam kullan",
+    badNameHint: "Boşluk, nokta, tire ve kesme işareti de olur.",
+    archived: "{name} arşivde",
+    archivedHint: "Bir yönetici Ayarlar'dan geri alabilir.",
+    exists: "{name} zaten kadroda",
+    joined: "{name} kadroya katıldı",
+    joinedHint: "Başlangıç puanı: 1000 Elo",
+    failed: "Oyuncu eklenemedi",
+    placeholder: "Oyuncu adı",
+    add: "Ekle",
+    addPlayer: "Oyuncu ekle",
+  },
+});
 
 export function AddPlayer({
   players,
@@ -17,6 +49,8 @@ export function AddPlayer({
   className?: string;
   onAdded?: (name: string) => void;
 }) {
+  const t = useT(m);
+  const tc = useT(common);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const add = useAddPlayer();
@@ -27,27 +61,25 @@ export function AddPlayer({
     if (!n) return;
     // same rule as the API (backend/schemas.py); "&" joins the names of a duo
     if (!/^[\p{L}\p{N}_][\p{L}\p{N}_ .'-]*$/u.test(n)) {
-      toast.error("Use letters and numbers", { description: "Spaces, dots, dashes and apostrophes are fine too." });
+      toast.error(t("badName"), { description: t("badNameHint") });
       return;
     }
     const existing = players.find((p) => p.name.toLowerCase() === n);
     if (existing) {
       toast.error(
-        existing.archived
-          ? `${displayName(n)} is archived`
-          : `${displayName(n)} is already on the roster`,
-        existing.archived ? { description: "An admin can restore them in Settings." } : undefined,
+        existing.archived ? t("archived", { name: displayName(n) }) : t("exists", { name: displayName(n) }),
+        existing.archived ? { description: t("archivedHint") } : undefined,
       );
       return;
     }
     try {
       await add.mutateAsync(n);
-      toast.success(`${displayName(n)} joined the squad`, { description: "Starting rating: 1000 Elo" });
+      toast.success(t("joined", { name: displayName(n) }), { description: t("joinedHint") });
       setName("");
       setOpen(false);
       onAdded?.(n);
     } catch (err) {
-      toast.error("Couldn't add player", { description: (err as Error).message });
+      toast.error(t("failed"), { description: (err as Error).message });
     }
   };
 
@@ -68,21 +100,21 @@ export function AddPlayer({
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
-              placeholder="Player name"
+              placeholder={t("placeholder")}
               maxLength={30}
               className="input h-9 w-40"
             />
-            <Button type="submit" size="icon" variant="primary" loading={add.isPending} aria-label="Add">
+            <Button type="submit" size="icon" variant="primary" loading={add.isPending} aria-label={t("add")}>
               {!add.isPending && <Check className="size-4" />}
             </Button>
-            <Button type="button" size="icon" variant="ghost" onClick={() => setOpen(false)} aria-label="Cancel">
+            <Button type="button" size="icon" variant="ghost" onClick={() => setOpen(false)} aria-label={tc("cancel")}>
               <X className="size-4" />
             </Button>
           </motion.form>
         ) : (
           <motion.div key="btn" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <Button size="sm" variant="secondary" onClick={() => setOpen(true)} className="h-9">
-              <UserPlus className="size-4" /> Add player
+              <UserPlus className="size-4" /> {t("addPlayer")}
             </Button>
           </motion.div>
         )}

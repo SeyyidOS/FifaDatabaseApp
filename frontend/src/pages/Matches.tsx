@@ -13,10 +13,52 @@ import { cn } from "../lib/cn";
 import { dayFromKey, displayName, formatWeekday, relativeTime } from "../lib/format";
 import { isUpset, nightSummary } from "../lib/insights";
 import { groupMatchdays } from "../lib/stats";
+import { useT } from "../hooks/useI18n";
+import { defineMessages } from "../lib/i18n";
 
 type ResultFilter = "all" | "decisive" | "draws" | "upsets";
 
+const msg = defineMessages({
+  en: {
+    eyebrow: "Match history",
+    title: "Matches",
+    description: "{matches} results across {days} matchdays. Elo swings shown next to each line-up.",
+    filterClub: "Filter by club…",
+    fromDate: "From date",
+    all: "All",
+    decisive: "Decisive",
+    draws: "Draws",
+    upsets: "Upsets",
+    clear: "Clear",
+    count: "{n} match|{n} matches",
+    featuring: "featuring",
+    empty: "No matches found",
+    emptyHint: "Loosen the filters to see more results.",
+    daySub: "{when} · {matches} matches · {goals} goals",
+    loadMore: "Load older matchdays ({n} more)",
+  },
+  tr: {
+    eyebrow: "Maç geçmişi",
+    title: "Maçlar",
+    description: "{days} maç gecesinde {matches} sonuç. Elo değişimleri her kadronun yanında.",
+    filterClub: "Kulübe göre filtrele…",
+    fromDate: "Başlangıç tarihi",
+    all: "Tümü",
+    decisive: "Kazananı var",
+    draws: "Berabere",
+    upsets: "Sürpriz",
+    clear: "Temizle",
+    count: "{n} maç|{n} maç",
+    featuring: "· oynayan:",
+    empty: "Maç bulunamadı",
+    emptyHint: "Daha fazla sonuç için filtreleri gevşet.",
+    daySub: "{when} · {matches} maç · {goals} gol",
+    loadMore: "Daha eski maç gecelerini yükle ({n} tane daha)",
+  },
+});
+
 function MatchesInner({ data }: { data: Analytics }) {
+  const t = useT(msg);
   const { slug } = useBoard();
   const [player, setPlayer] = useSessionState<string | null>(`${slug}:mh-player`, null);
   const [query, setQuery] = useState("");
@@ -43,32 +85,32 @@ function MatchesInner({ data }: { data: Analytics }) {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Match history"
-        title="Matches"
-        description={`${data.parsed.length} results across ${data.matchdays.length} matchdays. Elo swings shown next to each line-up.`}
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description", { matches: data.parsed.length, days: data.matchdays.length })}
       />
 
       <div className="card space-y-4 p-4">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-52 flex-1">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-faint" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filter by club…" className="input pl-9" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("filterClub")} className="input pl-9" />
           </div>
-          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="input w-auto" aria-label="From date" />
+          <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="input w-auto" aria-label={t("fromDate")} />
           <Segmented<ResultFilter>
             value={result}
             onChange={setResult}
             size="sm"
             options={[
-              { value: "all", label: "All" },
-              { value: "decisive", label: "Decisive" },
-              { value: "draws", label: "Draws" },
+              { value: "all", label: t("all") },
+              { value: "decisive", label: t("decisive") },
+              { value: "draws", label: t("draws") },
               {
                 value: "upsets",
                 label: (
                   <span className="inline-flex items-center gap-1">
                     <Zap className="size-3" />
-                    Upsets
+                    {t("upsets")}
                   </span>
                 ),
               },
@@ -85,7 +127,7 @@ function MatchesInner({ data }: { data: Analytics }) {
                 setResult("all");
               }}
             >
-              <X className="size-3.5" /> Clear
+              <X className="size-3.5" /> {t("clear")}
             </Button>
           )}
         </div>
@@ -110,18 +152,18 @@ function MatchesInner({ data }: { data: Analytics }) {
       </div>
 
       <p className="text-sm text-muted">
-        <span className="font-semibold text-fg">{filtered.length}</span> matches
+        <span className="font-semibold text-fg">{t("count", { n: filtered.length })}</span>
         {player && (
           <>
             {" "}
-            featuring <span className="font-semibold text-fg">{displayName(player)}</span>
+            {t("featuring")} <span className="font-semibold text-fg">{displayName(player)}</span>
           </>
         )}
       </p>
 
       {!days.length ? (
         <div className="card">
-          <EmptyState icon={<CalendarDays className="size-5" />} title="No matches found" description="Loosen the filters to see more results." />
+          <EmptyState icon={<CalendarDays className="size-5" />} title={t("empty")} description={t("emptyHint")} />
         </div>
       ) : (
         <div className="space-y-10">
@@ -141,7 +183,7 @@ function MatchesInner({ data }: { data: Analytics }) {
                   <div>
                     <h2 className="display text-2xl">{formatWeekday(d)}</h2>
                     <p className="text-xs text-muted">
-                      {relativeTime(day.matches[0].date)} · {day.matches.length} matches · {day.goals} goals
+                      {t("daySub", { when: relativeTime(day.matches[0].date), matches: day.matches.length, goals: day.goals })}
                     </p>
                   </div>
                   {mvp && !player && (
@@ -163,7 +205,7 @@ function MatchesInner({ data }: { data: Analytics }) {
           {shown < days.length && (
             <div className="flex justify-center">
               <Button variant="secondary" onClick={() => setShown((s) => s + 6)}>
-                Load older matchdays ({days.length - shown} more)
+                {t("loadMore", { n: days.length - shown })}
               </Button>
             </div>
           )}

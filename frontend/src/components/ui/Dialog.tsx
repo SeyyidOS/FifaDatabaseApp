@@ -3,6 +3,8 @@ import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "./primitives";
+import { useT } from "../../hooks/useI18n";
+import { common } from "../../lib/messages";
 
 export function Modal({
   open,
@@ -58,7 +60,7 @@ export function ConfirmDialog({
   onConfirm,
   title,
   description,
-  confirmLabel = "Delete",
+  confirmLabel,
   loading,
 }: {
   open: boolean;
@@ -69,6 +71,7 @@ export function ConfirmDialog({
   confirmLabel?: string;
   loading?: boolean;
 }) {
+  const tc = useT(common);
   return (
     <Modal open={open} onClose={onClose} labelledBy="confirm-title">
       <div className="flex gap-4">
@@ -84,14 +87,14 @@ export function ConfirmDialog({
       </div>
       <div className="mt-6 flex justify-end gap-2">
         <Button variant="ghost" onClick={onClose}>
-          Cancel
+          {tc("cancel")}
         </Button>
         <Button
           className="bg-loss text-white hover:bg-loss/90 border-transparent"
           onClick={onConfirm}
           loading={loading}
         >
-          {confirmLabel}
+          {confirmLabel ?? tc("delete")}
         </Button>
       </div>
     </Modal>

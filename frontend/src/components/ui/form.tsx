@@ -1,6 +1,8 @@
 import { useId, useState, type InputHTMLAttributes, type ReactNode } from "react";
 import { Check, Eye, EyeOff } from "lucide-react";
 import { cn } from "../../lib/cn";
+import { useT } from "../../hooks/useI18n";
+import { defineMessages } from "../../lib/i18n";
 
 export function Field({
   label,
@@ -34,7 +36,13 @@ export function TextInput({ className, ...props }: InputHTMLAttributes<HTMLInput
   return <input className={cn("input h-11", className)} {...props} />;
 }
 
+const m = defineMessages({
+  en: { show: "Show password", hide: "Hide password" },
+  tr: { show: "Şifreyi göster", hide: "Şifreyi gizle" },
+});
+
 export function PasswordInput({ className, ...props }: Omit<InputHTMLAttributes<HTMLInputElement>, "type">) {
+  const t = useT(m);
   const [shown, setShown] = useState(false);
   return (
     <div className="relative">
@@ -43,7 +51,7 @@ export function PasswordInput({ className, ...props }: Omit<InputHTMLAttributes<
         type="button"
         onClick={() => setShown((s) => !s)}
         className="absolute top-1/2 right-2 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-faint hover:text-fg"
-        aria-label={shown ? "Hide password" : "Show password"}
+        aria-label={shown ? t("hide") : t("show")}
         tabIndex={-1}
       >
         {shown ? <EyeOff className="size-4" /> : <Eye className="size-4" />}

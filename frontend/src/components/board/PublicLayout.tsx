@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Logo } from "../layout/Logo";
+import { LanguageButton } from "../layout/LanguageButton";
 import { ThemeButton } from "../layout/ThemeButton";
 
 /** Pages outside a board: the board list and the sign-in screen. */
@@ -12,7 +13,10 @@ export function PublicLayout({ children }: { children: ReactNode }) {
         <Link to="/">
           <Logo />
         </Link>
-        <ThemeButton />
+        <span className="flex items-center">
+          <LanguageButton />
+          <ThemeButton />
+        </span>
       </header>
       <main className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">{children}</main>
     </div>

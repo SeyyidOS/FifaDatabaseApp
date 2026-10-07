@@ -3,6 +3,8 @@ import { cn } from "../../lib/cn";
 import { displayName } from "../../lib/format";
 import { crestFor } from "../../lib/crests";
 import { clubIdentity, initials, playerGradient } from "../../lib/identity";
+import { useT } from "../../hooks/useI18n";
+import { defineMessages } from "../../lib/i18n";
 
 const AVATAR_SIZES = {
   xs: "size-5 text-[10px]",
@@ -50,6 +52,11 @@ export function Avatar({
   );
 }
 
+const m = defineMessages({
+  en: { crest: "{name} crest", stars: "{n} star|{n} stars" },
+  tr: { crest: "{name} arması", stars: "{n} yıldız|{n} yıldız" },
+});
+
 const CREST_SIZES = { xs: 18, sm: 24, md: 32, lg: 44, xl: 64, "2xl": 88 } as const;
 
 export function ClubCrest({
@@ -61,6 +68,7 @@ export function ClubCrest({
   size?: keyof typeof CREST_SIZES;
   className?: string;
 }) {
+  const t = useT(m);
   const id = useId().replace(/:/g, "");
   const [broken, setBroken] = useState<string | null>(null);
   const { abbr, primary, secondary, ink } = clubIdentity(name);
@@ -71,7 +79,7 @@ export function ClubCrest({
     return (
       <img
         src={crest.src}
-        alt={`${name} crest`}
+        alt={t("crest", { name })}
         title={name}
         width={px}
         height={Math.round(px * 1.15)}
@@ -96,7 +104,7 @@ export function ClubCrest({
       height={px * 1.15}
       className={cn("shrink-0 drop-shadow-[0_4px_10px_rgba(0,0,0,.35)]", className)}
       role="img"
-      aria-label={`${name} crest`}
+      aria-label={t("crest", { name })}
     >
       <defs>
         <linearGradient id={`g${id}`} x1="0" y1="0" x2="1" y2="1">
@@ -139,10 +147,11 @@ export function ClubCrest({
 }
 
 export function Stars({ value, className }: { value: number; className?: string }) {
+  const t = useT(m);
   return (
     <span
       className={cn("relative inline-block text-[11px] leading-none tracking-[1px]", className)}
-      aria-label={`${value} stars`}
+      aria-label={t("stars", { n: value })}
       title={`${value} ★`}
     >
       <span className="text-line-strong">★★★★★</span>

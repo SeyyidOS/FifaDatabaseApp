@@ -10,6 +10,29 @@ import {
 import { ArrowDown, ArrowUp, Minus } from "lucide-react";
 import { cn } from "../../lib/cn";
 import type { Outcome } from "../../lib/types";
+import { useT } from "../../hooks/useI18n";
+import { defineMessages } from "../../lib/i18n";
+
+const m = defineMessages({
+  en: {
+    W: "W",
+    D: "D",
+    L: "L",
+    form: "Form: {form}",
+    noChange: "No change",
+    up: "Up {n} since last matchday",
+    down: "Down {n} since last matchday",
+  },
+  tr: {
+    W: "G",
+    D: "B",
+    L: "M",
+    form: "Form: {form}",
+    noChange: "Değişiklik yok",
+    up: "Son maç gecesinden beri {n} sıra yukarı",
+    down: "Son maç gecesinden beri {n} sıra aşağı",
+  },
+});
 
 /* ---------------------------------- Button --------------------------------- */
 
@@ -97,7 +120,7 @@ export function Panel({
           {action}
         </header>
       )}
-      <div className={cn("p-5", bodyClassName)}>{children}</div>
+      <div className={bodyClassName ?? "p-5"}>{children}</div>
     </section>
   );
 }
@@ -250,9 +273,10 @@ export function FormPills({
   max?: number;
   size?: "sm" | "md";
 }) {
+  const t = useT(m);
   const shown = outcomes.slice(0, max);
   return (
-    <span className="inline-flex items-center gap-1" aria-label={`Form: ${shown.join(" ")}`}>
+    <span className="inline-flex items-center gap-1" aria-label={t("form", { form: shown.map((o) => t(o)).join(" ") })}>
       {shown.map((o, i) => (
         <span
           key={i}
@@ -263,7 +287,7 @@ export function FormPills({
             i === 0 && "ring-2",
           )}
         >
-          {o}
+          {t(o)}
         </span>
       ))}
       {Array.from({ length: Math.max(0, max - shown.length) }).map((_, i) => (
@@ -280,6 +304,7 @@ export function FormPills({
 }
 
 export function OutcomeBadge({ outcome }: { outcome: Outcome }) {
+  const t = useT(m);
   return (
     <span
       className={cn(
@@ -287,7 +312,7 @@ export function OutcomeBadge({ outcome }: { outcome: Outcome }) {
         OUTCOME_STYLE[outcome],
       )}
     >
-      {outcome}
+      {t(outcome)}
     </span>
   );
 }
@@ -321,10 +346,11 @@ export function Delta({
 }
 
 export function RankMove({ value, hideZero }: { value: number; hideZero?: boolean }) {
+  const t = useT(m);
   if (value === 0 && hideZero) return null;
   if (value === 0)
     return (
-      <span className="inline-flex items-center text-faint" title="No change">
+      <span className="inline-flex items-center text-faint" title={t("noChange")}>
         <Minus className="size-3" />
       </span>
     );
@@ -332,7 +358,7 @@ export function RankMove({ value, hideZero }: { value: number; hideZero?: boolea
   return (
     <span
       className={cn("tabular inline-flex items-center text-[11px] font-bold", up ? "text-win" : "text-loss")}
-      title={`${up ? "Up" : "Down"} ${Math.abs(value)} since last matchday`}
+      title={t(up ? "up" : "down", { n: Math.abs(value) })}
     >
       {up ? <ArrowUp className="size-3" strokeWidth={3} /> : <ArrowDown className="size-3" strokeWidth={3} />}
       {Math.abs(value)}

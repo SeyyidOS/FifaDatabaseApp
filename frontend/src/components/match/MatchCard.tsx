@@ -8,6 +8,13 @@ import type { Side } from "../../lib/types";
 import { Avatar, ClubCrest } from "../ui/Identity";
 import { Delta, OutcomeBadge, Pill } from "../ui/primitives";
 import { BoardLink } from "../board/BoardLink";
+import { useT } from "../../hooks/useI18n";
+import { defineMessages } from "../../lib/i18n";
+
+const m = defineMessages({
+  en: { upset: "Upset" },
+  tr: { upset: "Sürpriz" },
+});
 
 function SideBlock({
   side,
@@ -63,6 +70,7 @@ export function MatchCard({
   showTime?: boolean;
   className?: string;
 }) {
+  const t = useT(m);
   const outcome = perspective ? outcomeFor(match, perspective) : null;
   const upset = isUpset(match, elo);
   const total = match.scoreA + match.scoreB;
@@ -90,7 +98,7 @@ export function MatchCard({
           {showTime && !outcome && <span className="tabular text-[11px] text-faint">{formatTime(match.date)}</span>}
           {upset && (
             <Pill tone="draw" className="px-1.5">
-              <Zap className="size-3" /> Upset
+              <Zap className="size-3" /> {t("upset")}
             </Pill>
           )}
           {!upset && total >= 12 && (

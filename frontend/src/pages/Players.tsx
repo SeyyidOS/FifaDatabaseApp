@@ -7,10 +7,36 @@ import { Segmented } from "../components/ui/primitives";
 import { useSessionState } from "../hooks/useSessionState";
 import { winRate } from "../lib/stats";
 import { BoardLink } from "../components/board/BoardLink";
+import { useT } from "../hooks/useI18n";
+import { defineMessages } from "../lib/i18n";
 
 type Order = "elo" | "win" | "played" | "name";
 
+const msg = defineMessages({
+  en: {
+    eyebrow: "Squad",
+    title: "Players",
+    description:
+      "Overall rating tracks Elo. Attributes come from real results: win rate, attack, defence, form, consistency and experience.",
+    rating: "Rating",
+    win: "Win %",
+    games: "Games",
+    name: "A–Z",
+  },
+  tr: {
+    eyebrow: "Kadro",
+    title: "Oyuncular",
+    description:
+      "Genel reyting Elo'yu izler. Özellikler gerçek sonuçlardan gelir: galibiyet, hücum, savunma, form, istikrar ve tecrübe.",
+    rating: "Reyting",
+    win: "Gal. %",
+    games: "Maç",
+    name: "A–Z",
+  },
+});
+
 export default function Players() {
+  const t = useT(msg);
   const [order, setOrder] = useSessionState<Order>("pl-order", "elo");
   return (
     <DataGate>
@@ -24,9 +50,9 @@ export default function Players() {
         return (
           <div>
             <PageHeader
-              eyebrow="Squad"
-              title="Players"
-              description="Overall rating tracks Elo. Attributes come from real results: win rate, attack, defence, form, consistency and experience."
+              eyebrow={t("eyebrow")}
+              title={t("title")}
+              description={t("description")}
               actions={
                 <>
                   <Segmented<Order>
@@ -34,10 +60,10 @@ export default function Players() {
                     onChange={setOrder}
                     size="sm"
                     options={[
-                      { value: "elo", label: "Rating" },
-                      { value: "win", label: "Win %" },
-                      { value: "played", label: "Games" },
-                      { value: "name", label: "A–Z" },
+                      { value: "elo", label: t("rating") },
+                      { value: "win", label: t("win") },
+                      { value: "played", label: t("games") },
+                      { value: "name", label: t("name") },
                     ]}
                   />
                   <AddPlayer players={data.players} />

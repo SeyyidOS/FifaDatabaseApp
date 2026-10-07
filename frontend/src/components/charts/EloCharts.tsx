@@ -17,6 +17,8 @@ import { INITIAL_ELO, type EloPoint } from "../../lib/elo";
 import { dayFromKey, displayName, formatDay, formatDayShort, matchdayKey } from "../../lib/format";
 
 import { seriesColor } from "../../lib/chart";
+import { useT } from "../../hooks/useI18n";
+import { defineMessages } from "../../lib/i18n";
 
 /** Pad by ~30 and snap to multiples of 50 so ticks land on round numbers. */
 const niceDomain: [(min: number) => number, (max: number) => number] = [
@@ -39,6 +41,11 @@ function TooltipShell({ title, children }: { title: string; children: ReactNode 
     </div>
   );
 }
+
+const m = defineMessages({
+  en: { match: "Match {i} · {date}", start: "Starting rating", peak: "Peak {elo}" },
+  tr: { match: "{i}. maç · {date}", start: "Başlangıç puanı", peak: "Zirve {elo}" },
+});
 
 /* -------------------------------- Elo race --------------------------------- */
 
@@ -172,6 +179,7 @@ export function EloRaceChart({
 /* ------------------------------ Player Elo area ----------------------------- */
 
 export function PlayerEloChart({ history, height = 260 }: { history: EloPoint[]; height?: number }) {
+  const t = useT(m);
   const data = useMemo(
     () => [
       { i: 0, elo: INITIAL_ELO, time: null as Date | null },
@@ -204,7 +212,7 @@ export function PlayerEloChart({ history, height = 260 }: { history: EloPoint[];
               if (!p.active || !p.payload?.length) return null;
               const row = p.payload[0].payload as { i: number; elo: number; time: Date | null };
               return (
-                <TooltipShell title={row.time ? `Match ${row.i} · ${formatDay(row.time)}` : "Starting rating"}>
+                <TooltipShell title={row.time ? t("match", { i: row.i, date: formatDay(row.time) }) : t("start")}>
                   <p className="display text-2xl">{row.elo}</p>
                 </TooltipShell>
               );
@@ -227,7 +235,7 @@ export function PlayerEloChart({ history, height = 260 }: { history: EloPoint[];
               fill="var(--gold)"
               stroke="var(--surface)"
               strokeWidth={2}
-              label={{ value: `Peak ${peak.elo}`, position: peak.i > data.length * 0.75 ? "left" : "top", offset: 10, fill: "var(--gold)", fontSize: 11, fontWeight: 600 }}
+              label={{ value: t("peak", { elo: peak.elo }), position: peak.i > data.length * 0.75 ? "left" : "top", offset: 10, fill: "var(--gold)", fontSize: 11, fontWeight: 600 }}
             />
           )}
         </AreaChart>

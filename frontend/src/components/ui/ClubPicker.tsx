@@ -6,13 +6,36 @@ import { clubStars } from "../../lib/elo";
 import { choiceName, type ClubChoice } from "../../lib/clubChoice";
 import type { Club } from "../../lib/types";
 import { ClubCrest, Stars } from "./Identity";
+import { useT } from "../../hooks/useI18n";
+import { defineMessages } from "../../lib/i18n";
+
+const m = defineMessages({
+  en: {
+    choose: "Choose club",
+    elo: "{elo} Elo",
+    custom: "Custom club",
+    searchAll: "Search all clubs",
+    searchPlaceholder: "Search or type a custom club…",
+    useCustom: "Use custom club “{name}”",
+    noMatch: "No clubs match.",
+  },
+  tr: {
+    choose: "Kulüp seç",
+    elo: "{elo} Elo",
+    custom: "Özel kulüp",
+    searchAll: "Tüm kulüplerde ara",
+    searchPlaceholder: "Ara ya da özel bir kulüp yaz…",
+    useCustom: "Özel kulüp kullan: “{name}”",
+    noMatch: "Eşleşen kulüp yok.",
+  },
+});
 
 export function ClubPicker({
   clubs,
   value,
   onChange,
   side,
-  placeholder = "Choose club",
+  placeholder,
 }: {
   clubs: Club[];
   value: ClubChoice;
@@ -20,6 +43,7 @@ export function ClubPicker({
   side: "A" | "B";
   placeholder?: string;
 }) {
+  const t = useT(m);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -79,17 +103,17 @@ export function ClubPicker({
           </span>
         )}
         <span className="min-w-0 flex-1">
-          <span className={cn("block truncate font-semibold", !name && "text-muted")}>{name || placeholder}</span>
+          <span className={cn("block truncate font-semibold", !name && "text-muted")}>{name || placeholder || t("choose")}</span>
           <span className="mt-1 flex items-center gap-2 text-xs text-muted">
             {selected ? (
               <>
                 <Stars value={clubStars(selected.elo)} />
-                <span className="tabular">{selected.elo ?? "—"} Elo</span>
+                <span className="tabular">{t("elo", { elo: selected.elo ?? "—" })}</span>
               </>
             ) : value?.kind === "custom" ? (
-              "Custom club"
+              t("custom")
             ) : (
-              "Search all clubs"
+              t("searchAll")
             )}
           </span>
         </span>
@@ -126,7 +150,7 @@ export function ClubPicker({
                     if (total) commit(active);
                   } else if (e.key === "Escape") setOpen(false);
                 }}
-                placeholder="Search or type a custom club…"
+                placeholder={t("searchPlaceholder")}
                 className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-faint"
               />
             </div>
@@ -164,11 +188,11 @@ export function ClubPicker({
                     <span className="grid size-6 place-items-center rounded-md bg-surface-3 text-muted">
                       <PenLine className="size-3.5" />
                     </span>
-                    Use custom club “{query.trim()}”
+                    {t("useCustom", { name: query.trim() })}
                   </button>
                 </li>
               )}
-              {!total && <li className="px-3 py-6 text-center text-sm text-muted">No clubs match.</li>}
+              {!total && <li className="px-3 py-6 text-center text-sm text-muted">{t("noMatch")}</li>}
             </ul>
           </motion.div>
         )}

@@ -1,3 +1,5 @@
+import { getLang, locale } from "./i18n";
+
 export const TIME_ZONE = "Europe/Istanbul";
 
 /**
@@ -11,13 +13,16 @@ export function parseApiTime(value: string): Date {
   return new Date(s);
 }
 
-const fmt = (opts: Intl.DateTimeFormatOptions) =>
-  new Intl.DateTimeFormat("en-GB", { timeZone: TIME_ZONE, ...opts });
+/** Date formatters for the current language, created once per language. */
+const cache = new Map<string, Intl.DateTimeFormat>();
+function fmt(name: string, opts: Intl.DateTimeFormatOptions) {
+  const loc = locale();
+  const key = `${loc}:${name}`;
+  let f = cache.get(key);
+  if (!f) cache.set(key, (f = new Intl.DateTimeFormat(loc, { timeZone: TIME_ZONE, ...opts })));
+  return f;
+}
 
-const dayFmt = fmt({ day: "numeric", month: "short", year: "numeric" });
-const dayShortFmt = fmt({ day: "numeric", month: "short" });
-const weekdayFmt = fmt({ weekday: "long", day: "numeric", month: "long" });
-const timeFmt = fmt({ hour: "2-digit", minute: "2-digit", hour12: false });
 const isoDayFmt = new Intl.DateTimeFormat("en-CA", {
   timeZone: TIME_ZONE,
   year: "numeric",
@@ -25,11 +30,11 @@ const isoDayFmt = new Intl.DateTimeFormat("en-CA", {
   day: "2-digit",
 });
 
-export const formatDay = (d: Date) => dayFmt.format(d);
-export const formatDayShort = (d: Date) => dayShortFmt.format(d);
-export const formatWeekday = (d: Date) => weekdayFmt.format(d);
-export const formatTime = (d: Date) => timeFmt.format(d);
-export const formatDateTime = (d: Date) => `${dayFmt.format(d)} · ${timeFmt.format(d)}`;
+export const formatDay = (d: Date) => fmt("day", { day: "numeric", month: "short", year: "numeric" }).format(d);
+export const formatDayShort = (d: Date) => fmt("dayShort", { day: "numeric", month: "short" }).format(d);
+export const formatWeekday = (d: Date) => fmt("weekday", { weekday: "long", day: "numeric", month: "long" }).format(d);
+export const formatTime = (d: Date) => fmt("time", { hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+export const formatDateTime = (d: Date) => `${formatDay(d)} · ${formatTime(d)}`;
 
 /** YYYY-MM-DD in Istanbul time. */
 export const isoDay = (d: Date) => isoDayFmt.format(d);
@@ -44,11 +49,14 @@ export const matchdayKey = (d: Date) =>
 /** Local-midnight Date for a YYYY-MM-DD key (for display only). */
 export const dayFromKey = (key: string) => new Date(`${key}T12:00:00Z`);
 
-const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+const relative = new Map<string, Intl.RelativeTimeFormat>();
 export function relativeTime(d: Date, now = new Date()): string {
+  const lang = getLang();
+  let rtf = relative.get(lang);
+  if (!rtf) relative.set(lang, (rtf = new Intl.RelativeTimeFormat(lang, { numeric: "auto" })));
   const diff = (d.getTime() - now.getTime()) / 1000;
   const abs = Math.abs(diff);
-  if (abs < 60) return "just now";
+  if (abs < 60) return rtf.format(0, "second");
   if (abs < 3600) return rtf.format(Math.round(diff / 60), "minute");
   if (abs < 86400) return rtf.format(Math.round(diff / 3600), "hour");
   if (abs < 86400 * 30) return rtf.format(Math.round(diff / 86400), "day");
@@ -61,10 +69,11 @@ export const cleanName = (s: string) => s.replace(/[{}()]/g, "").trim().toLowerC
 
 export const parseTeam = (team: string[] | null | undefined) => (team ?? []).map(cleanName).filter(Boolean);
 
+/** "ali veli" -> "Ali Veli" ("ihsan" -> "İhsan" in Turkish). */
 export const displayName = (name: string) =>
   name
     .split(/(\s+|-)/)
-    .map((w) => (w.trim() ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .map((w) => (w.trim() ? w.charAt(0).toLocaleUpperCase(locale()) + w.slice(1) : w))
     .join("");
 
 export const duoKey = (names: string[]) => [...names].sort().join(" & ");

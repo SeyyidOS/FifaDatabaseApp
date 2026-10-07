@@ -4,6 +4,8 @@ import type { Analytics } from "../hooks/analytics-context";
 import { useAnalytics } from "../hooks/useAnalytics";
 import { API_URL } from "../lib/api";
 import { Button, EmptyState, Skeleton } from "./ui/primitives";
+import { useT } from "../hooks/useI18n";
+import { defineMessages } from "../lib/i18n";
 
 export function PageSkeleton() {
   return (
@@ -25,7 +27,13 @@ export function PageSkeleton() {
   );
 }
 
+const m = defineMessages({
+  en: { unreachable: "Can't reach the match server", retry: "Try again" },
+  tr: { unreachable: "Maç sunucusuna ulaşılamıyor", retry: "Tekrar dene" },
+});
+
 export function DataGate({ children }: { children: (data: Analytics) => ReactNode }) {
+  const t = useT(m);
   const { data, isLoading, error, refetch } = useAnalytics();
   if (data) return <>{children(data)}</>;
   if (error && !isLoading)
@@ -33,7 +41,7 @@ export function DataGate({ children }: { children: (data: Analytics) => ReactNod
       <div className="card mx-auto mt-10 max-w-lg">
         <EmptyState
           icon={<ServerCrash className="size-5" />}
-          title="Can't reach the match server"
+          title={t("unreachable")}
           description={
             <>
               {error.message}
@@ -42,7 +50,7 @@ export function DataGate({ children }: { children: (data: Analytics) => ReactNod
           }
           action={
             <Button variant="primary" onClick={refetch}>
-              <RefreshCw className="size-4" /> Try again
+              <RefreshCw className="size-4" /> {t("retry")}
             </Button>
           }
         />

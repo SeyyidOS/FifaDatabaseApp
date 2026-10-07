@@ -6,37 +6,35 @@ import { displayName } from "../lib/format";
 import { eloToOvr } from "../lib/insights";
 import { initials, playerGradient } from "../lib/identity";
 import { ClubCrest } from "./ui/Identity";
+import { useT } from "../hooks/useI18n";
+import { defineMessages } from "../lib/i18n";
 
 type Tier = "special" | "gold" | "silver" | "bronze";
 
-const TIERS: Record<Tier, { bg: string; ink: string; sub: string; line: string; label: string }> = {
+const TIERS: Record<Tier, { bg: string; ink: string; sub: string; line: string }> = {
   special: {
     bg: "radial-gradient(120% 80% at 50% 0%, #2c3a07 0%, #10150a 55%, #07090a 100%)",
     ink: "#d8ff5a",
     sub: "rgba(216,255,90,.65)",
     line: "rgba(216,255,90,.35)",
-    label: "Leader",
   },
   gold: {
     bg: "linear-gradient(160deg, #fbe9a4 0%, #e4bb4f 38%, #b98622 75%, #9d6f16 100%)",
     ink: "#3a2905",
     sub: "rgba(58,41,5,.7)",
     line: "rgba(58,41,5,.25)",
-    label: "Gold",
   },
   silver: {
     bg: "linear-gradient(160deg, #f4f7fa 0%, #c9d1da 40%, #9aa6b3 80%, #85919f 100%)",
     ink: "#1d2633",
     sub: "rgba(29,38,51,.7)",
     line: "rgba(29,38,51,.2)",
-    label: "Silver",
   },
   bronze: {
     bg: "linear-gradient(160deg, #f2c49b 0%, #c98756 40%, #9c5d34 80%, #844b28 100%)",
     ink: "#2c1405",
     sub: "rgba(44,20,5,.7)",
     line: "rgba(44,20,5,.22)",
-    label: "Bronze",
   },
 };
 
@@ -46,6 +44,41 @@ function tierFor(p: RankedPlayer): Tier {
   return ovr >= 75 ? "gold" : ovr >= 65 ? "silver" : "bronze";
 }
 
+const m = defineMessages({
+  en: {
+    win: "WIN",
+    winTip: "Win rate",
+    att: "ATT",
+    attTip: "Goals scored per match × 20",
+    def: "DEF",
+    defTip: "99 − goals conceded per match × 20",
+    frm: "FRM",
+    frmTip: "Points from the last 5 matches",
+    con: "CON",
+    conTip: "Unbeaten rate",
+    exp: "EXP",
+    expTip: "Matches played",
+    footer: "{elo} Elo",
+    footerProv: "{elo} Elo · Prov.",
+  },
+  tr: {
+    win: "GAL",
+    winTip: "Galibiyet oranı",
+    att: "HÜC",
+    attTip: "Maç başına atılan gol × 20",
+    def: "SAV",
+    defTip: "99 − maç başına yenilen gol × 20",
+    frm: "FRM",
+    frmTip: "Son 5 maçtan alınan puan",
+    con: "İST",
+    conTip: "Yenilmezlik oranı",
+    exp: "TEC",
+    expTip: "Oynanan maç",
+    footer: "{elo} Elo",
+    footerProv: "{elo} Elo · Geçici",
+  },
+});
+
 function attributes(p: RankedPlayer) {
   const s = p.stats;
   const played = s?.played ?? 0;
@@ -54,13 +87,13 @@ function attributes(p: RankedPlayer) {
   const formMax = Math.max(1, Math.min(5, s?.outcomes.length ?? 0) * 3);
   const clamp = (v: number) => Math.max(1, Math.min(99, Math.round(v)));
   return [
-    { k: "WIN", v: clamp(per(s?.wins ?? 0) * 100), t: "Win rate" },
-    { k: "ATT", v: clamp(per(s?.gf ?? 0) * 20), t: "Goals scored per match × 20" },
-    { k: "DEF", v: clamp(99 - per(s?.ga ?? 0) * 20), t: "99 − goals conceded per match × 20" },
-    { k: "FRM", v: clamp((formPts / formMax) * 99), t: "Points from the last 5 matches" },
-    { k: "CON", v: clamp(per((s?.wins ?? 0) + (s?.draws ?? 0)) * 100), t: "Unbeaten rate" },
-    { k: "EXP", v: clamp(played), t: "Matches played" },
-  ];
+    { k: "win", v: clamp(per(s?.wins ?? 0) * 100) },
+    { k: "att", v: clamp(per(s?.gf ?? 0) * 20) },
+    { k: "def", v: clamp(99 - per(s?.ga ?? 0) * 20) },
+    { k: "frm", v: clamp((formPts / formMax) * 99) },
+    { k: "con", v: clamp(per((s?.wins ?? 0) + (s?.draws ?? 0)) * 100) },
+    { k: "exp", v: clamp(played) },
+  ] as const;
 }
 
 function favouriteClub(p: RankedPlayer): string | null {
@@ -82,6 +115,7 @@ export function PlayerCard({
   className?: string;
   interactive?: boolean;
 }) {
+  const tx = useT(m);
   const tier = tierFor(player);
   const t = TIERS[tier];
   const ovr = eloToOvr(player.elo);
@@ -191,12 +225,12 @@ export function PlayerCard({
               style={{ top: 186 * scale, columnGap: 6 * scale, rowGap: 0, padding: `0 ${30 * scale}px` }}
             >
               {attrs.map((a) => (
-                <div key={a.k} className="flex items-baseline gap-1.5" title={a.t}>
+                <div key={a.k} className="flex items-baseline gap-1.5" title={tx(`${a.k}Tip`)}>
                   <span className="display tabular" style={{ fontSize: 19 * scale }}>
                     {a.v}
                   </span>
                   <span className="font-display font-semibold" style={{ fontSize: 13 * scale, color: t.sub }}>
-                    {a.k}
+                    {tx(a.k)}
                   </span>
                 </div>
               ))}
@@ -207,7 +241,7 @@ export function PlayerCard({
               className="absolute inset-x-0 text-center font-display font-bold uppercase"
               style={{ bottom: 13 * scale, fontSize: 9 * scale, letterSpacing: "0.2em", color: t.sub }}
             >
-              {player.elo} Elo{player.provisional ? " · Prov." : ""}
+              {tx(player.provisional ? "footerProv" : "footer", { elo: player.elo })}
             </div>
           </div>
 

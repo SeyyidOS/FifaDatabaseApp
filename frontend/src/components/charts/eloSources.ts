@@ -10,12 +10,12 @@ export interface EloSourceRow {
   favL: number;
 }
 
-export const SOURCE_SERIES: { key: keyof Omit<EloSourceRow, "name">; label: string; color: string }[] = [
-  { key: "favW", label: "Wins as favourite", color: "var(--chart-2)" },
-  { key: "evenW", label: "Wins in coin flips", color: "var(--win)" },
-  { key: "dogW", label: "Wins as underdog", color: "var(--accent)" },
-  { key: "draws", label: "Draws", color: "var(--draw)" },
-  { key: "dogL", label: "Losses as underdog", color: "var(--text-faint)" },
-  { key: "evenL", label: "Losses in coin flips", color: "var(--chart-9)" },
-  { key: "favL", label: "Losses as favourite", color: "var(--loss)" },
-];
+export const SOURCE_SERIES = [
+  { key: "favW", label: "winsFav", color: "var(--chart-2)" },
+  { key: "evenW", label: "winsEven", color: "var(--win)" },
+  { key: "dogW", label: "winsDog", color: "var(--accent)" },
+  { key: "draws", label: "draws", color: "var(--draw)" },
+  { key: "dogL", label: "lossesDog", color: "var(--text-faint)" },
+  { key: "evenL", label: "lossesEven", color: "var(--chart-9)" },
+  { key: "favL", label: "lossesFav", color: "var(--loss)" },
+] as const satisfies readonly { key: keyof Omit<EloSourceRow, "name">; label: string; color: string }[];

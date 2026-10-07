@@ -6,19 +6,51 @@ import { Check, ChevronsUpDown, LayoutGrid, LogOut, Menu, Plus, Search, X } from
 import { useAnalytics } from "../../hooks/useAnalytics";
 import { useBoard, useSessions } from "../../hooks/useBoard";
 import { cn } from "../../lib/cn";
-import { removeSession, roleLabel } from "../../lib/session";
+import { defineMessages } from "../../lib/i18n";
+import { common } from "../../lib/messages";
+import { removeSession } from "../../lib/session";
+import { useT } from "../../hooks/useI18n";
 import { Avatar } from "../ui/Identity";
 import { Button } from "../ui/primitives";
 import { CommandPalette } from "./CommandPalette";
 import { Logo } from "./Logo";
-import { NAV } from "./nav";
+import { LanguageButton } from "./LanguageButton";
+import { NAV, navMessages } from "./nav";
 import { ThemeButton } from "./ThemeButton";
 
+const m = defineMessages({
+  en: {
+    offline: "Server offline",
+    syncing: "Syncing…",
+    live: "Live data",
+    yourBoards: "Your boards",
+    menu: "Menu",
+    playBadge: "PLAY",
+    footer: "{matches} matches · {players} players · K {k}",
+    search: "Search players, pages…",
+    newMatch: "New match",
+    matchCenter: "Match center",
+  },
+  tr: {
+    offline: "Sunucuya ulaşılamıyor",
+    syncing: "Eşitleniyor…",
+    live: "Canlı veri",
+    yourBoards: "Board'ların",
+    menu: "Menü",
+    playBadge: "OYNA",
+    footer: "{matches} maç · {players} oyuncu · K {k}",
+    search: "Oyuncu, sayfa ara…",
+    newMatch: "Yeni maç",
+    matchCenter: "Maç merkezi",
+  },
+});
+
 function SyncStatus({ compact }: { compact?: boolean }) {
+  const t = useT(m);
   const { error, data } = useAnalytics();
   const fetching = useIsFetching();
   const state = error ? "offline" : fetching ? "syncing" : data ? "live" : "syncing";
-  const label = { offline: "Server offline", syncing: "Syncing…", live: "Live data" }[state];
+  const label = { offline: t("offline"), syncing: t("syncing"), live: t("live") }[state];
   return (
     <span className="inline-flex items-center gap-2 text-xs text-muted" title={label}>
       <span
@@ -47,6 +79,8 @@ function useSignOut() {
 }
 
 function BoardSwitcher() {
+  const t = useT(m);
+  const tc = useT(common);
   const { slug, name, role } = useBoard();
   const sessions = useSessions();
   const signOut = useSignOut();
@@ -77,7 +111,7 @@ function BoardSwitcher() {
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold">{name}</span>
           <span className="block truncate text-[11px] text-muted">
-            {roleLabel(role)} · {slug}
+            {tc(role)} · {slug}
           </span>
         </span>
         <ChevronsUpDown className="size-4 shrink-0 text-faint" />
@@ -91,7 +125,7 @@ function BoardSwitcher() {
             transition={{ duration: 0.15 }}
             className="card absolute inset-x-0 top-full z-40 mt-2 p-1.5 shadow-2xl"
           >
-            <p className="label px-2.5 pt-1.5 pb-1">Your boards</p>
+            <p className="label px-2.5 pt-1.5 pb-1">{t("yourBoards")}</p>
             {sessions.map((s) => (
               <Link key={s.slug} to={`/b/${s.slug}`} className={item}>
                 <Avatar name={s.name} size="sm" className="rounded-lg" />
@@ -101,10 +135,10 @@ function BoardSwitcher() {
             ))}
             <div className="hairline my-1.5" />
             <Link to="/" className={item}>
-              <LayoutGrid className="size-4 text-muted" /> Join or create a board
+              <LayoutGrid className="size-4 text-muted" /> {tc("joinOrCreate")}
             </Link>
             <button onClick={signOut} className={cn(item, "text-loss")}>
-              <LogOut className="size-4" /> Sign out on this device
+              <LogOut className="size-4" /> {tc("signOutDevice")}
             </button>
           </motion.div>
         )}
@@ -114,6 +148,8 @@ function BoardSwitcher() {
 }
 
 function Sidebar() {
+  const t = useT(m);
+  const tn = useT(navMessages);
   const { data } = useAnalytics();
   const { path } = useBoard();
   return (
@@ -125,7 +161,7 @@ function Sidebar() {
         <BoardSwitcher />
       </div>
       <nav className="flex-1 space-y-1 px-3">
-        <p className="label px-3 pb-2">Menu</p>
+        <p className="label px-3 pb-2">{t("menu")}</p>
         {NAV.map((n) => (
           <NavLink
             key={n.to}
@@ -154,10 +190,10 @@ function Sidebar() {
                   />
                 )}
                 <n.icon className={cn("size-[18px]", isActive && "text-accent-text")} />
-                {n.label}
+                {tn(n.key)}
                 {n.to === "/play" && (
                   <span className="ml-auto rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-ink">
-                    PLAY
+                    {t("playBadge")}
                   </span>
                 )}
               </>
@@ -168,11 +204,14 @@ function Sidebar() {
       <div className="m-3 rounded-2xl border border-line bg-surface/70 p-4">
         <div className="flex items-center justify-between">
           <SyncStatus />
-          <ThemeButton />
+          <span className="flex items-center">
+            <LanguageButton />
+            <ThemeButton />
+          </span>
         </div>
         {data && (
           <p className="mt-2 text-xs text-faint">
-            {data.parsed.length} matches · {data.ranking.length} players · K {data.k}
+            {t("footer", { matches: data.parsed.length, players: data.ranking.length, k: data.k })}
           </p>
         )}
       </div>
@@ -181,6 +220,9 @@ function Sidebar() {
 }
 
 function TopBar({ onSearch }: { onSearch: () => void }) {
+  const t = useT(m);
+  const tc = useT(common);
+  const tn = useT(navMessages);
   const navigate = useNavigate();
   const { path, name } = useBoard();
   const signOut = useSignOut();
@@ -201,7 +243,7 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
           className="group flex h-10 min-w-0 flex-1 items-center gap-3 rounded-xl border border-line bg-surface/60 px-3 text-sm text-faint transition-colors hover:border-line-strong hover:text-muted sm:max-w-md"
         >
           <Search className="size-4" />
-          <span className="truncate">Search players, pages…</span>
+          <span className="truncate">{t("search")}</span>
           <kbd className="ml-auto hidden rounded-md border border-line bg-surface-2 px-1.5 py-0.5 font-sans text-[10px] font-medium text-muted sm:block">
             ⌘K
           </kbd>
@@ -210,17 +252,18 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
           <span className="hidden md:block">
             <SyncStatus />
           </span>
-          <span className="lg:hidden">
+          <span className="flex items-center lg:hidden">
+            <LanguageButton />
             <ThemeButton />
           </span>
           <span className="hidden sm:block">
             <Button variant="primary" onClick={() => navigate(path("/play"))}>
               <Plus className="size-4" strokeWidth={2.5} />
-              New match
+              {t("newMatch")}
             </Button>
           </span>
           <span className="lg:hidden">
-            <Button variant="ghost" size="icon" onClick={() => setMenu((m) => !m)} aria-label="Menu">
+            <Button variant="ghost" size="icon" onClick={() => setMenu((m) => !m)} aria-label={t("menu")}>
               {menu ? <X className="size-5" /> : <Menu className="size-5" />}
             </Button>
           </span>
@@ -247,17 +290,17 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
                 }
               >
                 <n.icon className="size-4" />
-                {n.label}
+                {tn(n.key)}
               </NavLink>
             ))}
             <Link to="/" className="flex items-center gap-2.5 rounded-xl border border-line px-3 py-3 text-sm font-medium text-muted">
-              <LayoutGrid className="size-4" /> All boards
+              <LayoutGrid className="size-4" /> {tc("allBoards")}
             </Link>
             <button
               onClick={signOut}
               className="flex items-center gap-2.5 rounded-xl border border-line px-3 py-3 text-left text-sm font-medium text-loss"
             >
-              <LogOut className="size-4" /> Sign out
+              <LogOut className="size-4" /> {tc("signOut")}
             </button>
           </div>
         </motion.nav>
@@ -267,6 +310,8 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
 }
 
 function BottomNav() {
+  const t = useT(m);
+  const tn = useT(navMessages);
   const { path } = useBoard();
   const items = NAV.filter((n) => ["", "/leaderboard", "/matches", "/players"].includes(n.to));
   const navigate = useNavigate();
@@ -287,7 +332,7 @@ function BottomNav() {
       {({ isActive }) => (
         <>
           <n.icon className={cn("size-5", isActive && "text-accent-text")} />
-          {n.short}
+          {tn(`${n.key}Short`)}
         </>
       )}
     </NavLink>
@@ -299,7 +344,7 @@ function BottomNav() {
         <div className="flex flex-1 justify-center">
           <button
             onClick={() => navigate(path("/play"))}
-            aria-label="Match center"
+            aria-label={t("matchCenter")}
             className={cn(
               "-mt-6 grid size-14 place-items-center rounded-2xl bg-accent text-accent-ink shadow-[0_10px_30px_-8px_var(--accent)] ring-4 ring-bg transition-transform active:scale-95",
               onPlay && "rotate-45",

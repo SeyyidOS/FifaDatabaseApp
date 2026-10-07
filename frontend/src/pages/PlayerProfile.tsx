@@ -19,8 +19,124 @@ import { winRate, type Tally } from "../lib/stats";
 import { BoardLink } from "../components/board/BoardLink";
 import { useBoard } from "../hooks/useBoard";
 import { useBoardNavigate } from "../hooks/useBoardNavigate";
+import { useT } from "../hooks/useI18n";
+import { defineMessages } from "../lib/i18n";
+import { common } from "../lib/messages";
 
 const MIN_PAIR = 3;
+
+const msg = defineMessages({
+  en: {
+    record: "{w}W {d}D {l}L",
+    notEnough: "Not enough games yet ({n}+ needed)",
+    allPlayers: "All players",
+    archived: "Archived",
+    rankByElo: "#{rank} by Elo",
+    provisional: "Provisional",
+    streakW: "{n} win in a row|{n} wins in a row",
+    streakL: "{n} loss in a row|{n} losses in a row",
+    streakD: "{n} draw in a row|{n} draws in a row",
+    matchesN: "{n} match|{n} matches",
+    lastPlayed: " · last played {when}",
+    elo: "Elo",
+    lastMatchday: "last matchday",
+    peak: "Peak",
+    allTimeHigh: "All-time high",
+    winRate: "Win rate",
+    goalDiff: "Goal diff",
+    perGame: "{f} for · {a} against /g",
+    form: "Form",
+    compare: "Compare",
+    journey: "Elo journey",
+    journeySub: "{n} rated matches · K {k}",
+    noRated: "No rated matches yet.",
+    milestones: "Milestones",
+    bestStreak: "Best streak",
+    winsInRow: "wins in a row",
+    unbeaten: "Unbeaten",
+    longestRun: "longest run",
+    cleanSheets: "Clean sheets",
+    zeroConceded: "0 goals conceded",
+    biggestWin: "Biggest win",
+    clubs: "{a} v {b}",
+    matchMap: "Match map",
+    matchMapSub: "Each dot is a match: win probability before kick-off vs Elo won or lost",
+    againstDuos: "Against duos",
+    againstDuosSub: "Record against each pair faced",
+    noDuos: "No duos faced yet.",
+    bestPartner: "Best partner",
+    worstPartner: "Worst partner",
+    victim: "Favourite victim",
+    nemesis: "Nemesis",
+    together: "together",
+    against: "against",
+    partnerships: "Partnerships",
+    partnershipsSub: "Record with each teammate",
+    noPartnerships: "No partnerships yet.",
+    favClubs: "Favourite clubs",
+    favClubsSub: "Most picked, with win rate",
+    noClubs: "No clubs yet.",
+    gp: "{n} gp",
+    recent: "Recent matches",
+    total: "{n} total",
+    showAll: "Show all {n} matches",
+  },
+  tr: {
+    record: "{w}G {d}B {l}M",
+    notEnough: "Henüz yeterli maç yok (en az {n})",
+    allPlayers: "Tüm oyuncular",
+    archived: "Arşivde",
+    rankByElo: "Elo'da {rank}.",
+    provisional: "Geçici",
+    streakW: "Üst üste {n} galibiyet|Üst üste {n} galibiyet",
+    streakL: "Üst üste {n} mağlubiyet|Üst üste {n} mağlubiyet",
+    streakD: "Üst üste {n} beraberlik|Üst üste {n} beraberlik",
+    matchesN: "{n} maç|{n} maç",
+    lastPlayed: " · son maç {when}",
+    elo: "Elo",
+    lastMatchday: "son maç gecesi",
+    peak: "Zirve",
+    allTimeHigh: "Tüm zamanların en yükseği",
+    winRate: "Galibiyet oranı",
+    goalDiff: "Averaj",
+    perGame: "Maç başı {f} attı · {a} yedi",
+    form: "Form",
+    compare: "Karşılaştır",
+    journey: "Elo yolculuğu",
+    journeySub: "{n} puanlı maç · K {k}",
+    noRated: "Henüz puanlı maç yok.",
+    milestones: "Kilometre taşları",
+    bestStreak: "En iyi seri",
+    winsInRow: "üst üste galibiyet",
+    unbeaten: "Yenilmezlik",
+    longestRun: "en uzun seri",
+    cleanSheets: "Gol yemeden",
+    zeroConceded: "0 gol yenen maç",
+    biggestWin: "En farklı galibiyet",
+    clubs: "{a} - {b}",
+    matchMap: "Maç haritası",
+    matchMapSub: "Her nokta bir maç: maç öncesi kazanma ihtimaline karşı kazanılan ya da kaybedilen Elo",
+    againstDuos: "İkililere karşı",
+    againstDuosSub: "Karşılaşılan her ikiliye karşı kayıt",
+    noDuos: "Henüz ikiliyle karşılaşmadı.",
+    bestPartner: "En iyi ortak",
+    worstPartner: "En kötü ortak",
+    victim: "Favori kurban",
+    nemesis: "Kâbus",
+    together: "birlikte",
+    against: "karşısında",
+    partnerships: "Ortaklıklar",
+    partnershipsSub: "Her takım arkadaşıyla kayıt",
+    noPartnerships: "Henüz ortaklık yok.",
+    favClubs: "Favori kulüpler",
+    favClubsSub: "En çok seçilenler, galibiyet oranıyla",
+    noClubs: "Henüz kulüp yok.",
+    gp: "{n} maç",
+    recent: "Son maçlar",
+    total: "toplam {n}",
+    showAll: "{n} maçın hepsini göster",
+  },
+});
 
 function StatTile({ label, value, sub, tone }: { label: string; value: ReactNode; sub?: ReactNode; tone?: string }) {
   return (
@@ -49,6 +165,7 @@ function RelationCard({
   caption: string;
   to?: string;
 }) {
+  const t = useT(msg);
   return (
     <div className="rounded-2xl border border-line bg-surface-2/50 p-4">
       <div className={cn("flex items-center gap-2", tone === "win" ? "text-win" : "text-loss")}>
@@ -63,7 +180,7 @@ function RelationCard({
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold">{displayName(name)}</p>
             <p className="text-xs text-muted">
-              {record.wins}W {record.draws}D {record.losses}L · {caption}
+              {t("record", { w: record.wins, d: record.draws, l: record.losses })} · {caption}
             </p>
           </div>
           <span className={cn("display tabular text-2xl", tone === "win" ? "text-win" : "text-loss")}>
@@ -71,7 +188,7 @@ function RelationCard({
           </span>
         </BoardLink>
       ) : (
-        <p className="mt-3 text-sm text-muted">Not enough games yet ({MIN_PAIR}+ needed)</p>
+        <p className="mt-3 text-sm text-muted">{t("notEnough", { n: MIN_PAIR })}</p>
       )}
     </div>
   );
@@ -87,6 +204,8 @@ function pickExtreme(map: Map<string, Tally> | undefined, best: boolean): [strin
 function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
   const [showAll, setShowAll] = useState(false);
   const navigate = useBoardNavigate();
+  const t = useT(msg);
+  const tc = useT(common);
   const s = player.stats;
   const key = cleanName(player.name);
   const matches = data.parsed.filter((m) => m.teamA.includes(key) || m.teamB.includes(key));
@@ -106,7 +225,7 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
   return (
     <div className="space-y-6">
       <BoardLink to="/players" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-fg">
-        <ArrowLeft className="size-4" /> All players
+        <ArrowLeft className="size-4" /> {t("allPlayers")}
       </BoardLink>
 
       {/* Hero */}
@@ -121,47 +240,47 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
           <PlayerCard player={player} size="lg" />
           <div className="w-full min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              {player.archived ? <Pill>Archived</Pill> : <Pill tone="accent">#{player.rank} by Elo</Pill>}
+              {player.archived ? <Pill>{t("archived")}</Pill> : <Pill tone="accent">{t("rankByElo", { rank: player.rank })}</Pill>}
               <RankMove value={player.rankDelta} hideZero />
-              {player.provisional && <Pill>Provisional</Pill>}
+              {player.provisional && <Pill>{t("provisional")}</Pill>}
               {current && current.count >= 2 && (
                 <Pill tone={current.type === "W" ? "win" : current.type === "L" ? "loss" : "draw"}>
-                  <Flame className="size-3" /> {current.count} {current.type === "W" ? "wins" : current.type === "L" ? "losses" : "draws"} in a row
+                  <Flame className="size-3" /> {t(current.type === "W" ? "streakW" : current.type === "L" ? "streakL" : "streakD", { n: current.count })}
                 </Pill>
               )}
             </div>
             <h1 className="display mt-3 text-6xl sm:text-7xl">{displayName(player.name)}</h1>
             <p className="mt-2 text-sm text-muted">
-              {played} matches{s?.lastPlayed && <> · last played {relativeTime(s.lastPlayed)}</>}
+              {t("matchesN", { n: played })}{s?.lastPlayed && t("lastPlayed", { when: relativeTime(s.lastPlayed) })}
             </p>
 
             <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <StatTile
-                label="Elo"
+                label={t("elo")}
                 value={<AnimatedNumber value={player.elo} />}
                 sub={
                   <span className="inline-flex items-center gap-1">
-                    <Delta value={player.eloDelta} /> last matchday
+                    <Delta value={player.eloDelta} /> {t("lastMatchday")}
                   </span>
                 }
               />
-              <StatTile label="Peak" value={player.peak} tone="text-gold" sub="All-time high" />
-              <StatTile label="Win rate" value={`${s ? winRate(s).toFixed(0) : 0}%`} sub={`${s?.wins ?? 0}W ${s?.draws ?? 0}D ${s?.losses ?? 0}L`} />
+              <StatTile label={t("peak")} value={player.peak} tone="text-gold" sub={t("allTimeHigh")} />
+              <StatTile label={t("winRate")} value={`${s ? winRate(s).toFixed(0) : 0}%`} sub={t("record", { w: s?.wins ?? 0, d: s?.draws ?? 0, l: s?.losses ?? 0 })} />
               <StatTile
-                label="Goal diff"
+                label={t("goalDiff")}
                 value={`${(s?.gf ?? 0) - (s?.ga ?? 0) > 0 ? "+" : ""}${(s?.gf ?? 0) - (s?.ga ?? 0)}`}
                 tone={(s?.gf ?? 0) >= (s?.ga ?? 0) ? "text-win" : "text-loss"}
-                sub={`${played ? ((s?.gf ?? 0) / played).toFixed(1) : 0} for · ${played ? ((s?.ga ?? 0) / played).toFixed(1) : 0} against /g`}
+                sub={t("perGame", { f: played ? ((s?.gf ?? 0) / played).toFixed(1) : 0, a: played ? ((s?.ga ?? 0) / played).toFixed(1) : 0 })}
               />
             </div>
 
             <div className="mt-5 flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
-                <span className="label">Form</span>
+                <span className="label">{t("form")}</span>
                 <FormPills outcomes={s?.outcomes ?? []} />
               </div>
               <Button variant="secondary" className="ml-auto" onClick={() => navigate(`/h2h?a=${encodeURIComponent(player.name)}`)}>
-                <Swords className="size-4" /> Compare
+                <Swords className="size-4" /> {t("compare")}
               </Button>
             </div>
           </div>
@@ -170,25 +289,25 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
 
       <div className="grid gap-6 lg:grid-cols-12">
         <Panel
-          title="Elo journey"
-          subtitle={`${player.history.length} rated matches · K ${data.k}`}
+          title={t("journey")}
+          subtitle={t("journeySub", { n: player.history.length, k: data.k })}
           icon={<TrendingUp className="size-4" />}
           className="lg:col-span-8"
         >
           {player.history.length ? (
             <PlayerEloChart history={player.history} />
           ) : (
-            <p className="py-16 text-center text-sm text-muted">No rated matches yet.</p>
+            <p className="py-16 text-center text-sm text-muted">{t("noRated")}</p>
           )}
         </Panel>
-        <Panel title="Milestones" icon={<Trophy className="size-4" />} className="lg:col-span-4" bodyClassName="grid grid-cols-2 gap-3 p-5">
-          <StatTile label="Best streak" value={s?.longestWin ?? 0} sub="wins in a row" />
-          <StatTile label="Unbeaten" value={s?.longestUnbeaten ?? 0} sub="longest run" />
-          <StatTile label="Clean sheets" value={s?.cleanSheets ?? 0} sub="0 goals conceded" />
+        <Panel title={t("milestones")} icon={<Trophy className="size-4" />} className="lg:col-span-4" bodyClassName="grid grid-cols-2 gap-3 p-5">
+          <StatTile label={t("bestStreak")} value={s?.longestWin ?? 0} sub={t("winsInRow")} />
+          <StatTile label={t("unbeaten")} value={s?.longestUnbeaten ?? 0} sub={t("longestRun")} />
+          <StatTile label={t("cleanSheets")} value={s?.cleanSheets ?? 0} sub={t("zeroConceded")} />
           <StatTile
-            label="Biggest win"
+            label={t("biggestWin")}
             value={s?.biggestWin ? `${Math.max(s.biggestWin.scoreA, s.biggestWin.scoreB)}–${Math.min(s.biggestWin.scoreA, s.biggestWin.scoreB)}` : "—"}
-            sub={s?.biggestWin ? `${s.biggestWin.clubA} v ${s.biggestWin.clubB}` : undefined}
+            sub={s?.biggestWin ? t("clubs", { a: s.biggestWin.clubA, b: s.biggestWin.clubB }) : undefined}
           />
         </Panel>
       </div>
@@ -198,13 +317,13 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
           <EloDnaPanel dna={dna} name={player.name} className="lg:col-span-7" />
           <div className="min-w-0 space-y-6 lg:col-span-5">
             <Panel
-              title="Match map"
-              subtitle="Each dot is a match: win probability before kick-off vs Elo won or lost"
+              title={t("matchMap")}
+              subtitle={t("matchMapSub")}
               icon={<Crosshair className="size-4" />}
             >
               <MatchMapChart apps={apps} />
               <div className="mt-3 flex justify-center gap-4 text-[11px] text-muted">
-                {(["Win", "Draw", "Loss"] as const).map((l, i) => (
+                {[tc("win"), tc("draw"), tc("loss")].map((l, i) => (
                   <span key={l} className="inline-flex items-center gap-1.5">
                     <span className="size-2 rounded-full" style={{ background: ["var(--win)", "var(--draw)", "var(--loss)"][i] }} />
                     {l}
@@ -212,7 +331,7 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
                 ))}
               </div>
             </Panel>
-            <Panel title="Against duos" subtitle="Record against each pair faced" icon={<Swords className="size-4" />}>
+            <Panel title={t("againstDuos")} subtitle={t("againstDuosSub")} icon={<Swords className="size-4" />}>
               {vsDuos.length ? (
                 <ul className="space-y-2.5">
                   {vsDuos.slice(0, 8).map((v) => (
@@ -233,7 +352,7 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-muted">No duos faced yet.</p>
+                <p className="text-sm text-muted">{t("noDuos")}</p>
               )}
             </Panel>
           </div>
@@ -241,30 +360,30 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <RelationCard title="Best partner" icon={<HeartHandshake className="size-4" />} name={partnerBest?.[0]} record={partnerBest?.[1]} tone="win" caption="together" />
-        <RelationCard title="Worst partner" icon={<Shield className="size-4" />} name={partnerWorst?.[0]} record={partnerWorst?.[1]} tone="loss" caption="together" />
+        <RelationCard title={t("bestPartner")} icon={<HeartHandshake className="size-4" />} name={partnerBest?.[0]} record={partnerBest?.[1]} tone="win" caption={t("together")} />
+        <RelationCard title={t("worstPartner")} icon={<Shield className="size-4" />} name={partnerWorst?.[0]} record={partnerWorst?.[1]} tone="loss" caption={t("together")} />
         <RelationCard
-          title="Favourite victim"
+          title={t("victim")}
           icon={<Target className="size-4" />}
           name={victim?.[0]}
           record={victim?.[1]}
           tone="win"
-          caption="against"
+          caption={t("against")}
           to={victim ? `/h2h?a=${encodeURIComponent(player.name)}&b=${encodeURIComponent(victim[0])}` : undefined}
         />
         <RelationCard
-          title="Nemesis"
+          title={t("nemesis")}
           icon={<Skull className="size-4" />}
           name={nemesis?.[0]}
           record={nemesis?.[1]}
           tone="loss"
-          caption="against"
+          caption={t("against")}
           to={nemesis ? `/h2h?a=${encodeURIComponent(player.name)}&b=${encodeURIComponent(nemesis[0])}` : undefined}
         />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Panel title="Partnerships" subtitle="Record with each teammate" icon={<HeartHandshake className="size-4" />}>
+        <Panel title={t("partnerships")} subtitle={t("partnershipsSub")} icon={<HeartHandshake className="size-4" />}>
           <div className="space-y-3">
             {teammates.map(([name, r]) => (
               <BoardLink key={name} to={`/players/${encodeURIComponent(name)}`} className="flex items-center gap-3 rounded-lg hover:bg-surface-2/60">
@@ -272,13 +391,13 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
                 <span className="w-24 truncate text-sm font-medium">{displayName(name)}</span>
                 <ProgressBar value={winRate(r)} className="flex-1" barClassName={winRate(r) >= 50 ? "bg-win" : "bg-loss"} />
                 <span className="tabular w-10 text-right text-sm">{winRate(r).toFixed(0)}%</span>
-                <span className="tabular w-14 text-right text-xs text-muted">{r.played} gp</span>
+                <span className="tabular w-14 text-right text-xs text-muted">{t("gp", { n: r.played })}</span>
               </BoardLink>
             ))}
-            {!teammates.length && <p className="text-sm text-muted">No partnerships yet.</p>}
+            {!teammates.length && <p className="text-sm text-muted">{t("noPartnerships")}</p>}
           </div>
         </Panel>
-        <Panel title="Favourite clubs" subtitle="Most picked, with win rate" icon={<Shield className="size-4" />}>
+        <Panel title={t("favClubs")} subtitle={t("favClubsSub")} icon={<Shield className="size-4" />}>
           <div className="space-y-3">
             {clubs.map(([name, r]) => (
               <div key={name} className="flex items-center gap-3">
@@ -286,18 +405,18 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
                 <span className="w-36 truncate text-sm font-medium">{name}</span>
                 <ProgressBar value={winRate(r)} className="flex-1" barClassName={winRate(r) >= 50 ? "bg-win" : "bg-loss"} />
                 <span className="tabular w-10 text-right text-sm">{winRate(r).toFixed(0)}%</span>
-                <span className="tabular w-14 text-right text-xs text-muted">{r.played} gp</span>
+                <span className="tabular w-14 text-right text-xs text-muted">{t("gp", { n: r.played })}</span>
               </div>
             ))}
-            {!clubs.length && <p className="text-sm text-muted">No clubs yet.</p>}
+            {!clubs.length && <p className="text-sm text-muted">{t("noClubs")}</p>}
           </div>
         </Panel>
       </div>
 
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-[15px] font-semibold">Recent matches</h2>
-          <span className="text-xs text-muted">{matches.length} total</span>
+          <h2 className="text-[15px] font-semibold">{t("recent")}</h2>
+          <span className="text-xs text-muted">{t("total", { n: matches.length })}</span>
         </div>
         <div className="space-y-2">
           {(showAll ? matches : matches.slice(0, 8)).map((m, i) => (
@@ -309,7 +428,7 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
         {matches.length > 8 && !showAll && (
           <div className="mt-4 flex justify-center">
             <Button variant="secondary" onClick={() => setShowAll(true)}>
-              Show all {matches.length} matches
+              {t("showAll", { n: matches.length })}
             </Button>
           </div>
         )}

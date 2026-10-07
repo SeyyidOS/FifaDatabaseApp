@@ -38,6 +38,119 @@ import {
   type TeamMode,
 } from "../lib/matchmaking";
 import type { Side } from "../lib/types";
+import { useT } from "../hooks/useI18n";
+import { defineMessages } from "../lib/i18n";
+
+const msg = defineMessages({
+  en: {
+    markAbsent: "Mark as not here",
+    remove: "Remove",
+    markHere: "Mark as here",
+    assign: "Assign to side {side}",
+    side: "Side {side}",
+    avg: "avg",
+    tapSide: "Tap {side} on a player",
+    orShuffle: "or shuffle teams",
+    probClubs: "Win probability · incl. clubs",
+    probSquads: "Win probability · squads only",
+    decrease: "Decrease",
+    increase: "Increase",
+    sideScore: "Side {side} score",
+    sideClub: "Side {side} club",
+    noPlayers: "No players yet",
+    draftFailed: "Couldn't draft teams",
+    tooFew: "Pick at least {n} players for {mode}.",
+    noSplit: "Every split reunites last match's partners. Add more players or change the mode.",
+    balancedDraft: "Balanced draft · {diff} Elo apart",
+    drafted: "Teams drafted",
+    splitUp: "Last match's partners were split up.",
+    fairPairs: "{n} fair pairings within ±{margin} · this one is {diff} apart",
+    nothingWithin: "Nothing within ±{margin}: the closest pairing is {diff} apart",
+    needPlayers: "Both sides need at least one player",
+    needClubs: "Pick a club for each side",
+    sideWins: "{names} win {hi}–{lo}",
+    drawScore: "Draw {a}–{b}",
+    swing: "Elo swing: {delta} per player",
+    saveFailed: "Couldn't save the result",
+    eyebrow: "Match center",
+    title: "Kick-off",
+    description: "Draft fair teams, pick balanced clubs and log the result. Elo updates the moment you hit save.",
+    swap: "Swap sides",
+    reset: "Reset",
+    squad: "Squad & teams",
+    squadSub: "{here} of {all} players here · tap a name to mark absent",
+    balance: "Balance by Elo",
+    shuffle: "Shuffle teams",
+    clubs: "Clubs",
+    clubsSub: "Balanced picks weigh squad Elo + half the club's rating",
+    margin: "Fairness margin",
+    randomClubs: "Balanced random clubs",
+    fullTime: "Full time",
+    ready: "{n}/2 ready",
+    vs: "vs",
+    multiplier: "Margin & upset multiplier ×{x}",
+    save: "Save result {a}–{b}",
+    tonight: "Tonight",
+    tonightSub: "{n} match logged this session|{n} matches logged this session",
+    tonightEmpty: "Session starts with the first result",
+    noneTonight: "No matches yet tonight",
+    noneTonightHint: "Results you save here show up instantly across the app.",
+  },
+  tr: {
+    markAbsent: "Burada değil olarak işaretle",
+    remove: "Çıkar",
+    markHere: "Burada olarak işaretle",
+    assign: "{side} tarafına al",
+    side: "{side} tarafı",
+    avg: "ort.",
+    tapSide: "Bir oyuncuda {side}'ya dokun",
+    orShuffle: "ya da takımları karıştır",
+    probClubs: "Kazanma ihtimali · kulüpler dahil",
+    probSquads: "Kazanma ihtimali · sadece kadrolar",
+    decrease: "Azalt",
+    increase: "Artır",
+    sideScore: "{side} tarafının skoru",
+    sideClub: "{side} tarafının kulübü",
+    noPlayers: "Henüz oyuncu yok",
+    draftFailed: "Takımlar kurulamadı",
+    tooFew: "{mode} için en az {n} oyuncu seç.",
+    noSplit: "Her dağılım son maçın ortaklarını bir araya getiriyor. Oyuncu ekle ya da modu değiştir.",
+    balancedDraft: "Dengeli kura · aradaki fark {diff} Elo",
+    drafted: "Takımlar kuruldu",
+    splitUp: "Son maçın ortakları ayrıldı.",
+    fairPairs: "±{margin} içinde {n} adil eşleşme · bunun farkı {diff}",
+    nothingWithin: "±{margin} içinde eşleşme yok: en yakını {diff} farklı",
+    needPlayers: "İki tarafta da en az bir oyuncu olmalı",
+    needClubs: "Her taraf için bir kulüp seç",
+    sideWins: "{names} {hi}–{lo} kazandı",
+    drawScore: "Beraberlik {a}–{b}",
+    swing: "Elo değişimi: oyuncu başı {delta}",
+    saveFailed: "Sonuç kaydedilemedi",
+    eyebrow: "Maç merkezi",
+    title: "Başlama Düdüğü",
+    description: "Adil takımlar kur, dengeli kulüpler seç ve sonucu gir. Kaydettiğin anda Elo güncellenir.",
+    swap: "Tarafları değiştir",
+    reset: "Sıfırla",
+    squad: "Kadro & takımlar",
+    squadSub: "{all} oyuncudan {here} kişi burada · gelmeyeni işaretlemek için ismine dokun",
+    balance: "Elo'ya göre dengele",
+    shuffle: "Takımları karıştır",
+    clubs: "Kulüpler",
+    clubsSub: "Dengeli seçim, kadro Elo'su + kulüp puanının yarısına bakar",
+    margin: "Adalet payı",
+    randomClubs: "Dengeli rastgele kulüpler",
+    fullTime: "Maç sonu",
+    ready: "{n}/2 hazır",
+    vs: "-",
+    multiplier: "Fark & sürpriz çarpanı ×{x}",
+    save: "Sonucu kaydet {a}–{b}",
+    tonight: "Bu gece",
+    tonightSub: "Bu oturumda {n} maç girildi|Bu oturumda {n} maç girildi",
+    tonightEmpty: "Oturum ilk sonuçla başlar",
+    noneTonight: "Bu gece henüz maç yok",
+    noneTonightHint: "Burada kaydettiğin sonuçlar hemen tüm uygulamada görünür.",
+  },
+});
 
 const sideColor = (s: Side) => (s === "A" ? "var(--team-a)" : "var(--team-b)");
 
@@ -69,11 +182,12 @@ function PoolChip({
   onTogglePresent: () => void;
   onAssign: (s: Side) => void;
 }) {
+  const t = useT(msg);
   return (
     <motion.div
       layout
       className={cn(
-        "group relative flex min-w-0 items-center gap-2 rounded-xl border bg-surface-2 py-2 pl-2 pr-1.5 transition-colors sm:gap-2.5",
+        "group relative flex min-w-0 items-center gap-1.5 rounded-xl border bg-surface-2 py-2 pr-1 pl-1.5 transition-colors sm:gap-2.5 sm:pr-1.5 sm:pl-2",
         present ? "border-line hover:border-line-strong" : "border-dashed border-line opacity-45",
         side === "A" && "border-team-a/60 bg-team-a/[0.07]",
         side === "B" && "border-team-b/60 bg-team-b/[0.07]",
@@ -82,26 +196,26 @@ function PoolChip({
       <button
         onClick={onTogglePresent}
         className="flex min-w-0 flex-1 items-center gap-2 text-left sm:gap-2.5"
-        title={present ? "Mark as not here" : "Mark as here"}
+        title={present ? t("markAbsent") : t("markHere")}
       >
-        <Avatar name={name} size="sm" />
+        <Avatar name={name} size="sm" className="max-sm:size-6" />
         <span className="min-w-0">
-          <span className="block truncate text-sm font-medium">{displayName(name)}</span>
+          <span className="block truncate text-[13px] font-medium sm:text-sm">{displayName(name)}</span>
           <span className="tabular block text-[11px] text-muted">{elo}</span>
         </span>
       </button>
-      <span className="flex gap-1">
+      <span className="flex shrink-0 gap-0.5 sm:gap-1">
         {(["A", "B"] as Side[]).map((s) => (
           <button
             key={s}
             onClick={() => onAssign(s)}
             disabled={!present}
             className={cn(
-              "grid size-7 place-items-center rounded-lg font-display text-sm font-bold transition-all",
+              "grid size-6 place-items-center rounded-md font-display text-xs font-bold transition-all sm:size-7 sm:rounded-lg sm:text-sm",
               side === s ? "text-bg" : "bg-surface-3 text-muted hover:text-fg",
             )}
             style={side === s ? { background: sideColor(s) } : undefined}
-            aria-label={`Assign to side ${s}`}
+            aria-label={t("assign", { side: s })}
           >
             {s}
           </button>
@@ -124,6 +238,7 @@ function TeamPanel({
   eloByName: Map<string, number>;
   onRemove: (n: string) => void;
 }) {
+  const t = useT(msg);
   const avg = Math.round(teamAverage(names, eloByName));
   return (
     <div
@@ -137,11 +252,11 @@ function TeamPanel({
       <div className="relative mb-3 flex items-center justify-between">
         <span className="flex items-center gap-2">
           <span className="size-2.5 rounded-full" style={{ background: sideColor(side) }} />
-          <span className="display text-lg">Side {side}</span>
+          <span className="display text-lg">{t("side", { side })}</span>
         </span>
         {names.length > 0 && (
           <span className="text-xs text-muted">
-            avg <span className="tabular font-semibold text-fg">{avg}</span>
+            {t("avg")} <span className="tabular font-semibold text-fg">{avg}</span>
           </span>
         )}
       </div>
@@ -161,7 +276,7 @@ function TeamPanel({
               <Avatar name={n} size="md" ring={side === "A" ? "a" : "b"} />
               <span className="flex-1 font-semibold">{displayName(n)}</span>
               <span className="tabular text-sm text-muted">{eloByName.get(cleanName(n)) ?? INITIAL_ELO}</span>
-              <button onClick={() => onRemove(n)} className="rounded-md p-1 text-faint hover:bg-surface-3 hover:text-fg" aria-label="Remove">
+              <button onClick={() => onRemove(n)} className="rounded-md p-1 text-faint hover:bg-surface-3 hover:text-fg" aria-label={t("remove")}>
                 <X className="size-3.5" />
               </button>
             </motion.div>
@@ -169,9 +284,9 @@ function TeamPanel({
         </AnimatePresence>
         {!names.length && (
           <div className="grid h-[104px] place-items-center rounded-xl border border-dashed border-line text-center text-xs text-faint">
-            Tap {side} on a player
+            {t("tapSide", { side })}
             <br />
-            or shuffle teams
+            {t("orShuffle")}
           </div>
         )}
       </div>
@@ -180,6 +295,7 @@ function TeamPanel({
 }
 
 function WinProbability({ pA, withClubs }: { pA: number; withClubs: boolean }) {
+  const t = useT(msg);
   const a = Math.round(pA * 100);
   const b = 100 - a;
   return (
@@ -188,7 +304,7 @@ function WinProbability({ pA, withClubs }: { pA: number; withClubs: boolean }) {
         <span className="display tabular text-2xl" style={{ color: sideColor("A") }}>
           {a}%
         </span>
-        <span className="label">{withClubs ? "Win probability · incl. clubs" : "Win probability · squads only"}</span>
+        <span className="label">{withClubs ? t("probClubs") : t("probSquads")}</span>
         <span className="display tabular text-2xl" style={{ color: sideColor("B") }}>
           {b}%
         </span>
@@ -212,12 +328,13 @@ function WinProbability({ pA, withClubs }: { pA: number; withClubs: boolean }) {
 /* -------------------------------- Scoreboard -------------------------------- */
 
 function Stepper({ value, onChange, side }: { value: number; onChange: (v: number) => void; side: Side }) {
+  const t = useT(msg);
   return (
     <div className="flex items-center gap-1.5">
       <button
         onClick={() => onChange(Math.max(0, value - 1))}
         className="grid size-9 place-items-center rounded-xl bg-surface-3 text-muted transition-colors hover:text-fg active:scale-95"
-        aria-label="Decrease"
+        aria-label={t("decrease")}
       >
         <Minus className="size-4" />
       </button>
@@ -231,12 +348,12 @@ function Stepper({ value, onChange, side }: { value: number; onChange: (v: numbe
         onFocus={(e) => e.target.select()}
         className="display tabular w-14 bg-transparent text-center text-5xl outline-none"
         style={{ color: sideColor(side) }}
-        aria-label={`Side ${side} score`}
+        aria-label={t("sideScore", { side })}
       />
       <button
         onClick={() => onChange(Math.min(99, value + 1))}
         className="grid size-9 place-items-center rounded-xl bg-surface-3 text-muted transition-colors hover:text-fg active:scale-95"
-        aria-label="Increase"
+        aria-label={t("increase")}
       >
         <Plus className="size-4" />
       </button>
@@ -261,6 +378,7 @@ function ScoreRow({
   delta: number | null;
   eloByName: Map<string, number>;
 }) {
+  const t = useT(msg);
   return (
     <div className="flex items-center gap-3">
       <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -275,8 +393,8 @@ function ScoreRow({
           </span>
         )}
         <div className="min-w-0">
-          <p className="truncate font-semibold">{club || `Side ${side} club`}</p>
-          <p className="truncate text-xs text-muted">{names.length ? names.map(displayName).join(" & ") : "No players yet"}</p>
+          <p className="truncate font-semibold">{club || t("sideClub", { side })}</p>
+          <p className="truncate text-xs text-muted">{names.length ? names.map(displayName).join(" & ") : t("noPlayers")}</p>
           {delta !== null && names.length > 0 && (
             <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-faint">
               {names.map((n) => {
@@ -302,6 +420,7 @@ function ScoreRow({
 function MatchCenterInner({ data }: { data: Analytics }) {
   // drafts are per board: names can repeat across boards
   const { slug } = useBoard();
+  const t = useT(msg);
   const allNames = useMemo(() => data.ranking.map((p) => p.name), [data.ranking]);
   const [absent, setAbsent] = useSessionState<string[]>(`${slug}:mc-absent`, []);
   const [mode, setMode] = useSessionState<TeamMode>(`${slug}:mc-mode`, "2v2");
@@ -349,13 +468,15 @@ function MatchCenterInner({ data }: { data: Analytics }) {
   const shuffle = () => {
     const r = generateTeams({ pool: present, mode, balance, eloByName: data.eloByName, recentPartners: recent });
     if (!r.ok) {
-      toast.error("Couldn't draft teams", { description: r.reason });
+      toast.error(t("draftFailed"), {
+        description: r.reason === "too-few" ? t("tooFew", { n: r.needed, mode }) : t("noSplit"),
+      });
       return;
     }
     setTeamA(r.teamA);
     setTeamB(r.teamB);
-    toast(balance ? `Balanced draft · ${Math.round(r.diff)} Elo apart` : "Teams drafted", {
-      description: "Last match's partners were split up.",
+    toast(balance ? t("balancedDraft", { diff: Math.round(r.diff) }) : t("drafted"), {
+      description: t("splitUp"),
       icon: <Shuffle className="size-4" />,
     });
   };
@@ -373,8 +494,8 @@ function MatchCenterInner({ data }: { data: Analytics }) {
     setClubB({ kind: "club", id: pick.b.id });
     setClubHint(
       pick.withinMargin
-        ? `${pick.candidates} fair pairings within ±${margin} · this one is ${Math.round(pick.diff)} apart`
-        : `Nothing within ±${margin} — closest pairing is ${Math.round(pick.diff)} apart`,
+        ? t("fairPairs", { n: pick.candidates, margin, diff: Math.round(pick.diff) })
+        : t("nothingWithin", { margin, diff: Math.round(pick.diff) }),
     );
   };
 
@@ -398,9 +519,9 @@ function MatchCenterInner({ data }: { data: Analytics }) {
   };
 
   const problem = !teamA.length || !teamB.length
-    ? "Both sides need at least one player"
+    ? t("needPlayers")
     : !clubAName || !clubBName
-      ? "Pick a club for each side"
+      ? t("needClubs")
       : null;
 
   const submit = async () => {
@@ -412,13 +533,15 @@ function MatchCenterInner({ data }: { data: Analytics }) {
       const winners = result === "A" ? teamA : result === "B" ? teamB : null;
       const d = result === "A" ? preview.deltaA : result === "B" ? preview.deltaB : preview.deltaA;
       toast.success(
-        winners ? `${winners.map(displayName).join(" & ")} win ${Math.max(scoreA, scoreB)}–${Math.min(scoreA, scoreB)}` : `Draw ${scoreA}–${scoreB}`,
-        { description: d !== null ? `Elo swing: ${d >= 0 ? "+" : "−"}${Math.abs(Math.round(d))} per player` : undefined },
+        winners
+          ? t("sideWins", { names: winners.map(displayName).join(" & "), hi: Math.max(scoreA, scoreB), lo: Math.min(scoreA, scoreB) })
+          : t("drawScore", { a: scoreA, b: scoreB }),
+        { description: d !== null ? t("swing", { delta: `${d >= 0 ? "+" : "−"}${Math.abs(Math.round(d))}` }) : undefined },
       );
       setScoreA(0);
       setScoreB(0);
     } catch (e) {
-      toast.error("Couldn't save the result", { description: (e as Error).message });
+      toast.error(t("saveFailed"), { description: (e as Error).message });
     }
   };
 
@@ -427,16 +550,16 @@ function MatchCenterInner({ data }: { data: Analytics }) {
   return (
     <div>
       <PageHeader
-        eyebrow="Match center"
-        title="Kick-off"
-        description="Draft fair teams, pick balanced clubs and log the result. Elo updates the moment you hit save."
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
         actions={
           <>
             <Button variant="ghost" onClick={swap}>
-              <ArrowLeftRight className="size-4" /> Swap sides
+              <ArrowLeftRight className="size-4" /> {t("swap")}
             </Button>
             <Button variant="ghost" onClick={reset}>
-              <RotateCcw className="size-4" /> Reset
+              <RotateCcw className="size-4" /> {t("reset")}
             </Button>
           </>
         }
@@ -449,11 +572,12 @@ function MatchCenterInner({ data }: { data: Analytics }) {
             <Panel
               title={
                 <span className="flex items-center gap-2">
-                  <StepDot n={1} done={teamA.length > 0 && teamB.length > 0} /> Squad & teams
+                  <StepDot n={1} done={teamA.length > 0 && teamB.length > 0} /> {t("squad")}
                 </span>
               }
-              subtitle={`${present.length} of ${allNames.length} players here · tap a name to mark absent`}
+              subtitle={t("squadSub", { here: present.length, all: allNames.length })}
               action={<AddPlayer players={data.players} />}
+              bodyClassName="p-3.5 sm:p-5"
             >
               <div className="mb-5 flex flex-wrap items-center gap-3">
                 <Segmented<TeamMode>
@@ -470,12 +594,12 @@ function MatchCenterInner({ data }: { data: Analytics }) {
                   onChange={setBalance}
                   label={
                     <span className="inline-flex items-center gap-1.5">
-                      <Scale className="size-3.5" /> Balance by Elo
+                      <Scale className="size-3.5" /> {t("balance")}
                     </span>
                   }
                 />
                 <Button variant="primary" className="ml-auto" onClick={shuffle}>
-                  <Dices className="size-4" /> Shuffle teams
+                  <Dices className="size-4" /> {t("shuffle")}
                 </Button>
               </div>
 
@@ -509,19 +633,19 @@ function MatchCenterInner({ data }: { data: Analytics }) {
           <Panel
             title={
               <span className="flex items-center gap-2">
-                <StepDot n={2} done={!!(clubAName && clubBName)} /> Clubs
+                <StepDot n={2} done={!!(clubAName && clubBName)} /> {t("clubs")}
               </span>
             }
-            subtitle="Balanced picks weigh squad Elo + half the club's rating"
+            subtitle={t("clubsSub")}
           >
             <div className="grid gap-3 md:grid-cols-2">
-              <ClubPicker clubs={data.clubs} value={clubA} onChange={setClubA} side="A" placeholder="Side A club" />
-              <ClubPicker clubs={data.clubs} value={clubB} onChange={setClubB} side="B" placeholder="Side B club" />
+              <ClubPicker clubs={data.clubs} value={clubA} onChange={setClubA} side="A" placeholder={t("sideClub", { side: "A" })} />
+              <ClubPicker clubs={data.clubs} value={clubB} onChange={setClubB} side="B" placeholder={t("sideClub", { side: "B" })} />
             </div>
             <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-line bg-surface-2/50 p-4 sm:flex-row sm:items-center">
               <div className="flex-1">
                 <div className="mb-2 flex items-center justify-between text-xs">
-                  <span className="text-muted">Fairness margin</span>
+                  <span className="text-muted">{t("margin")}</span>
                   <span className="tabular font-semibold">±{margin}</span>
                 </div>
                 <input
@@ -536,7 +660,7 @@ function MatchCenterInner({ data }: { data: Analytics }) {
                 />
               </div>
               <Button variant="secondary" onClick={pickClubs}>
-                <Sparkles className="size-4 text-accent-text" /> Balanced random clubs
+                <Sparkles className="size-4 text-accent-text" /> {t("randomClubs")}
               </Button>
             </div>
             <AnimatePresence>
@@ -560,9 +684,9 @@ function MatchCenterInner({ data }: { data: Analytics }) {
             <section className="card overflow-hidden">
               <div className="flex items-center justify-between border-b border-line px-5 py-4">
                 <span className="flex items-center gap-2 text-[15px] font-semibold">
-                  <StepDot n={3} done={false} /> Full time
+                  <StepDot n={3} done={false} /> {t("fullTime")}
                 </span>
-                <Pill tone={filledSteps === 2 ? "accent" : "neutral"}>{filledSteps}/2 ready</Pill>
+                <Pill tone={filledSteps === 2 ? "accent" : "neutral"}>{t("ready", { n: filledSteps })}</Pill>
               </div>
               <div className="space-y-4 p-5">
                 <ScoreRow
@@ -576,7 +700,7 @@ function MatchCenterInner({ data }: { data: Analytics }) {
                 />
                 <div className="flex items-center gap-3">
                   <div className="hairline flex-1" />
-                  <span className="label">vs</span>
+                  <span className="label">{t("vs")}</span>
                   <div className="hairline flex-1" />
                 </div>
                 <ScoreRow
@@ -590,7 +714,7 @@ function MatchCenterInner({ data }: { data: Analytics }) {
                 />
                 {preview.deltaA !== null && preview.multiplier > 1.05 && (
                   <p className="text-center text-[11px] text-faint">
-                    Margin & upset multiplier ×{preview.multiplier.toFixed(2)}
+                    {t("multiplier", { x: preview.multiplier.toFixed(2) })}
                   </p>
                 )}
                 <Button
@@ -602,15 +726,15 @@ function MatchCenterInner({ data }: { data: Analytics }) {
                   onClick={submit}
                 >
                   <Trophy className="size-5" />
-                  Save result {scoreA}–{scoreB}
+                  {t("save", { a: scoreA, b: scoreB })}
                 </Button>
                 {problem && <p className="text-center text-xs text-muted">{problem}</p>}
               </div>
             </section>
 
             <Panel
-              title="Tonight"
-              subtitle={tonight.length ? `${tonight.length} matches logged this session` : "Session starts with the first result"}
+              title={t("tonight")}
+              subtitle={tonight.length ? t("tonightSub", { n: tonight.length }) : t("tonightEmpty")}
               icon={<Users className="size-4" />}
             >
               {tonight.length ? (
@@ -623,8 +747,8 @@ function MatchCenterInner({ data }: { data: Analytics }) {
                 <EmptyState
                   className="py-6"
                   icon={<Trophy className="size-5" />}
-                  title="No matches yet tonight"
-                  description="Results you save here show up instantly across the app."
+                  title={t("noneTonight")}
+                  description={t("noneTonightHint")}
                 />
               )}
             </Panel>

@@ -15,8 +15,11 @@ import type { Analytics } from "../hooks/analytics-context";
 import { useSessionState } from "../hooks/useSessionState";
 import { computeAwards, duoRivalries, goalsByHour, MIN_MATCHES, type Rivalry } from "../lib/analysis";
 import { displayName } from "../lib/format";
+import { useT } from "../hooks/useI18n";
+import { archetypeBlurb, archetypeTitle, insightMessages } from "../components/insights/messages";
 
 function RivalryRow({ r }: { r: Rivalry }) {
+  const t = useT(insightMessages);
   const { wins, draws, losses, played } = r.record;
   const w = (n: number) => `${(n / played) * 100}%`;
   const side = (names: string[], align: "left" | "right") => (
@@ -46,13 +49,14 @@ function RivalryRow({ r }: { r: Rivalry }) {
         <span className="h-full bg-team-b" style={{ width: w(losses) }} />
       </div>
       <p className="mt-2 text-center text-[11px] text-faint">
-        {played} meetings · goals {r.record.gf}–{r.record.ga}
+        {t("meetings", { n: played, gf: r.record.gf, ga: r.record.ga })}
       </p>
     </li>
   );
 }
 
 function InsightsInner({ data }: { data: Analytics }) {
+  const t = useT(insightMessages);
   const [params, setParams] = useSearchParams();
   const [minGames, setMinGames] = useSessionState("in-min-games", 3);
   const explorer = useRef<HTMLDivElement>(null);
@@ -114,8 +118,8 @@ function InsightsInner({ data }: { data: Analytics }) {
       <div className="card">
         <EmptyState
           icon={<FlaskConical className="size-5" />}
-          title="The lab needs more data"
-          description={`Insights unlock after 10 matches (${data.parsed.length} so far).`}
+          title={t("needData")}
+          description={t("needDataHint", { n: data.parsed.length })}
         />
       </div>
     );
@@ -125,8 +129,8 @@ function InsightsInner({ data }: { data: Analytics }) {
       <section>
         <div className="mb-4 flex items-center gap-2">
           <Medal className="size-4 text-gold" />
-          <h2 className="text-[15px] font-semibold">Season awards</h2>
-          <span className="text-xs text-faint">· players with {MIN_MATCHES}+ matches</span>
+          <h2 className="text-[15px] font-semibold">{t("awards")}</h2>
+          <span className="text-xs text-faint">{t("awardsHint", { n: MIN_MATCHES })}</span>
         </div>
         <div className="grid gap-4 [perspective:1000px] sm:grid-cols-2 xl:grid-cols-4">
           {awards.map((a, i) => (
@@ -137,8 +141,8 @@ function InsightsInner({ data }: { data: Analytics }) {
 
       <div className="grid gap-6 lg:grid-cols-12">
         <Panel
-          title="Where the Elo comes from"
-          subtitle="Net Elo from each kind of result, split by the odds before kick-off"
+          title={t("sources")}
+          subtitle={t("sourcesSub")}
           icon={<TrendingUp className="size-4" />}
           className="lg:col-span-7"
         >
@@ -146,13 +150,13 @@ function InsightsInner({ data }: { data: Analytics }) {
             {SOURCE_SERIES.map((s) => (
               <span key={s.key} className="inline-flex items-center gap-1.5 text-[11px] text-muted">
                 <span className="size-2 rounded-full" style={{ background: s.color }} />
-                {s.label}
+                {t(s.label)}
               </span>
             ))}
           </div>
           <EloSourcesChart rows={sources} />
         </Panel>
-        <Panel title="Archetypes" subtitle="Each player's most telling pattern" icon={<Dna className="size-4" />} className="lg:col-span-5" bodyClassName="p-2">
+        <Panel title={t("archetypes")} subtitle={t("archetypesSub")} icon={<Dna className="size-4" />} className="lg:col-span-5" bodyClassName="p-2">
           <ul>
             {data.ranking.map((p) => {
               const a = data.dna.get(p.name)?.archetype;
@@ -165,9 +169,9 @@ function InsightsInner({ data }: { data: Analytics }) {
                       <p className="text-sm">
                         <span className="font-semibold">{displayName(p.name)}</span>
                         <span className="text-faint"> · </span>
-                        <span className="font-semibold text-accent-text">{a.title}</span>
+                        <span className="font-semibold text-accent-text">{archetypeTitle(t, a)}</span>
                       </p>
-                      <p className="text-xs text-muted">{a.blurb}</p>
+                      <p className="text-xs text-muted">{archetypeBlurb(t, a)}</p>
                     </div>
                   </BoardLink>
                 </li>
@@ -178,12 +182,12 @@ function InsightsInner({ data }: { data: Analytics }) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Panel title="Beating the odds" subtitle="Points taken minus what the Elo odds predicted (win 1, draw ½)" icon={<Scale className="size-4" />}>
+        <Panel title={t("odds")} subtitle={t("oddsSub")} icon={<Scale className="size-4" />}>
           <OddsChart rows={odds} />
         </Panel>
         <Panel
-          title="When the goals come"
-          subtitle={peak ? `Average goals per match by kick-off hour · wildest around ${String(peak.hour).padStart(2, "0")}:00` : "Average goals per match by kick-off hour"}
+          title={t("goals")}
+          subtitle={peak ? t("goalsSubPeak", { hour: `${String(peak.hour).padStart(2, "0")}:00` }) : t("goalsSub")}
           icon={<Clock className="size-4" />}
         >
           <GoalsByHourChart hours={hours} />
@@ -192,8 +196,8 @@ function InsightsInner({ data }: { data: Analytics }) {
 
       <div ref={explorer} className="scroll-mt-24">
         <Panel
-          title="Duo explorer"
-          subtitle="Pick a pair: their record against every opponent and every other duo"
+          title={t("explorer")}
+          subtitle={t("explorerSub")}
           icon={<HeartHandshake className="size-4" />}
         >
           <DuoExplorer duos={duos} selected={selected} onSelect={(k) => selectDuo(k)} engine={data.engine} />
@@ -201,12 +205,12 @@ function InsightsInner({ data }: { data: Analytics }) {
       </div>
 
       <Panel
-        title="Duos vs players"
-        subtitle="Rows are duos, columns the player they faced: W-D-L for the duo. Click a row to explore it."
+        title={t("matrix")}
+        subtitle={t("matrixSub")}
         icon={<Grid3x3 className="size-4" />}
         action={
           <label className="flex items-center gap-2 text-xs whitespace-nowrap text-muted">
-            Min. games
+            {t("minGames")}
             <input
               type="range"
               min={1}
@@ -223,12 +227,12 @@ function InsightsInner({ data }: { data: Analytics }) {
         {matrixDuos.length ? (
           <DuoMatrix duos={matrixDuos} players={active} selected={selected?.key} onSelect={(k) => selectDuo(k, true)} />
         ) : (
-          <p className="text-sm text-muted">No duo has {minGames}+ games yet.</p>
+          <p className="text-sm text-muted">{t("noDuoGames", { n: minGames })}</p>
         )}
       </Panel>
 
       {rivalries.length > 0 && (
-        <Panel title="Classic rivalries" subtitle="Duo-vs-duo pairings that met most often" icon={<Swords className="size-4" />}>
+        <Panel title={t("rivalries")} subtitle={t("rivalriesSub")} icon={<Swords className="size-4" />}>
           <ul className="grid gap-3 md:grid-cols-2">
             {rivalries.map((r) => (
               <RivalryRow key={`${r.a.join()}-${r.b.join()}`} r={r} />
@@ -241,12 +245,13 @@ function InsightsInner({ data }: { data: Analytics }) {
 }
 
 export default function Insights() {
+  const t = useT(insightMessages);
   return (
     <div>
       <PageHeader
-        eyebrow="Insights"
-        title="The Lab"
-        description="The stories behind the table: where everyone's Elo really comes from, who beats the odds, and which duos own which rivals."
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
       />
       <DataGate>{(data) => <InsightsInner data={data} />}</DataGate>
     </div>

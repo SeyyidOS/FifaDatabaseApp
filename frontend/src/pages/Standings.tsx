@@ -13,6 +13,8 @@ import { clubStars } from "../lib/elo";
 import { cleanName, daysAgoIso, displayName } from "../lib/format";
 import type { StandingStats } from "../lib/types";
 import { BoardLink } from "../components/board/BoardLink";
+import { useT } from "../hooks/useI18n";
+import { defineMessages } from "../lib/i18n";
 
 type Tab = "players" | "clubs" | "duos";
 type Range = "7" | "30" | "90" | "365" | "all" | "custom";
@@ -28,13 +30,82 @@ interface Row extends StandingStats {
   extra?: ReactNode;
 }
 
-const RANGES: { value: Range; label: string }[] = [
-  { value: "7", label: "7D" },
-  { value: "30", label: "30D" },
-  { value: "90", label: "90D" },
-  { value: "365", label: "1Y" },
-  { value: "all", label: "All" },
-];
+const RANGES: Exclude<Range, "custom">[] = ["7", "30", "90", "365", "all"];
+
+const msg = defineMessages({
+  en: {
+    r7: "7D",
+    r30: "30D",
+    r90: "90D",
+    r365: "1Y",
+    rall: "All",
+    winsPct: "{pct}% wins",
+    matches: "{n} match|{n} matches",
+    gd: "{gd} GD",
+    goals: "{n} goal|{n} goals",
+    elo: "{elo} Elo",
+    pts: "{n} pts",
+    eyebrow: "Standings",
+    title: "League Table",
+    description: "Three points for a win, one for a draw. Elo and form are all-time; everything else follows the date range.",
+    players: "Players",
+    clubs: "Clubs",
+    duos: "Duos",
+    minGames: "Min. games",
+    empty: "No matches in this range",
+    emptyHint: "Try a wider date range or lower the minimum games.",
+    player: "Player",
+    club: "Club",
+    duo: "Duo",
+    colElo: "Elo",
+    colForm: "Form",
+    colMp: "MP",
+    colW: "W",
+    colD: "D",
+    colL: "L",
+    colGf: "GF",
+    colGa: "GA",
+    colGd: "GD",
+    colWin: "Win %",
+    colPts: "Pts",
+  },
+  tr: {
+    r7: "7G",
+    r30: "30G",
+    r90: "90G",
+    r365: "1Y",
+    rall: "Tümü",
+    winsPct: "%{pct} galibiyet",
+    matches: "{n} maç|{n} maç",
+    gd: "{gd} averaj",
+    goals: "{n} gol|{n} gol",
+    elo: "{elo} Elo",
+    pts: "{n} puan",
+    eyebrow: "Puan durumu",
+    title: "Lig Tablosu",
+    description: "Galibiyet üç, beraberlik bir puan. Elo ve form tüm zamanlara göre; geri kalan her şey seçilen tarih aralığına göre.",
+    players: "Oyuncular",
+    clubs: "Kulüpler",
+    duos: "İkililer",
+    minGames: "En az maç",
+    empty: "Bu aralıkta maç yok",
+    emptyHint: "Tarih aralığını genişlet ya da en az maç sayısını düşür.",
+    player: "Oyuncu",
+    club: "Kulüp",
+    duo: "İkili",
+    colElo: "Elo",
+    colForm: "Form",
+    colMp: "O",
+    colW: "G",
+    colD: "B",
+    colL: "M",
+    colGf: "AG",
+    colGa: "YG",
+    colGd: "AV",
+    colWin: "Gal. %",
+    colPts: "P",
+  },
+});
 
 const n = (v: unknown) => Number(v) || 0;
 
@@ -133,6 +204,7 @@ function Th({
 }
 
 function StandingsInner({ data }: { data: Analytics }) {
+  const t = useT(msg);
   const [tab, setTab] = useSessionState<Tab>("st-tab", "players");
   const [range, setRange] = useSessionState<Range>("st-range", "all");
   const [custom, setCustom] = useSessionState("st-custom", daysAgoIso(30));
@@ -205,31 +277,31 @@ function StandingsInner({ data }: { data: Analytics }) {
   const metricLabel = (r: Row) => {
     switch (effectiveSort) {
       case "win":
-        return `${n(r.win_percentage).toFixed(0)}% wins`;
+        return t("winsPct", { pct: n(r.win_percentage).toFixed(0) });
       case "played":
-        return `${r.total_matches} matches`;
+        return t("matches", { n: r.total_matches });
       case "gd": {
         const gd = n(r.goals_forwarded) - n(r.goals_accepted);
-        return `${gd > 0 ? "+" : ""}${gd} GD`;
+        return t("gd", { gd: `${gd > 0 ? "+" : ""}${gd}` });
       }
       case "gf":
-        return `${r.goals_forwarded} goals`;
+        return t("goals", { n: r.goals_forwarded });
       case "elo":
-        return `${r.elo ?? "—"} Elo`;
+        return t("elo", { elo: r.elo ?? "—" });
       default:
-        return `${r.points} pts`;
+        return t("pts", { n: r.points });
     }
   };
 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Standings"
-        title="League Table"
-        description="Three points for a win, one for a draw. Elo and form are all-time; everything else follows the date range."
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Segmented<Range> value={range} onChange={setRange} options={[...RANGES, { value: "custom", label: <CalendarRange className="size-4" /> }]} size="sm" />
+            <Segmented<Range> value={range} onChange={setRange} options={[...RANGES.map((r) => ({ value: r, label: t(`r${r}`) })), { value: "custom", label: <CalendarRange className="size-4" /> }]} size="sm" />
             {range === "custom" && (
               <input type="date" value={custom} onChange={(e) => setCustom(e.target.value)} className="input h-9 w-auto" />
             )}
@@ -245,13 +317,13 @@ function StandingsInner({ data }: { data: Analytics }) {
             setMinGames(t === "duos" ? 3 : 0);
           }}
           options={[
-            { value: "players", label: "Players" },
-            { value: "clubs", label: "Clubs" },
-            { value: "duos", label: "Duos" },
+            { value: "players", label: t("players") },
+            { value: "clubs", label: t("clubs") },
+            { value: "duos", label: t("duos") },
           ]}
         />
         <div className="ml-auto flex items-center gap-3 rounded-xl border border-line bg-surface px-3 py-2">
-          <span className="text-xs whitespace-nowrap text-muted">Min. games</span>
+          <span className="text-xs whitespace-nowrap text-muted">{t("minGames")}</span>
           <input
             type="range"
             min={0}
@@ -272,7 +344,7 @@ function StandingsInner({ data }: { data: Analytics }) {
         </div>
       ) : !visible.length ? (
         <div className="card">
-          <EmptyState icon={<Trophy className="size-5" />} title="No matches in this range" description="Try a wider date range or lower the minimum games." />
+          <EmptyState icon={<Trophy className="size-5" />} title={t("empty")} description={t("emptyHint")} />
         </div>
       ) : (
         <>
@@ -289,32 +361,32 @@ function StandingsInner({ data }: { data: Analytics }) {
                   <tr>
                     <th className="w-12 px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-faint">#</th>
                     <th className="sticky left-0 z-10 bg-surface-2 px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-faint sm:bg-transparent">
-                      {tab === "players" ? "Player" : tab === "clubs" ? "Club" : "Duo"}
+                      {tab === "players" ? t("player") : tab === "clubs" ? t("club") : t("duo")}
                     </th>
                     {tab !== "duos" && (
                       <Th sort="elo" active={effectiveSort} onSort={setSort}>
-                        Elo
+                        {t("colElo")}
                       </Th>
                     )}
-                    {tab === "players" && <Th className="text-left">Form</Th>}
+                    {tab === "players" && <Th className="text-left">{t("colForm")}</Th>}
                     <Th sort="played" active={effectiveSort} onSort={setSort}>
-                      MP
+                      {t("colMp")}
                     </Th>
-                    <Th>W</Th>
-                    <Th>D</Th>
-                    <Th>L</Th>
+                    <Th>{t("colW")}</Th>
+                    <Th>{t("colD")}</Th>
+                    <Th>{t("colL")}</Th>
                     <Th sort="gf" active={effectiveSort} onSort={setSort}>
-                      GF
+                      {t("colGf")}
                     </Th>
-                    <Th>GA</Th>
+                    <Th>{t("colGa")}</Th>
                     <Th sort="gd" active={effectiveSort} onSort={setSort}>
-                      GD
+                      {t("colGd")}
                     </Th>
                     <Th sort="win" active={effectiveSort} onSort={setSort} className="w-36">
-                      Win %
+                      {t("colWin")}
                     </Th>
                     <Th sort="points" active={effectiveSort} onSort={setSort} className="pr-5">
-                      Pts
+                      {t("colPts")}
                     </Th>
                   </tr>
                 </thead>

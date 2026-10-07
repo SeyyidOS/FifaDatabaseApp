@@ -2,7 +2,7 @@
  * Board sign-ins kept on this device. "Remember this device" stores the token in localStorage
  * (it survives restarts); otherwise it lives in sessionStorage and is gone when the tab closes.
  */
-import type { Role, SignIn } from "./types";
+import type { SignIn } from "./types";
 
 export interface BoardSession extends SignIn {
   remember: boolean;
@@ -86,4 +86,4 @@ export function removeSession(slug: string, token?: string) {
   notify();
 }
 
-export const roleLabel = (role: Role) => (role === "admin" ? "Admin" : "Member");
+

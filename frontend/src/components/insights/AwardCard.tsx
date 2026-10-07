@@ -1,22 +1,25 @@
 import { motion } from "motion/react";
 import { Crown, Flag, HeartPulse, MoonStar, Rocket, Shield, Swords, Wine, type LucideIcon } from "lucide-react";
-import type { Award } from "../../lib/analysis";
+import type { Award, AwardKey } from "../../lib/analysis";
 import { displayName } from "../../lib/format";
 import { BoardLink } from "../board/BoardLink";
 import { Avatar } from "../ui/Identity";
+import { useT } from "../../hooks/useI18n";
+import { awardCaption, awardDetail, awardTitle, awardValue, insightMessages } from "./messages";
 
-const ICONS: Record<string, LucideIcon> = {
-  "giant-killer": Swords,
-  "flat-track-bully": Crown,
+const ICONS: Record<AwardKey, LucideIcon> = {
+  giantKiller: Swords,
+  flatTrackBully: Crown,
   overachiever: Rocket,
   bottler: Wine,
-  "club-merchant": Shield,
-  "tilt-proof": HeartPulse,
-  "night-owl": MoonStar,
+  clubMerchant: Shield,
+  tiltProof: HeartPulse,
+  nightOwl: MoonStar,
   closer: Flag,
 };
 
 export function AwardCard({ award, index }: { award: Award; index: number }) {
+  const t = useT(insightMessages);
   const Icon = ICONS[award.key] ?? Crown;
   const roast = award.key === "bottler";
   return (
@@ -41,22 +44,22 @@ export function AwardCard({ award, index }: { award: Award; index: number }) {
           <Icon className="size-[18px]" />
         </span>
         <div className="min-w-0">
-          <p className="truncate font-semibold">{award.title}</p>
-          <p className="line-clamp-2 text-[11px] text-muted">{award.caption}</p>
+          <p className="truncate font-semibold">{awardTitle(t, award)}</p>
+          <p className="line-clamp-2 text-[11px] text-muted">{awardCaption(t, award)}</p>
         </div>
       </div>
       <BoardLink to={`/players/${encodeURIComponent(award.winner)}`} className="mt-5 flex items-center gap-3 hover:opacity-90">
         <Avatar name={award.winner} size="lg" ring={roast ? undefined : "accent"} />
         <div className="min-w-0">
           <p className="display truncate text-2xl">{displayName(award.winner)}</p>
-          <p className={roast ? "display text-xl text-loss" : "display text-xl text-accent-text"}>{award.value}</p>
+          <p className={roast ? "display text-xl text-loss" : "display text-xl text-accent-text"}>{awardValue(t, award)}</p>
         </div>
       </BoardLink>
-      <p className="mt-3 flex-1 text-xs text-muted">{award.detail}</p>
+      <p className="mt-3 flex-1 text-xs text-muted">{awardDetail(t, award)}</p>
       {award.runnerUp && (
         <p className="mt-3 border-t border-line pt-3 text-[11px] text-faint">
-          Runner-up: <span className="font-semibold text-muted">{displayName(award.runnerUp.name)}</span>{" "}
-          {award.runnerUp.value}
+          {t("runnerUp")} <span className="font-semibold text-muted">{displayName(award.runnerUp.name)}</span>{" "}
+          {awardValue(t, award, award.runnerUp.value)}
         </p>
       )}
     </motion.div>
