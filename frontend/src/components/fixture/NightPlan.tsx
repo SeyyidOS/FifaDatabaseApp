@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, CalendarClock, Check, Grid3x3, Play, Plus, Shuffle, SkipForward, Undo2, X } from "lucide-react";
 import type { Analytics } from "../../hooks/analytics-context";
@@ -50,56 +50,139 @@ function Counter({ label, value, min, max, onChange, format }: { label: string; 
   );
 }
 
-/** Who plays with (bold) and against (small) whom how often. */
+type PairMeasure = "together" | "against";
+
+/**
+ * One hue per measure, from faint to full at the night's highest count. Every step keeps its count at
+ * 4.5:1 or more in both themes: the lime skips the middle band where neither light text nor dark ink
+ * reads well on the dark theme, and the blue stops before light text fades.
+ */
+const HEAT: Record<PairMeasure, { hue: string; step: (share: number) => number; inkFrom: number }> = {
+  together: { hue: "var(--chart-1)", step: (r) => (r <= 0.5 ? 26 + 32 * r : 54 + 56 * (r - 0.5)), inkFrom: 54 },
+  against: { hue: "var(--chart-7)", step: (r) => 26 + 36 * r, inkFrom: Infinity },
+};
+
+function heatCell(measure: PairMeasure, v: number, hi: number) {
+  if (!v) return { className: "bg-surface-2/60 text-faint ring-1 ring-inset ring-line", style: undefined };
+  const { hue, step, inkFrom } = HEAT[measure];
+  const pct = Math.round(step(v / hi));
+  return {
+    className: cn("font-semibold text-fg", pct >= inkFrom && "dark:text-accent-ink"),
+    style: { background: `color-mix(in oklab, ${hue} ${pct}%, var(--surface-2))` },
+  };
+}
+
+/** Who plays with and against whom: a staircase, each name on the diagonal heading its row and column. */
 function PairTable({ matches }: { matches: { a: string[]; b: string[] }[] }) {
   const t = useT(planMessages);
+  const [measure, setMeasure] = useState<PairMeasure>("together");
+  const [focus, setFocus] = useState<[number, number] | null>(null);
   const { together, against, key } = useMemo(() => pairCounts(matches), [matches]);
   const people = useMemo(() => [...new Set(matches.flatMap((m) => [...m.a, ...m.b]))], [matches]);
-  const hi = Math.max(1, ...together.values());
-  const pairs = people.flatMap((p, i) => people.slice(i + 1).map((q) => key(p, q)));
-  const tog = pairs.map((k) => together.get(k) ?? 0);
-  const opp = pairs.map((k) => against.get(k) ?? 0);
+  const count = (i: number, j: number) => ({
+    together: together.get(key(people[i], people[j])) ?? 0,
+    against: against.get(key(people[i], people[j])) ?? 0,
+  });
+  const pairs = people.flatMap((_, i) => people.slice(0, i).map((_, j) => count(i, j)));
+  const values = pairs.map((c) => c[measure]);
+  const hi = Math.max(1, ...values);
+  const legend = hi <= 5 ? Array.from({ length: hi + 1 }, (_, v) => v) : [0, Math.round(hi / 3), Math.round((2 * hi) / 3), hi];
+  const lit = (i: number) => !!focus && focus.includes(i);
+  // room on the right for the last names, which stick out past the staircase
+  const nameRoom = `${0.5 + 0.5 * Math.max(...people.map((p) => displayName(p).length))}rem`;
+  const caption = focus
+    ? t("pairTip", { a: displayName(people[focus[0]]), b: displayName(people[focus[1]]), ...count(focus[0], focus[1]) })
+    : t("pairsSummary", {
+        tMin: Math.min(...pairs.map((c) => c.together)),
+        tMax: Math.max(...pairs.map((c) => c.together)),
+        oMin: Math.min(...pairs.map((c) => c.against)),
+        oMax: Math.max(...pairs.map((c) => c.against)),
+      });
+
   return (
-    <div>
-      <p className="label mb-2">{t("pairsTitle")}</p>
-      <div className="overflow-x-auto">
-        <table className="text-xs">
-          <thead>
-            <tr>
-              <th />
-              {people.map((p) => (
-                <th key={p} className="px-1 pb-1.5 font-semibold text-muted">
-                  <span className="block max-w-14 truncate">{displayName(p)}</span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {people.map((p) => (
-              <tr key={p}>
-                <th className="pr-2 text-right font-semibold whitespace-nowrap text-muted">{displayName(p)}</th>
-                {people.map((q) => {
-                  if (p === q) return <td key={q} className="text-center text-faint">·</td>;
-                  const a = together.get(key(p, q)) ?? 0;
-                  const o = against.get(key(p, q)) ?? 0;
-                  return (
-                    <td
-                      key={q}
-                      className="tabular h-8 min-w-10 rounded-md px-1 text-center"
-                      style={a ? { background: `color-mix(in oklab, var(--accent) ${Math.round(10 + (a / hi) * 45)}%, transparent)` } : undefined}
-                      title={t("pairTip", { a: displayName(p), b: displayName(q), together: a, against: o })}
-                    >
-                      <b className="text-fg">{a}</b> <span className="text-faint">{o}</span>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="w-fit max-w-full">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="label">{t("pairsTitle")}</p>
+        <Segmented<PairMeasure>
+          size="sm"
+          value={measure}
+          onChange={setMeasure}
+          options={[
+            { value: "together", label: t("pairsTogether") },
+            { value: "against", label: t("pairsAgainst") },
+          ]}
+        />
       </div>
-      <p className="mt-2 text-xs text-faint">
-        {t("pairsSummary", { tMin: Math.min(...tog), tMax: Math.max(...tog), oMin: Math.min(...opp), oMax: Math.max(...opp) })}
+      <div className="overflow-x-auto pb-1">
+        {/* square cells up to 2.25rem that shrink to fit a phone, so the whole staircase stays in view */}
+        <div
+          className="relative grid w-full gap-[3px] sm:gap-1"
+          style={{ gridTemplateColumns: `repeat(${people.length}, minmax(0, 2.25rem))`, paddingRight: nameRoom }}
+          onMouseLeave={() => setFocus(null)}
+        >
+          {people.map((p, i) => (
+            <Fragment key={p}>
+              {people.slice(0, i).map((q, j) => {
+                const c = count(i, j);
+                const cell = heatCell(measure, c[measure], hi);
+                // the row from this cell to its name, and the column up to the other name
+                const onPath = !focus || (focus[0] === i && j >= focus[1]) || (focus[1] === j && i <= focus[0]);
+                return (
+                  <button
+                    key={q}
+                    type="button"
+                    style={{ gridRow: i + 1, gridColumn: j + 1, ...cell.style }}
+                    className={cn(
+                      "tabular grid aspect-square place-items-center rounded-md text-[11px] transition-[opacity,box-shadow] duration-150 sm:rounded-lg sm:text-xs",
+                      cell.className,
+                      !onPath && "opacity-35",
+                      focus?.[0] === i && focus[1] === j && "shadow-[0_0_0_2px_var(--surface),0_0_0_4px_var(--text)]",
+                    )}
+                    aria-label={t("pairTip", { a: displayName(p), b: displayName(q), ...c })}
+                    onMouseEnter={() => setFocus([i, j])}
+                    onFocus={() => setFocus([i, j])}
+                    onBlur={() => setFocus(null)}
+                    onClick={() => setFocus([i, j])}
+                  >
+                    {/* a quiet dot for "never", so the pairs that did happen stand out */}
+                    {c[measure] || "·"}
+                  </button>
+                );
+              })}
+              <span className="relative grid aspect-square place-items-center" style={{ gridRow: i + 1, gridColumn: i + 1 }}>
+                <Avatar
+                  name={p}
+                  size="sm"
+                  ring={lit(i) ? "accent" : undefined}
+                  className={cn("transition-opacity max-sm:size-5 max-sm:text-[9px]", focus && !lit(i) && "opacity-45")}
+                />
+                <span
+                  className={cn(
+                    "absolute top-1/2 left-full ml-1 -translate-y-1/2 text-[11px] whitespace-nowrap transition-colors sm:ml-1.5 sm:text-xs",
+                    lit(i) ? "font-semibold text-fg" : focus ? "text-faint" : "font-medium text-muted",
+                  )}
+                >
+                  {displayName(p)}
+                </span>
+              </span>
+            </Fragment>
+          ))}
+          {/* the scale sits in the empty corner above the staircase */}
+          <span className="absolute top-0 right-0 flex items-center gap-1" aria-hidden>
+            {legend.map((v) => {
+              const cell = heatCell(measure, v, hi);
+              return (
+                <span key={v} className={cn("tabular grid size-5 place-items-center rounded-md text-[10px]", cell.className)} style={cell.style}>
+                  {v}
+                </span>
+              );
+            })}
+          </span>
+        </div>
+      </div>
+      {/* takes the block's width without widening it, so the text can change without moving anything */}
+      <p className="mt-3 min-h-8 w-0 min-w-full text-xs text-muted" aria-live="polite">
+        {caption}
       </p>
     </div>
   );

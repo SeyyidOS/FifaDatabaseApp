@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeftRight,
+  ChevronRight,
   Dices,
   Minus,
   Plus,
@@ -88,8 +89,9 @@ const msg = defineMessages({
     clubs: "Clubs",
     clubsSub: "Balanced picks weigh squad Elo + half the club's rating",
     seasonTip: "Club ratings of {season}, the active season",
-    squads: "Squads",
-    squadsTip: "Both clubs' best elevens side by side",
+    squadsCta: "Compare the squads",
+    squadsCtaSub: "Best elevens, line by line, and the win chance · nothing changes",
+    squadsOpen: "See squads",
     margin: "Fairness margin",
     randomClubs: "Balanced random clubs",
     fullTime: "Full time",
@@ -145,8 +147,9 @@ const msg = defineMessages({
     clubs: "Kulüpler",
     clubsSub: "Dengeli seçim, kadro Elo'su + kulüp puanının yarısına bakar",
     seasonTip: "Aktif sezon {season} kulüp puanları",
-    squads: "Kadrolar",
-    squadsTip: "İki kulübün en iyi ilk 11'i yan yana",
+    squadsCta: "Kadroları karşılaştır",
+    squadsCtaSub: "En iyi 11'ler, hat hat güç ve kazanma ihtimali · seçimin değişmez",
+    squadsOpen: "Kadroları gör",
     margin: "Adalet payı",
     randomClubs: "Dengeli rastgele kulüpler",
     fullTime: "Maç sonu",
@@ -671,17 +674,10 @@ function MatchCenterInner({ data }: { data: Analytics }) {
               subtitle={t("clubsSub")}
               action={
                 data.season && (
-                  <span className="flex items-center gap-1.5">
-                    {data.season.game && seasonClubs && (
-                      <Button size="sm" variant="ghost" onClick={() => setSquads(true)} title={t("squadsTip")}>
-                        <Shirt className="size-3.5" /> {t("squads")}
-                      </Button>
-                    )}
-                    <span title={t("seasonTip", { season: data.season.name })}>
-                      <Pill tone="accent" className="font-display text-xs tracking-wide">
-                        {data.season.name}
-                      </Pill>
-                    </span>
+                  <span title={t("seasonTip", { season: data.season.name })}>
+                    <Pill tone="accent" className="font-display text-xs tracking-wide">
+                      {data.season.name}
+                    </Pill>
                   </span>
                 )
               }
@@ -690,6 +686,31 @@ function MatchCenterInner({ data }: { data: Analytics }) {
                 <ClubPicker clubs={data.clubs} value={clubA} onChange={setClubA} side="A" placeholder={t("sideClub", { side: "A" })} />
                 <ClubPicker clubs={data.clubs} value={clubB} onChange={setClubB} side="B" placeholder={t("sideClub", { side: "B" })} />
               </div>
+              <AnimatePresence initial={false}>
+                {data.season?.game && seasonClubs && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setSquads(true)}
+                      className="group mt-3 flex w-full items-center gap-3 rounded-2xl border border-line bg-surface-2/50 px-3 py-2.5 text-left transition-colors hover:border-line-strong hover:bg-surface-2 sm:px-4"
+                    >
+                      <span className="flex shrink-0 items-center gap-1">
+                        <ClubCrest name={seasonClubs[0]} size="sm" />
+                        <ClubCrest name={seasonClubs[1]} size="sm" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold">{t("squadsCta")}</span>
+                        <span className="block text-xs text-muted max-sm:line-clamp-2 sm:truncate">{t("squadsCtaSub")}</span>
+                      </span>
+                      <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-accent-text">
+                        <Shirt className="size-4" />
+                        <span className="max-sm:hidden">{t("squadsOpen")}</span>
+                        <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+                      </span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-line bg-surface-2/50 p-4 sm:flex-row sm:items-center">
                 <div className="flex-1">
                   <div className="mb-2 flex items-center justify-between text-xs">
@@ -726,7 +747,17 @@ function MatchCenterInner({ data }: { data: Analytics }) {
             </Panel>
           </div>
           {data.season && seasonClubs && (
-            <SquadsPreview open={squads} onClose={() => setSquads(false)} season={data.season} seasons={data.seasons} clubs={seasonClubs} />
+            <SquadsPreview
+              open={squads}
+              onClose={() => setSquads(false)}
+              season={data.season}
+              seasons={data.seasons}
+              clubs={seasonClubs}
+              teams={[teamA, teamB]}
+              chance={teamA.length && teamB.length ? preview.expectedA : null}
+              note={clubHint}
+              onReroll={pickClubs}
+            />
           )}
         </div>
 
