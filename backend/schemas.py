@@ -1,5 +1,6 @@
 """Request bodies. Field names stay camelCase because that is what the frontend sends."""
 
+import json
 import re
 from typing import Annotated, Literal
 
@@ -19,7 +20,8 @@ def _player_name(name: str) -> str:
 
 PlayerName = Annotated[str, StringConstraints(min_length=1, max_length=30), AfterValidator(_player_name)]
 ClubName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
-ClubElo = Annotated[int, Field(ge=0, le=3000)]
+# the card model can rate the weakest clubs below zero; only differences between ratings matter
+ClubElo = Annotated[int, Field(ge=-1000, le=3000)]
 SeasonName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
 BoardName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=60)]
 Password = Annotated[str, StringConstraints(min_length=6, max_length=128)]
@@ -83,6 +85,29 @@ class ClubIn(BaseModel):
 class ClubUpdate(BaseModel):
     name: ClubName | None = None
     elo: ClubElo | None = None
+
+
+class ModelClub(BaseModel):
+    eaId: int = Field(gt=0)
+    name: ClubName
+    modelElo: ClubElo
+
+
+class ModelApply(BaseModel):
+    """A card model's ratings for a season, with the settings and game that produced them."""
+
+    game: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=10)]
+    model: dict
+    clubs: list[ModelClub] = Field(min_length=1, max_length=200)
+
+    @model_validator(mode="after")
+    def small_and_distinct(self) -> "ModelApply":
+        if len(json.dumps(self.model)) > 4000:
+            raise ValueError("the model settings are too large")
+        ids = [c.eaId for c in self.clubs]
+        if len(set(ids)) != len(ids):
+            raise ValueError("a club is listed twice")
+        return self
 
 
 class MatchIn(BaseModel):

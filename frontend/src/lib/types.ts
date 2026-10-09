@@ -9,6 +9,12 @@ export interface Club {
   id: number;
   name: string;
   elo: number;
+  /** the club's id in the game (card-model seasons) */
+  eaId: number | null;
+  /** the card model's rating; elo = modelElo + adjust */
+  modelElo: number | null;
+  /** an admin's correction on top of the model's rating */
+  adjust: number;
 }
 
 /** A club list with ratings (one per game: FC26, FC27, …). New matches use the active one. */
@@ -16,6 +22,10 @@ export interface Season {
   id: number;
   name: string;
   active: boolean;
+  /** the game whose cards rated the clubs (e.g. "FC27"); null for lists entered by hand */
+  game: string | null;
+  /** card-model settings used for the ratings (null: the defaults) */
+  model: Record<string, unknown> | null;
   /** matches played with this season's clubs */
   matches: number;
   /** strongest first */

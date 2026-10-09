@@ -103,6 +103,10 @@ export function boardApi(slug: string, token: string) {
     updateSeason: (id: number, changes: { name?: string; active?: true }) =>
       call<Season>(`/seasons/${id}`, json("PATCH", changes)),
     deleteSeason: (id: number) => call<{ message: string }>(`/seasons/${id}`, json("DELETE")),
+    applyModel: (
+      season: number,
+      body: { game: string; model: object; clubs: { eaId: number; name: string; modelElo: number }[] },
+    ) => call<Season>(`/seasons/${season}/model`, json("POST", body)),
     addClub: (season: number, club: { name: string; elo: number }) =>
       call<Club>(`/seasons/${season}/clubs`, json("POST", club)),
     updateClub: (season: number, id: number, changes: { name?: string; elo?: number }) =>

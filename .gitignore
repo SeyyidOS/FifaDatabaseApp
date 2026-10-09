@@ -1,7 +1,7 @@
 # -------------------
 # Python (Backend)
 # -------------------
-backend/__pycache__/
+__pycache__/
 backend/*.pyc
 backend/*.pyo
 backend/*.pyd
@@ -76,3 +76,7 @@ Thumbs.db
 # -------------------
 fifa-app-backup/
 deploy-local/
+
+# Card study exports shared by other developers (import them with frontend/scripts/import-fc-cards.py)
+fc27-elo.zip
+*-elo.zip

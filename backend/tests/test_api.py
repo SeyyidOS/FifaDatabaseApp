@@ -215,8 +215,8 @@ def seasons(board):
     return board.api.get(board.url("/seasons"), headers=board.member).json()
 
 
-def club_id(season, name):
-    return next(c["id"] for c in season["clubs"] if c["name"] == name)
+def club(season, name):
+    return next(c for c in season["clubs"] if c["name"] == name)
 
 
 def elo(board):
@@ -225,33 +225,37 @@ def elo(board):
 
 def test_a_new_board_starts_with_the_newest_club_list(board):
     [season] = seasons(board)
-    assert (season["name"], season["active"], season["matches"], len(season["clubs"])) == ("FC26", True, 0, 45)
+    assert (season["name"], season["game"], season["active"], season["matches"]) == ("FC27", "FC27", True, 0)
+    assert len(season["clubs"]) == 55
     ratings = [c["elo"] for c in season["clubs"]]
     assert ratings == sorted(ratings, reverse=True)  # strongest first
+    assert all(c["eaId"] and c["modelElo"] == c["elo"] and c["adjust"] == 0 for c in season["clubs"])
+    assert min(ratings) < 0  # the model rates the weakest clubs below zero
 
 
 def test_matches_keep_the_club_ratings_they_were_played_with(board):
     api = board.api
     board.add_players("a", "b")
+    [season] = seasons(board)
+    arsenal, chelsea = club(season, "Arsenal"), club(season, "Chelsea")
     board.add_match(["a"], ["b"], 2, 1, "arsenal", "My Custom FC")
     [first] = api.get(board.url("/matches"), headers=board.member).json()
     # listed clubs are matched case-insensitively; anything else is a custom club at the default rating
     assert (first["club_a"], first["club_a_elo"], first["club_b"], first["club_b_elo"]) == (
         "Arsenal",
-        1115,
+        arsenal["elo"],
         "My Custom FC",
         500,
     )
     before = elo(board)
 
-    [season] = seasons(board)
-    arsenal = board.url(f"/seasons/{season['id']}/clubs/{club_id(season, 'Arsenal')}")
-    assert api.patch(arsenal, json={"elo": 600}, headers=board.admin).json()["elo"] == 600
+    url = board.url(f"/seasons/{season['id']}/clubs/{arsenal['id']}")
+    assert api.patch(url, json={"elo": 600}, headers=board.admin).json()["elo"] == 600
     assert elo(board) == before  # history is untouched
 
     board.add_match(["a"], ["b"], 2, 1, "Arsenal", "Chelsea")
     latest = api.get(board.url("/matches"), headers=board.member).json()[0]
-    assert (latest["club_a_elo"], latest["club_b_elo"], latest["season_id"]) == (600, 825, season["id"])
+    assert (latest["club_a_elo"], latest["club_b_elo"], latest["season_id"]) == (600, chelsea["elo"], season["id"])
     assert seasons(board)[0]["matches"] == 2
 
 
@@ -259,79 +263,137 @@ def test_a_new_season_is_prepared_aside_and_then_activated(board):
     api = board.api
     board.add_players("a", "b")
     board.add_match(["a"], ["b"], 3, 0)
-    [fc26] = seasons(board)
+    [current] = seasons(board)
     before = elo(board)
 
-    created = api.post(board.url("/seasons"), json={"name": " FC27 ", "copyFrom": fc26["id"]}, headers=board.admin)
+    body = {"name": " FC28 ", "copyFrom": current["id"]}
+    created = api.post(board.url("/seasons"), json=body, headers=board.admin)
     assert created.status_code == 201
-    fc27 = created.json()
-    assert (fc27["name"], fc27["active"], fc27["matches"], len(fc27["clubs"])) == ("FC27", False, 0, 45)
-    clubs = board.url(f"/seasons/{fc27['id']}/clubs")
+    draft = created.json()
+    assert (draft["name"], draft["active"], draft["matches"], draft["game"]) == ("FC28", False, 0, "FC27")
+    assert draft["clubs"] == [c | {"id": club(draft, c["name"])["id"]} for c in current["clubs"]]
+    clubs = board.url(f"/seasons/{draft['id']}/clubs")
 
     # edit the draft: re-rate, add and drop clubs
-    assert api.patch(f"{clubs}/{club_id(fc27, 'Arsenal')}", json={"elo": 1300}, headers=board.admin).status_code == 200
+    arsenal = f"{clubs}/{club(draft, 'Arsenal')['id']}"
+    assert api.patch(arsenal, json={"elo": 1300}, headers=board.admin).status_code == 200
     added = api.post(clubs, json={"name": "Trabzonspor", "elo": 700}, headers=board.admin)
     assert added.status_code == 201 and added.json()["name"] == "Trabzonspor"
-    assert api.delete(f"{clubs}/{club_id(fc27, 'Chelsea')}", headers=board.admin).status_code == 200
-    assert api.delete(f"{clubs}/{club_id(fc27, 'Chelsea')}", headers=board.admin).status_code == 404
+    chelsea = f"{clubs}/{club(draft, 'Chelsea')['id']}"
+    assert api.delete(chelsea, headers=board.admin).status_code == 200
+    assert api.delete(chelsea, headers=board.admin).status_code == 404
 
     # nothing changes until it is activated, and the old season stays as it was
-    old, draft = seasons(board)
-    assert next(c["elo"] for c in old["clubs"] if c["name"] == "Arsenal") == 1115 and len(old["clubs"]) == 45
-    assert len(draft["clubs"]) == 45 and elo(board) == before
-    activated = api.patch(board.url(f"/seasons/{fc27['id']}"), json={"active": True}, headers=board.admin)
+    old, edited = seasons(board)
+    assert old == current and len(edited["clubs"]) == 55 and elo(board) == before
+    activated = api.patch(board.url(f"/seasons/{draft['id']}"), json={"active": True}, headers=board.admin)
     assert activated.json()["active"] is True
     assert [s["active"] for s in seasons(board)] == [False, True]
     assert elo(board) == before
 
-    board.add_match(["a"], ["b"], 1, 1, "Arsenal", "Chelsea")  # Chelsea is not in FC27: a custom club now
+    board.add_match(["a"], ["b"], 1, 1, "Arsenal", "Chelsea")  # Chelsea left FC28: a custom club now
     latest = api.get(board.url("/matches"), headers=board.member).json()[0]
-    assert (latest["season_id"], latest["club_a_elo"], latest["club_b_elo"]) == (fc27["id"], 1300, 500)
+    assert (latest["season_id"], latest["club_a_elo"], latest["club_b_elo"]) == (draft["id"], 1300, 500)
+
+
+def test_the_model_rates_a_draft_and_keeps_corrections(board):
+    api = board.api
+    [current] = seasons(board)
+    draft = api.post(board.url("/seasons"), json={"name": "FC28", "copyFrom": current["id"]}, headers=board.admin)
+    draft = draft.json()
+    arsenal, chelsea = club(draft, "Arsenal"), club(draft, "Chelsea")
+
+    # a correction on a model-rated club is kept apart from the model's rating
+    url = board.url(f"/seasons/{draft['id']}/clubs/{arsenal['id']}")
+    corrected = api.patch(url, json={"elo": arsenal["modelElo"] + 40}, headers=board.admin).json()
+    assert (corrected["elo"], corrected["adjust"]) == (arsenal["modelElo"] + 40, 40)
+
+    model = {"v": 2, "benchW": 0.5}
+    body = {
+        "game": "fc28",
+        "model": model,
+        "clubs": [
+            {"eaId": arsenal["eaId"], "name": "Arsenal", "modelElo": 1000},
+            {"eaId": chelsea["eaId"], "name": "Chelsea", "modelElo": -150},
+            {"eaId": 999001, "name": "Brand New FC", "modelElo": 420},
+        ],
+    }
+    rated = api.post(board.url(f"/seasons/{draft['id']}/model"), json=body, headers=board.admin)
+    assert rated.status_code == 200, rated.text
+    rated = rated.json()
+    assert (rated["game"], rated["model"]) == ("FC28", model)
+    assert club(rated, "Arsenal") | {"id": 0} == {
+        "id": 0, "name": "Arsenal", "elo": 1040, "eaId": arsenal["eaId"], "modelElo": 1000, "adjust": 40,
+    }  # fmt: skip
+    assert (club(rated, "Chelsea")["elo"], club(rated, "Brand New FC")["elo"]) == (-150, 420)
+    assert len(rated["clubs"]) == 56  # clubs the model didn't mention stay
+
+    # only drafts: the active season keeps its ratings until an admin edits them
+    active = board.url(f"/seasons/{current['id']}/model")
+    assert api.post(active, json=body, headers=board.admin).status_code == 409
+    assert api.post(board.url(f"/seasons/{draft['id']}/model"), json=body, headers=board.member).status_code == 403
+
+
+def test_the_model_adopts_clubs_entered_by_hand(board):
+    api = board.api
+    draft = api.post(board.url("/seasons"), json={"name": "Draft"}, headers=board.admin).json()
+    clubs = board.url(f"/seasons/{draft['id']}/clubs")
+    api.post(clubs, json={"name": "Arsenal", "elo": 900}, headers=board.admin)
+    body = {"game": "FC27", "model": {}, "clubs": [{"eaId": 1, "name": "ARSENAL", "modelElo": 950}]}
+    [arsenal] = api.post(board.url(f"/seasons/{draft['id']}/model"), json=body, headers=board.admin).json()["clubs"]
+    assert (arsenal["name"], arsenal["eaId"], arsenal["elo"], arsenal["adjust"]) == ("Arsenal", 1, 950, 0)
+
+    twice = body | {"clubs": body["clubs"] * 2}
+    assert api.post(board.url(f"/seasons/{draft['id']}/model"), json=twice, headers=board.admin).status_code == 422
 
 
 def test_only_unplayed_inactive_seasons_can_be_deleted(board):
     api = board.api
     board.add_players("a", "b")
     board.add_match(["a"], ["b"], 1, 0)
-    [fc26] = seasons(board)
+    [first] = seasons(board)
     draft = api.post(board.url("/seasons"), json={"name": "Draft"}, headers=board.admin).json()
-    assert draft["clubs"] == []
-    assert api.delete(board.url(f"/seasons/{fc26['id']}"), headers=board.admin).status_code == 409  # active
+    assert draft["clubs"] == [] and draft["game"] is None
+    assert api.delete(board.url(f"/seasons/{first['id']}"), headers=board.admin).status_code == 409  # active
 
     api.patch(board.url(f"/seasons/{draft['id']}"), json={"active": True}, headers=board.admin)
-    assert api.delete(board.url(f"/seasons/{fc26['id']}"), headers=board.admin).status_code == 409  # has matches
-    api.patch(board.url(f"/seasons/{fc26['id']}"), json={"active": True}, headers=board.admin)
+    assert api.delete(board.url(f"/seasons/{first['id']}"), headers=board.admin).status_code == 409  # has matches
+    api.patch(board.url(f"/seasons/{first['id']}"), json={"active": True}, headers=board.admin)
     assert api.delete(board.url(f"/seasons/{draft['id']}"), headers=board.admin).status_code == 200
-    assert [s["name"] for s in seasons(board)] == ["FC26"]
+    assert [s["name"] for s in seasons(board)] == [first["name"]]
 
 
 def test_season_and_club_names_are_unique_and_ratings_bounded(board):
     api = board.api
-    [fc26] = seasons(board)
-    clubs = board.url(f"/seasons/{fc26['id']}/clubs")
-    assert api.post(board.url("/seasons"), json={"name": "fc26"}, headers=board.admin).status_code == 409
+    [first] = seasons(board)
+    clubs = board.url(f"/seasons/{first['id']}/clubs")
+    assert api.post(board.url("/seasons"), json={"name": first["name"].lower()}, headers=board.admin).status_code == 409
     assert api.post(clubs, json={"name": "ARSENAL", "elo": 900}, headers=board.admin).status_code == 409
-    chelsea = f"{clubs}/{club_id(fc26, 'Chelsea')}"
-    assert api.patch(chelsea, json={"name": "arsenal"}, headers=board.admin).status_code == 409
+    chelsea = club(first, "Chelsea")
+    url = f"{clubs}/{chelsea['id']}"
+    assert api.patch(url, json={"name": "arsenal"}, headers=board.admin).status_code == 409
     assert api.post(clubs, json={"name": "New FC", "elo": 3001}, headers=board.admin).status_code == 422
+    assert api.post(clubs, json={"name": "Low FC", "elo": -1001}, headers=board.admin).status_code == 422
     assert api.post(clubs, json={"name": "  ", "elo": 500}, headers=board.admin).status_code == 422
-    assert api.patch(chelsea, json={}, headers=board.admin).status_code == 422
-    renamed = api.patch(chelsea, json={"name": "Chelsea FC"}, headers=board.admin)
-    assert renamed.json() == {"id": club_id(fc26, "Chelsea"), "name": "Chelsea FC", "elo": 825}
+    assert api.patch(url, json={}, headers=board.admin).status_code == 422
+    renamed = api.patch(url, json={"name": "Chelsea FC"}, headers=board.admin)
+    assert renamed.json() == chelsea | {"name": "Chelsea FC"}
+    sunday = api.post(clubs, json={"name": "Sunday League", "elo": -200}, headers=board.admin).json()
+    assert (sunday["elo"], sunday["eaId"], sunday["modelElo"], sunday["adjust"]) == (-200, None, None, 0)
 
 
 def test_seasons_are_admin_only_and_stay_inside_their_board(api, board):
-    [fc26] = seasons(board)
-    clubs = board.url(f"/seasons/{fc26['id']}/clubs")
-    assert api.post(board.url("/seasons"), json={"name": "FC27"}, headers=board.member).status_code == 403
-    assert api.patch(board.url(f"/seasons/{fc26['id']}"), json={"name": "x"}, headers=board.member).status_code == 403
+    [first] = seasons(board)
+    clubs = board.url(f"/seasons/{first['id']}/clubs")
+    assert api.post(board.url("/seasons"), json={"name": "FC28"}, headers=board.member).status_code == 403
+    assert api.patch(board.url(f"/seasons/{first['id']}"), json={"name": "x"}, headers=board.member).status_code == 403
     assert api.post(clubs, json={"name": "New FC", "elo": 500}, headers=board.member).status_code == 403
     assert api.get(board.url("/seasons")).status_code == 401
 
     other = Board(api, "Other Crew")
     [theirs] = seasons(other)
-    assert api.patch(other.url(f"/seasons/{fc26['id']}"), json={"name": "x"}, headers=other.admin).status_code == 404
-    copy = {"name": "Copy", "copyFrom": fc26["id"]}
+    assert api.patch(other.url(f"/seasons/{first['id']}"), json={"name": "x"}, headers=other.admin).status_code == 404
+    copy = {"name": "Copy", "copyFrom": first["id"]}
     assert api.post(other.url("/seasons"), json=copy, headers=other.admin).status_code == 404
-    mine = board.url(f"/seasons/{fc26['id']}/clubs/{club_id(theirs, 'Arsenal')}")
+    mine = board.url(f"/seasons/{first['id']}/clubs/{club(theirs, 'Arsenal')['id']}")
     assert api.patch(mine, json={"elo": 1}, headers=board.admin).status_code == 404  # their club, my season

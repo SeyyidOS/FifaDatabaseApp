@@ -1,17 +1,23 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Check, Pencil, Plus, Search, Shield, Trash2 } from "lucide-react";
+import { Check, FlaskConical, Pencil, Plus, Search, Shield, Trash2 } from "lucide-react";
 import type { Analytics } from "../../hooks/analytics-context";
 import {
   useAddClub,
+  useApplyModel,
+  useCards,
   useCreateSeason,
   useDeleteClub,
   useDeleteSeason,
   useUpdateClub,
   useUpdateSeason,
 } from "../../hooks/useData";
+import { useBoard } from "../../hooks/useBoard";
 import { useT } from "../../hooks/useI18n";
 import { cn } from "../../lib/cn";
+import { DEFAULT_MODEL } from "../../lib/clubModel";
+import { LATEST_GAME, runModel } from "../../lib/clubs";
 import { clubStars, DEFAULT_CLUB_ELO } from "../../lib/elo";
 import { defineMessages } from "../../lib/i18n";
 import { common } from "../../lib/messages";
@@ -21,6 +27,7 @@ import { Field, TextInput } from "../ui/form";
 import { ClubCrest, Stars } from "../ui/Identity";
 import { Button, Panel, Pill } from "../ui/primitives";
 
+const MIN_ELO = -1000;
 const MAX_ELO = 3000;
 
 const m = defineMessages({
@@ -65,6 +72,12 @@ const m = defineMessages({
     seasonName: "Name",
     seasonPlaceholder: "FC27",
     startFrom: "Start from",
+    fromCards: "{game} card model ({n} clubs)",
+    cardsLoading: "Loading {game} cards…",
+    tuneModel: "Card model",
+    tuneModelTip: "Tune the card model and re-rate this season",
+    cardsBadge: "{game} cards",
+    adjustTip: "Model {model}, corrected {adjust}",
     copyOf: "A copy of {season} ({n} clubs)",
     empty: "An empty list",
     create: "Create",
@@ -122,6 +135,12 @@ const m = defineMessages({
     seasonName: "Ad",
     seasonPlaceholder: "FC27",
     startFrom: "Başlangıç",
+    fromCards: "{game} kart modeli ({n} kulüp)",
+    cardsLoading: "{game} kartları yükleniyor…",
+    tuneModel: "Kart modeli",
+    tuneModelTip: "Kart modelini ayarla ve bu sezonu yeniden puanla",
+    cardsBadge: "{game} kartları",
+    adjustTip: "Model {model}, düzeltme {adjust}",
     copyOf: "{season} kopyası ({n} kulüp)",
     empty: "Boş liste",
     create: "Oluştur",
@@ -142,7 +161,9 @@ const m = defineMessages({
 
 const fail = (what: string) => (e: unknown) => toast.error(what, { description: (e as Error).message });
 
-const validElo = (v: string) => /^\d+$/.test(v.trim()) && Number(v) <= MAX_ELO;
+const validElo = (v: string) => /^-?\d+$/.test(v.trim()) && Number(v) >= MIN_ELO && Number(v) <= MAX_ELO;
+/** digits with an optional leading minus (the card model rates the weakest clubs below zero) */
+const eloInput = (v: string) => v.replace(/[^\d-]/g, "").replace(/(?!^)-/g, "").slice(0, 5);
 
 /* ----------------------------------- Club ---------------------------------- */
 
@@ -222,10 +243,19 @@ function ClubRow({ club, season }: { club: Club; season: Season }) {
           <span className="hidden sm:inline-flex">
             <Stars value={clubStars(validElo(elo) ? Number(elo) : club.elo)} />
           </span>
+          {club.modelElo != null && club.adjust !== 0 && (
+            <span
+              className="tabular hidden text-[11px] font-semibold text-draw sm:inline"
+              title={t("adjustTip", { model: club.modelElo, adjust: `${club.adjust > 0 ? "+" : ""}${club.adjust}` })}
+            >
+              {club.adjust > 0 ? "+" : ""}
+              {club.adjust}
+            </span>
+          )}
           <input
             inputMode="numeric"
             value={elo}
-            onChange={(e) => setElo(e.target.value.replace(/\D/g, "").slice(0, 4))}
+            onChange={(e) => setElo(eloInput(e.target.value))}
             onBlur={saveElo}
             onKeyDown={(e) => {
               if (e.key === "Enter") e.currentTarget.blur();
@@ -304,29 +334,48 @@ function NewSeason({
   const t = useT(m);
   const tc = useT(common);
   const create = useCreateSeason();
+  const applyModel = useApplyModel();
+  const cards = useCards(open ? LATEST_GAME : null);
+  const hasGame = seasons.some((s) => s.game === LATEST_GAME);
   const [name, setName] = useState("");
-  const [copyFrom, setCopyFrom] = useState<string>("");
+  // "cards": rate a fresh season with the newest game's card model; a season id: copy it; "": empty
+  const [source, setSource] = useState<string>("");
   useEffect(() => {
     if (!open) return;
-    setName("");
-    setCopyFrom(from ? String(from.id) : "");
-  }, [open, from]);
+    const fresh = !hasGame && !seasons.some((s) => s.name.toLowerCase() === LATEST_GAME.toLowerCase());
+    setName(fresh ? LATEST_GAME : "");
+    setSource(fresh ? "cards" : from ? String(from.id) : "");
+  }, [open, from, hasGame, seasons]);
 
   const taken = seasons.some((s) => s.name.toLowerCase() === name.trim().toLowerCase());
-  const submit = (e: FormEvent) => {
+  const busy = create.isPending || applyModel.isPending;
+  const done = (s: Season) => {
+    toast.success(t("created", { name: s.name }), { description: t("createdHint") });
+    onCreated(s);
+    onClose();
+  };
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || taken) return;
-    create.mutate(
-      { name: name.trim(), ...(copyFrom ? { copyFrom: Number(copyFrom) } : {}) },
-      {
-        onSuccess: (s) => {
-          toast.success(t("created", { name: s.name }), { description: t("createdHint") });
-          onCreated(s);
-          onClose();
-        },
-        onError: fail(t("createFailed")),
-      },
-    );
+    if (!name.trim() || taken || (source === "cards" && !cards.data)) return;
+    try {
+      if (source !== "cards") {
+        done(await create.mutateAsync({ name: name.trim(), ...(source ? { copyFrom: Number(source) } : {}) }));
+        return;
+      }
+      // scaled onto the newest season so far, like the study scaled FC27 onto FC26
+      const result = runModel(cards.data!, DEFAULT_MODEL, seasons.at(-1) ?? null);
+      const season = await create.mutateAsync({ name: name.trim() });
+      done(
+        await applyModel.mutateAsync({
+          season: season.id,
+          game: LATEST_GAME,
+          model: result.model,
+          clubs: result.rows.map((r) => ({ eaId: r.club.eaId, name: r.club.name, modelElo: Math.round(r.elo) })),
+        }),
+      );
+    } catch (err) {
+      fail(t("createFailed"))(err);
+    }
   };
 
   return (
@@ -348,7 +397,10 @@ function NewSeason({
           />
         </Field>
         <Field label={t("startFrom")}>
-          <select value={copyFrom} onChange={(e) => setCopyFrom(e.target.value)} className="input h-11">
+          <select value={source} onChange={(e) => setSource(e.target.value)} className="input h-11">
+            <option value="cards" disabled={!cards.data}>
+              {cards.data ? t("fromCards", { game: LATEST_GAME, n: cards.data.clubs.length }) : t("cardsLoading", { game: LATEST_GAME })}
+            </option>
             {[...seasons].reverse().map((s) => (
               <option key={s.id} value={s.id}>
                 {t("copyOf", { season: s.name, n: s.clubs.length })}
@@ -361,7 +413,7 @@ function NewSeason({
           <Button type="button" variant="ghost" onClick={onClose}>
             {tc("cancel")}
           </Button>
-          <Button type="submit" variant="primary" loading={create.isPending} disabled={!name.trim() || taken}>
+          <Button type="submit" variant="primary" loading={busy} disabled={!name.trim() || taken || (source === "cards" && !cards.data)}>
             {t("create")}
           </Button>
         </div>
@@ -374,6 +426,8 @@ function NewSeason({
 
 export function ClubsAdmin({ data }: { data: Analytics }) {
   const t = useT(m);
+  const navigate = useNavigate();
+  const { path } = useBoard();
   const [selected, setSelected] = useState<number | null>(null);
   const season = data.seasons.find((s) => s.id === selected) ?? data.season ?? data.seasons.at(-1) ?? null;
   const [query, setQuery] = useState("");
@@ -446,6 +500,7 @@ export function ClubsAdmin({ data }: { data: Analytics }) {
         <>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-y border-line bg-surface-2/40 px-4 py-3 sm:px-5">
             <Pill tone={season.active ? "win" : "neutral"}>{season.active ? t("active") : t("draft")}</Pill>
+            {season.game && <Pill tone="accent">{t("cardsBadge", { game: season.game })}</Pill>}
             <span className="text-xs text-muted">
               {season.active ? t("activeHint") : t("draftHint")} ·{" "}
               <span className="tabular">{t("summary", { clubs: season.clubs.length, matches: season.matches })}</span>
@@ -464,6 +519,9 @@ export function ClubsAdmin({ data }: { data: Analytics }) {
                     <Trash2 className="size-4" />
                   </Button>
                 )}
+                <Button size="sm" variant="secondary" title={t("tuneModelTip")} onClick={() => navigate(path(`/clubs?season=${season.id}&model=1`))}>
+                  <FlaskConical className="size-3.5" /> {t("tuneModel")}
+                </Button>
                 <Button size="sm" variant="primary" onClick={() => setActivating(true)}>
                   <Check className="size-3.5" /> {t("makeActive")}
                 </Button>
@@ -486,7 +544,7 @@ export function ClubsAdmin({ data }: { data: Analytics }) {
             <input
               inputMode="numeric"
               value={elo}
-              onChange={(e) => setElo(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              onChange={(e) => setElo(eloInput(e.target.value))}
               className={cn("input tabular w-[4.5rem] px-2 text-right", !validElo(elo) && "border-loss/60")}
               aria-label={t("elo")}
               placeholder={t("elo")}

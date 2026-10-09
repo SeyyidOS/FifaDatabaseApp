@@ -19,6 +19,8 @@ const Players = lazy(() => import("../../pages/Players"));
 const PlayerProfile = lazy(() => import("../../pages/PlayerProfile"));
 const HeadToHead = lazy(() => import("../../pages/HeadToHead"));
 const Settings = lazy(() => import("../../pages/Settings"));
+const Clubs = lazy(() => import("../../pages/Clubs"));
+const ClubProfile = lazy(() => import("../../pages/ClubProfile"));
 const Insights = lazy(() => import("../../pages/Insights"));
 
 /** Keeps this device's label for the board in step when an admin renames it elsewhere. */
@@ -71,6 +73,8 @@ export default function BoardGate() {
               <Route path="players" element={<Players />} />
               <Route path="players/:name" element={<PlayerProfile />} />
               <Route path="h2h" element={<HeadToHead />} />
+              <Route path="clubs" element={<Clubs />} />
+              <Route path="clubs/:club" element={<ClubProfile />} />
               <Route path="insights" element={<Insights />} />
               <Route path="settings" element={<Settings />} />
               <Route path="*" element={<Navigate to={board.path()} replace />} />

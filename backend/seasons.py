@@ -9,29 +9,38 @@ from pathlib import Path
 
 import psycopg2.errors
 from fastapi import APIRouter, Depends, HTTPException, Request
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import Json, RealDictCursor
 
 from auth import BoardAccess, board_access, board_admin
-from schemas import ClubIn, ClubUpdate, SeasonIn, SeasonUpdate
+from schemas import ClubIn, ClubUpdate, ModelApply, SeasonIn, SeasonUpdate
 
 router = APIRouter(prefix="/boards/{slug}/seasons", tags=["seasons"])
 
-# One CSV (name,elo) per game, e.g. data/seasons/FC26.csv; new boards start with the newest one.
+# One CSV per game (name,elo and, for card-model games, ea_id), e.g. data/seasons/FC27.csv; new
+# boards start with the newest one.
 TEMPLATES = Path(__file__).parent / "data" / "seasons"
 
 
-def read_template(name: str) -> list[tuple[str, int]]:
+def read_template(name: str) -> list[tuple[str, int, int | None]]:
     with (TEMPLATES / f"{name}.csv").open(newline="", encoding="utf-8") as f:
-        return [(row["name"], int(row["elo"])) for row in csv.DictReader(f)]
+        return [
+            (row["name"], int(row["elo"]), int(row["ea_id"]) if row.get("ea_id") else None) for row in csv.DictReader(f)
+        ]
 
 
 def start_first_season(cur: RealDictCursor, board_id: int) -> None:
     name = max(path.stem for path in TEMPLATES.glob("*.csv"))
-    cur.execute("INSERT INTO seasons (board_id, name) VALUES (%s, %s) RETURNING id", (board_id, name))
+    clubs = read_template(name)
+    modelled = any(ea_id for _, _, ea_id in clubs)
+    cur.execute(
+        "INSERT INTO seasons (board_id, name, game) VALUES (%s, %s, %s) RETURNING id",
+        (board_id, name, name if modelled else None),
+    )
     season_id = cur.fetchone()["id"]
+    # a card-model rating counts as the model's own value, without corrections
     cur.executemany(
-        "INSERT INTO season_clubs (season_id, name, elo) VALUES (%s, %s, %s)",
-        [(season_id, club, elo) for club, elo in read_template(name)],
+        "INSERT INTO season_clubs (season_id, name, elo, ea_id, model_elo) VALUES (%s, %s, %s, %s, %s)",
+        [(season_id, club, elo, ea_id, elo if ea_id else None) for club, elo, ea_id in clubs],
     )
     cur.execute("UPDATE boards SET active_season_id = %s WHERE id = %s", (season_id, board_id))
 
@@ -41,11 +50,16 @@ def _db(request: Request):
 
 
 SEASONS = """
-SELECT s.id, s.name, s.id = b.active_season_id AS active,
+SELECT s.id, s.name, s.id = b.active_season_id AS active, s.game, s.model,
        (SELECT COUNT(*) FROM matches m WHERE m.season_id = s.id) AS matches,
        COALESCE(
-           JSON_AGG(JSON_BUILD_OBJECT('id', c.id, 'name', c.name, 'elo', c.elo) ORDER BY c.elo DESC, c.name)
-               FILTER (WHERE c.id IS NOT NULL),
+           JSON_AGG(
+               JSON_BUILD_OBJECT(
+                   'id', c.id, 'name', c.name, 'elo', c.elo,
+                   'eaId', c.ea_id, 'modelElo', c.model_elo, 'adjust', c.adjust
+               )
+               ORDER BY c.elo DESC, c.name
+           ) FILTER (WHERE c.id IS NOT NULL),
            '[]'
        ) AS clubs
 FROM seasons s
@@ -92,8 +106,14 @@ def create_season(body: SeasonIn, request: Request, access: BoardAccess = Depend
         season_id = cur.fetchone()["id"]
         if body.copyFrom is not None:
             cur.execute(
-                "INSERT INTO season_clubs (season_id, name, elo) SELECT %s, name, elo FROM season_clubs "
-                "WHERE season_id = %s",
+                "UPDATE seasons SET (game, model) = (SELECT game, model FROM seasons WHERE id = %s) WHERE id = %s",
+                (body.copyFrom, season_id),
+            )
+            cur.execute(
+                """
+                INSERT INTO season_clubs (season_id, name, elo, ea_id, model_elo, adjust)
+                SELECT %s, name, elo, ea_id, model_elo, adjust FROM season_clubs WHERE season_id = %s
+                """,
                 (season_id, body.copyFrom),
             )
     return _season(request, access.id, season_id)
@@ -126,8 +146,41 @@ def delete_season(season_id: int, request: Request, access: BoardAccess = Depend
     return {"message": f"Season {season['name']} deleted."}
 
 
+@router.post("/{season_id}/model")
+def apply_model(season_id: int, body: ModelApply, request: Request, access: BoardAccess = Depends(board_admin)):
+    """Rate the season's clubs with a card model. Clubs are matched by EA id, then by name; an admin's
+    correction on a club is kept on top of its new model rating, and clubs the model doesn't know stay
+    as they are. Only a season that isn't active yet can be re-rated this way."""
+    if _season(request, access.id, season_id)["active"]:
+        raise HTTPException(status_code=409, detail="Only a season that isn't active can be rated by the model")
+    with _db(request).transaction() as cur:
+        cur.execute("SELECT id, LOWER(name) AS key, ea_id FROM season_clubs WHERE season_id = %s", (season_id,))
+        existing = cur.fetchall()
+        by_ea = {c["ea_id"]: c["id"] for c in existing if c["ea_id"] is not None}
+        by_name = {c["key"]: c["id"] for c in existing if c["ea_id"] is None}
+        try:
+            for club in body.clubs:
+                club_id = by_ea.get(club.eaId) or by_name.pop(club.name.lower(), None)
+                if club_id is None:
+                    cur.execute(
+                        "INSERT INTO season_clubs (season_id, name, elo, ea_id, model_elo) VALUES (%s, %s, %s, %s, %s)",
+                        (season_id, club.name, club.modelElo, club.eaId, club.modelElo),
+                    )
+                else:
+                    cur.execute(
+                        "UPDATE season_clubs SET ea_id = %s, model_elo = %s, elo = %s + adjust WHERE id = %s",
+                        (club.eaId, club.modelElo, club.modelElo, club_id),
+                    )
+        except psycopg2.errors.UniqueViolation as exc:
+            raise HTTPException(status_code=409, detail="Two clubs of this season would share a name") from exc
+        cur.execute(
+            "UPDATE seasons SET game = %s, model = %s WHERE id = %s", (body.game.upper(), Json(body.model), season_id)
+        )
+    return _season(request, access.id, season_id)
+
+
 # ----------- Clubs -----------
-CLUB_COLUMNS = "id, name, elo"
+CLUB_COLUMNS = 'id, name, elo, ea_id AS "eaId", model_elo AS "modelElo", adjust'
 
 
 @router.post("/{season_id}/clubs", status_code=201)
@@ -146,12 +199,15 @@ def add_club(season_id: int, club: ClubIn, request: Request, access: BoardAccess
 def update_club(
     season_id: int, club_id: int, body: ClubUpdate, request: Request, access: BoardAccess = Depends(board_admin)
 ):
-    """Matches already played keep the rating they were played with."""
+    """Matches already played keep the rating they were played with. On a model-rated club, a new
+    rating is stored as a correction on top of the model's, so it survives re-running the model."""
     _season(request, access.id, season_id)
     changes = body.model_dump(exclude_none=True)
     if not changes:
         raise HTTPException(status_code=422, detail="Nothing to change")
     assignments = ", ".join(f"{column} = %({column})s" for column in changes)
+    if "elo" in changes:
+        assignments += ", adjust = CASE WHEN model_elo IS NULL THEN adjust ELSE %(elo)s - model_elo END"
     try:
         row = _db(request).write_one(
             f"UPDATE season_clubs SET {assignments} WHERE id = %(id)s AND season_id = %(season)s "

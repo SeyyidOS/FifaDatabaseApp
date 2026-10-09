@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { CardSet } from "../lib/clubModel";
 import { updateSession } from "../lib/session";
 import type { NewMatch } from "../lib/types";
 import { useBoard } from "./useBoard";
@@ -19,6 +20,20 @@ export function usePlayers() {
 export function useSeasons() {
   const { slug, api } = useBoard();
   return useQuery({ queryKey: boardKey(slug, "seasons"), queryFn: api.seasons });
+}
+
+/** A game's cards (static, served next to the app); null while there's no game to load. */
+export function useCards(game: string | null | undefined) {
+  return useQuery({
+    queryKey: ["cards", game],
+    enabled: !!game,
+    staleTime: Infinity,
+    queryFn: async (): Promise<CardSet> => {
+      const res = await fetch(`${import.meta.env.BASE_URL}games/${game!.toLowerCase()}/cards.json`);
+      if (!res.ok) throw new Error(`No cards for ${game} (${res.status})`);
+      return res.json();
+    },
+  });
 }
 
 export function useMatches() {
@@ -108,6 +123,15 @@ export function useUpdateSeason() {
 export function useDeleteSeason() {
   const { api } = useBoard();
   return useBoardMutation((id: number) => api.deleteSeason(id), ["seasons"]);
+}
+
+export function useApplyModel() {
+  const { api } = useBoard();
+  return useBoardMutation(
+    ({ season, ...body }: { season: number; game: string; model: object; clubs: { eaId: number; name: string; modelElo: number }[] }) =>
+      api.applyModel(season, body),
+    ["seasons"],
+  );
 }
 
 /** Club edits only touch the season's list: matches keep the ratings they were played with. */

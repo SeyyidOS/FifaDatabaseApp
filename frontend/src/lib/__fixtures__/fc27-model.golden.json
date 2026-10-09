@@ -1,0 +1,474 @@
+{
+ "source": "fc27-elo page (shared model settings), 2026-10-09",
+ "model": {
+  "altMode": "free",
+  "altPenalty": 0,
+  "bench": {
+   "CB": 0,
+   "FB": 0,
+   "GK": 0,
+   "MID": 1,
+   "ST": 1,
+   "W": 1
+  },
+  "benchW": 0.5,
+  "missingPenalty": 50,
+  "posW": {
+   "CB": 1,
+   "FB": 1,
+   "GK": 0.5,
+   "MID": 1.5,
+   "ST": 1.2,
+   "W": 2
+  },
+  "scale": {
+   "anchor": 80,
+   "base": 1500,
+   "k": 50,
+   "mode": "fit"
+  },
+  "statW": {
+   "DEF": 0,
+   "DRI": 0,
+   "PAC": 0.25,
+   "PAS": 0,
+   "PHY": 0,
+   "SHO": 0
+  },
+  "v": 2
+ },
+ "reference": {
+  "Arsenal": 1115,
+  "Barcelona": 1050,
+  "Bayern Munich": 1200,
+  "Bournemouth": 325,
+  "Brentford": 475,
+  "Celtic": 100,
+  "Como": 175,
+  "Hoffenheim": 75,
+  "Inter Milan": 980,
+  "Leeds United": 125,
+  "Liverpool": 1130,
+  "Manchester City": 1115,
+  "Olympiacos": 150,
+  "Paris Saint-Germain": 1185,
+  "Porto": 375,
+  "Rayo Vallecano": 200,
+  "Valencia": 50,
+  "Aston Villa": 900,
+  "Atletico Madrid": 950,
+  "Bayer Leverkusen": 675,
+  "Chelsea": 825,
+  "Manchester United": 850,
+  "Newcastle United": 875,
+  "Tottenham Hotspur": 750,
+  "AC Milan": 725,
+  "Atalanta": 625,
+  "Athletic Bilbao": 650,
+  "Benfica": 350,
+  "Borussia Dortmund": 800,
+  "Napoli": 925,
+  "Nottingham Forest": 500,
+  "PSV": 275,
+  "RB Leipzig": 700,
+  "Sporting CP": 450,
+  "AS Roma": 575,
+  "Crystal Palace": 600,
+  "Eintracht Frankfurt": 225,
+  "Juventus FC": 775,
+  "Olympique Lyonnais": 250,
+  "Olympique de Marseille": 525,
+  "Real Betis": 400,
+  "Real Sociedad": 300,
+  "SS Lazio": 425,
+  "Villarreal CF": 550,
+  "West Ham United": 300
+ },
+ "clubs": {
+  "Bayern Munich": {
+   "rank": 4,
+   "elo": 1126,
+   "xiScore": 84.43,
+   "benchScore": 82.18,
+   "ovr": 86.3
+  },
+  "Paris Saint-Germain": {
+   "rank": 2,
+   "elo": 1305,
+   "xiScore": 85.9,
+   "benchScore": 81.6,
+   "ovr": 87.7
+  },
+  "Liverpool": {
+   "rank": 5,
+   "elo": 1039,
+   "xiScore": 83.75,
+   "benchScore": 78.54,
+   "ovr": 84.8
+  },
+  "Arsenal": {
+   "rank": 7,
+   "elo": 976,
+   "xiScore": 82.99,
+   "benchScore": 79.34,
+   "ovr": 86.4
+  },
+  "Manchester City": {
+   "rank": 6,
+   "elo": 1023,
+   "xiScore": 83.14,
+   "benchScore": 84.57,
+   "ovr": 85.9
+  },
+  "Barcelona": {
+   "rank": 3,
+   "elo": 1252,
+   "xiScore": 85.24,
+   "benchScore": 82.35,
+   "ovr": 86.7
+  },
+  "Inter Milan": {
+   "rank": 10,
+   "elo": 851,
+   "xiScore": 81.89,
+   "benchScore": 81.22,
+   "ovr": 83.3
+  },
+  "Atletico Madrid": {
+   "rank": 8,
+   "elo": 934,
+   "xiScore": 82.51,
+   "benchScore": 79.7,
+   "ovr": 84.0
+  },
+  "Napoli": {
+   "rank": 13,
+   "elo": 719,
+   "xiScore": 80.76,
+   "benchScore": 77.35,
+   "ovr": 81.8
+  },
+  "Aston Villa": {
+   "rank": 32,
+   "elo": 465,
+   "xiScore": 78.21,
+   "benchScore": 77.45,
+   "ovr": 80.4
+  },
+  "Newcastle United": {
+   "rank": 18,
+   "elo": 612,
+   "xiScore": 79.26,
+   "benchScore": 79.97,
+   "ovr": 80.2
+  },
+  "Manchester United": {
+   "rank": 11,
+   "elo": 767,
+   "xiScore": 81.17,
+   "benchScore": 77.72,
+   "ovr": 82.8
+  },
+  "Chelsea": {
+   "rank": 9,
+   "elo": 856,
+   "xiScore": 81.97,
+   "benchScore": 78.29,
+   "ovr": 82.6
+  },
+  "Borussia Dortmund": {
+   "rank": 15,
+   "elo": 709,
+   "xiScore": 80.6,
+   "benchScore": 77.74,
+   "ovr": 82.9
+  },
+  "Juventus FC": {
+   "rank": 14,
+   "elo": 711,
+   "xiScore": 80.44,
+   "benchScore": 78.79,
+   "ovr": 81.5
+  },
+  "Tottenham Hotspur": {
+   "rank": 16,
+   "elo": 693,
+   "xiScore": 80.25,
+   "benchScore": 78.88,
+   "ovr": 81.5
+  },
+  "AC Milan": {
+   "rank": 12,
+   "elo": 734,
+   "xiScore": 81.16,
+   "benchScore": 75.81,
+   "ovr": 81.5
+  },
+  "RB Leipzig": {
+   "rank": 29,
+   "elo": 489,
+   "xiScore": 78.73,
+   "benchScore": 75.71,
+   "ovr": 80.1
+  },
+  "Bayer Leverkusen": {
+   "rank": 17,
+   "elo": 636,
+   "xiScore": 79.91,
+   "benchScore": 77.49,
+   "ovr": 80.2
+  },
+  "Athletic Bilbao": {
+   "rank": 20,
+   "elo": 584,
+   "xiScore": 79.57,
+   "benchScore": 76.44,
+   "ovr": 81.2
+  },
+  "Atalanta": {
+   "rank": 31,
+   "elo": 473,
+   "xiScore": 78.56,
+   "benchScore": 75.8,
+   "ovr": 79.7
+  },
+  "Crystal Palace": {
+   "rank": 36,
+   "elo": 394,
+   "xiScore": 77.9,
+   "benchScore": 75.05,
+   "ovr": 79.9
+  },
+  "AS Roma": {
+   "rank": 22,
+   "elo": 541,
+   "xiScore": 79.19,
+   "benchScore": 76.09,
+   "ovr": 81.0
+  },
+  "Villarreal CF": {
+   "rank": 19,
+   "elo": 591,
+   "xiScore": 79.55,
+   "benchScore": 76.91,
+   "ovr": 80.1
+  },
+  "Olympique de Marseille": {
+   "rank": 47,
+   "elo": 171,
+   "xiScore": 76.05,
+   "benchScore": 72.79,
+   "ovr": 77.1
+  },
+  "Nottingham Forest": {
+   "rank": 30,
+   "elo": 481,
+   "xiScore": 78.41,
+   "benchScore": 77.21,
+   "ovr": 80.3
+  },
+  "Brentford": {
+   "rank": 28,
+   "elo": 494,
+   "xiScore": 78.84,
+   "benchScore": 75.4,
+   "ovr": 79.7
+  },
+  "Sporting CP": {
+   "rank": 23,
+   "elo": 538,
+   "xiScore": 79.49,
+   "benchScore": 74.15,
+   "ovr": 79.0
+  },
+  "SS Lazio": {
+   "rank": 34,
+   "elo": 426,
+   "xiScore": 78.26,
+   "benchScore": 74.75,
+   "ovr": 77.6
+  },
+  "Real Betis": {
+   "rank": 26,
+   "elo": 508,
+   "xiScore": 78.96,
+   "benchScore": 75.48,
+   "ovr": 79.5
+  },
+  "Porto": {
+   "rank": 27,
+   "elo": 498,
+   "xiScore": 78.71,
+   "benchScore": 76.38,
+   "ovr": 80.2
+  },
+  "Benfica": {
+   "rank": 21,
+   "elo": 561,
+   "xiScore": 79.03,
+   "benchScore": 78.26,
+   "ovr": 79.5
+  },
+  "Bournemouth": {
+   "rank": 24,
+   "elo": 526,
+   "xiScore": 78.94,
+   "benchScore": 76.72,
+   "ovr": 79.3
+  },
+  "Real Sociedad": {
+   "rank": 33,
+   "elo": 463,
+   "xiScore": 78.6,
+   "benchScore": 74.95,
+   "ovr": 79.2
+  },
+  "West Ham United": {
+   "rank": 50,
+   "elo": 49,
+   "xiScore": 74.95,
+   "benchScore": 72.06,
+   "ovr": 76.8
+  },
+  "PSV": {
+   "rank": 39,
+   "elo": 345,
+   "xiScore": 77.18,
+   "benchScore": 76.43,
+   "ovr": 78.5
+  },
+  "Olympique Lyonnais": {
+   "rank": 40,
+   "elo": 341,
+   "xiScore": 77.75,
+   "benchScore": 72.71,
+   "ovr": 78.5
+  },
+  "Eintracht Frankfurt": {
+   "rank": 45,
+   "elo": 222,
+   "xiScore": 76.44,
+   "benchScore": 73.49,
+   "ovr": 77.7
+  },
+  "Rayo Vallecano": {
+   "rank": 38,
+   "elo": 357,
+   "xiScore": 77.57,
+   "benchScore": 74.82,
+   "ovr": 78.1
+  },
+  "Como": {
+   "rank": 25,
+   "elo": 511,
+   "xiScore": 78.71,
+   "benchScore": 77.16,
+   "ovr": 78.9
+  },
+  "Olympiacos": {
+   "rank": 37,
+   "elo": 370,
+   "xiScore": 77.3,
+   "benchScore": 77.18,
+   "ovr": 78.2
+  },
+  "Leeds United": {
+   "rank": 35,
+   "elo": 396,
+   "xiScore": 77.71,
+   "benchScore": 76.3,
+   "ovr": 78.3
+  },
+  "Celtic": {
+   "rank": 46,
+   "elo": 182,
+   "xiScore": 76.04,
+   "benchScore": 73.48,
+   "ovr": 75.5
+  },
+  "Hoffenheim": {
+   "rank": 42,
+   "elo": 335,
+   "xiScore": 77.01,
+   "benchScore": 76.9,
+   "ovr": 78.6
+  },
+  "Valencia": {
+   "rank": 48,
+   "elo": 169,
+   "xiScore": 75.56,
+   "benchScore": 75.62,
+   "ovr": 76.9
+  },
+  "Real Madrid": {
+   "rank": 1,
+   "elo": 1308,
+   "xiScore": 86.12,
+   "benchScore": 80.41,
+   "ovr": 86.6
+  },
+  "Çorum FK": {
+   "rank": 55,
+   "elo": -263,
+   "xiScore": 72.31,
+   "benchScore": 69.29,
+   "ovr": 71.7
+  },
+  "AS Monaco": {
+   "rank": 41,
+   "elo": 338,
+   "xiScore": 77.21,
+   "benchScore": 75.8,
+   "ovr": 78.2
+  },
+  "Lille": {
+   "rank": 44,
+   "elo": 227,
+   "xiScore": 76.28,
+   "benchScore": 74.79,
+   "ovr": 77.8
+  },
+  "Rennes": {
+   "rank": 43,
+   "elo": 312,
+   "xiScore": 76.98,
+   "benchScore": 75.7,
+   "ovr": 78.4
+  },
+  "Başakşehir": {
+   "rank": 54,
+   "elo": -172,
+   "xiScore": 73.23,
+   "benchScore": 69.17,
+   "ovr": 72.5
+  },
+  "PAOK": {
+   "rank": 53,
+   "elo": -27,
+   "xiScore": 74.23,
+   "benchScore": 71.9,
+   "ovr": 74.5
+  },
+  "Club Brugge": {
+   "rank": 51,
+   "elo": 26,
+   "xiScore": 74.46,
+   "benchScore": 73.62,
+   "ovr": 76.1
+  },
+  "Panathinaikos": {
+   "rank": 49,
+   "elo": 119,
+   "xiScore": 75.65,
+   "benchScore": 72.06,
+   "ovr": 76.2
+  },
+  "Strasbourg": {
+   "rank": 52,
+   "elo": -20,
+   "xiScore": 74.11,
+   "benchScore": 72.99,
+   "ovr": 75.3
+  }
+ }
+}

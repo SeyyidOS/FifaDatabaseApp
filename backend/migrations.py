@@ -192,7 +192,7 @@ def v3_seasons(cur: RealDictCursor) -> None:
     cur.execute(V3_SEASONS)
     # the shared club list every rating so far was calculated with (seeded from FC26 if never filled)
     cur.execute("SELECT name, elo FROM clubs ORDER BY id")
-    clubs = [(c["name"], c["elo"]) for c in cur.fetchall()] or read_template(LEGACY_SEASON)
+    clubs = [(c["name"], c["elo"]) for c in cur.fetchall()] or [c[:2] for c in read_template(LEGACY_SEASON)]
     cur.execute("SELECT id FROM boards ORDER BY id")
     for board in cur.fetchall():
         cur.execute("INSERT INTO seasons (board_id, name) VALUES (%s, %s) RETURNING id", (board["id"], LEGACY_SEASON))
@@ -221,10 +221,27 @@ def v3_seasons(cur: RealDictCursor) -> None:
     cur.execute(V3_FINISH)
 
 
+# Seasons rated by a card model (FC27 onwards): each club remembers its EA id, the model's rating
+# and the admin's correction on top of it, so re-running the model keeps the corrections.
+V4_CLUB_MODEL = """
+ALTER TABLE season_clubs ADD COLUMN ea_id INT;
+ALTER TABLE season_clubs ADD COLUMN model_elo INT;
+ALTER TABLE season_clubs ADD COLUMN adjust INT NOT NULL DEFAULT 0;
+CREATE UNIQUE INDEX season_clubs_ea_key ON season_clubs (season_id, ea_id);
+ALTER TABLE seasons ADD COLUMN game VARCHAR(10);
+ALTER TABLE seasons ADD COLUMN model JSONB;
+"""
+
+
+def v4_club_model(cur: RealDictCursor) -> None:
+    cur.execute(V4_CLUB_MODEL)
+
+
 MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (1, v1_legacy),
     (2, v2_boards),
     (3, v3_seasons),
+    (4, v4_club_model),
 ]
 
 

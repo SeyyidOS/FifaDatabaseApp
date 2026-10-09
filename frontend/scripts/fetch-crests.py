@@ -29,6 +29,10 @@ TITLES = {
  "Sevilla": "Sevilla FC", "Fiorentina": "ACF Fiorentina", "Everton": "Everton F.C.",
  "Brighton & Hove Albion": "Brighton & Hove Albion F.C.", "Wolverhampton Wanderers": "Wolverhampton Wanderers F.C.",
  "VfB Stuttgart": "VfB Stuttgart", "AS Monaco": "AS Monaco FC", "Lille": "Lille OSC",
+ # FC27 additions
+ "Rennes": "Stade Rennais F.C.", "Basaksehir": "İstanbul Başakşehir F.K.", "Corum FK": "Çorum FK",
+ "PAOK": "PAOK FC", "Club Brugge": "Club Brugge KV", "Panathinaikos": "Panathinaikos F.C.",
+ "Strasbourg": "RC Strasbourg Alsace",
 }
 slug = lambda s: re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
 import os, urllib.error

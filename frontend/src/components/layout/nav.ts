@@ -3,6 +3,7 @@ import {
   Gamepad2,
   LayoutDashboard,
   Settings,
+  Shield,
   Sparkles,
   Swords,
   Trophy,
@@ -22,6 +23,9 @@ export const navMessages = defineMessages({
     standings: "Standings",
     standingsShort: "Table",
     standingsDesc: "Players, clubs and duos",
+    clubs: "Clubs",
+    clubsShort: "Clubs",
+    clubsDesc: "Club ratings, squads and comparisons",
     matches: "Matches",
     matchesShort: "Matches",
     matchesDesc: "Every result, night by night",
@@ -48,6 +52,9 @@ export const navMessages = defineMessages({
     standings: "Puan Durumu",
     standingsShort: "Tablo",
     standingsDesc: "Oyuncular, kulüpler ve ikililer",
+    clubs: "Kulüpler",
+    clubsShort: "Kulüpler",
+    clubsDesc: "Kulüp puanları, kadrolar ve karşılaştırma",
     matches: "Maçlar",
     matchesShort: "Maçlar",
     matchesDesc: "Gece gece bütün sonuçlar",
@@ -66,7 +73,7 @@ export const navMessages = defineMessages({
   },
 });
 
-type NavKey = "overview" | "play" | "standings" | "matches" | "players" | "h2h" | "insights" | "settings";
+type NavKey = "overview" | "play" | "standings" | "clubs" | "matches" | "players" | "h2h" | "insights" | "settings";
 
 export interface NavItem {
   /** Path inside the board ("" is the board's overview). */
@@ -79,6 +86,7 @@ export const NAV: NavItem[] = [
   { to: "", key: "overview", icon: LayoutDashboard },
   { to: "/play", key: "play", icon: Gamepad2 },
   { to: "/leaderboard", key: "standings", icon: Trophy },
+  { to: "/clubs", key: "clubs", icon: Shield },
   { to: "/matches", key: "matches", icon: CalendarDays },
   { to: "/players", key: "players", icon: Users },
   { to: "/h2h", key: "h2h", icon: Swords },
