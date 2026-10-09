@@ -7,6 +7,9 @@ export interface ParsedMatch {
   matchday: string;
   clubA: string;
   clubB: string;
+  /** the club ratings this match was played with */
+  clubAElo: number;
+  clubBElo: number;
   teamA: string[];
   teamB: string[];
   scoreA: number;
@@ -28,6 +31,8 @@ export function parseMatches(matches: Match[]): ParsedMatch[] {
         matchday: matchdayKey(date),
         clubA: m.club_a,
         clubB: m.club_b,
+        clubAElo: m.club_a_elo,
+        clubBElo: m.club_b_elo,
         teamA: parseTeam(m.team_a),
         teamB: parseTeam(m.team_b),
         scoreA,

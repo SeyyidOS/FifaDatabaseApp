@@ -9,6 +9,7 @@ import type {
   NewMatch,
   Player,
   PlayerStanding,
+  Season,
   SignIn,
 } from "./types";
 import { defineMessages, translator } from "./i18n";
@@ -61,7 +62,6 @@ const json = (method: string, body?: unknown): RequestInit => ({
 
 /** Endpoints that need no sign-in. */
 export const publicApi = {
-  clubs: () => request<Club[]>("/clubs"),
   board: (slug: string) => request<BoardInfo>(`/boards/${encodeURIComponent(slug)}`),
   createBoard: (body: { name: string; password: string; adminPassword: string }) =>
     request<SignIn>("/boards", json("POST", body)),
@@ -97,6 +97,18 @@ export function boardApi(slug: string, token: string) {
     matches: () => call<Match[]>("/matches"),
     addMatch: (match: NewMatch) => call<{ message: string; id: number }>("/matches", json("POST", match)),
     deleteMatch: (id: number) => call<{ message: string }>(`/matches/${id}`, json("DELETE")),
+
+    seasons: () => call<Season[]>("/seasons"),
+    createSeason: (body: { name: string; copyFrom?: number }) => call<Season>("/seasons", json("POST", body)),
+    updateSeason: (id: number, changes: { name?: string; active?: true }) =>
+      call<Season>(`/seasons/${id}`, json("PATCH", changes)),
+    deleteSeason: (id: number) => call<{ message: string }>(`/seasons/${id}`, json("DELETE")),
+    addClub: (season: number, club: { name: string; elo: number }) =>
+      call<Club>(`/seasons/${season}/clubs`, json("POST", club)),
+    updateClub: (season: number, id: number, changes: { name?: string; elo?: number }) =>
+      call<Club>(`/seasons/${season}/clubs/${id}`, json("PATCH", changes)),
+    deleteClub: (season: number, id: number) =>
+      call<{ message: string }>(`/seasons/${season}/clubs/${id}`, json("DELETE")),
 
     leaderboard: {
       players: (start: string) => call<PlayerStanding[]>(`/leaderboard/players?start_time=${start}`),

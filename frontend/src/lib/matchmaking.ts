@@ -1,4 +1,4 @@
-import { DEFAULT_CLUB_ELO, INITIAL_ELO } from "./elo";
+import { INITIAL_ELO } from "./elo";
 import { cleanName } from "./format";
 import type { ParsedMatch } from "./stats";
 import type { Club } from "./types";
@@ -112,15 +112,14 @@ export function pickBalancedClubs(
   exclude?: { a?: number; b?: number },
 ): ClubPick | null {
   if (clubs.length < 2) return null;
-  const elo = (c: Club) => (typeof c.elo === "number" ? c.elo : DEFAULT_CLUB_ELO);
   let best: ClubPick | null = null;
   const within: ClubPick[] = [];
   for (let i = 0; i < clubs.length; i++) {
     for (let j = i + 1; j < clubs.length; j++) {
       const c1 = clubs[i];
       const c2 = clubs[j];
-      const d1 = Math.abs(avgA + elo(c1) / 2 - (avgB + elo(c2) / 2));
-      const d2 = Math.abs(avgA + elo(c2) / 2 - (avgB + elo(c1) / 2));
+      const d1 = Math.abs(avgA + c1.elo / 2 - (avgB + c2.elo / 2));
+      const d2 = Math.abs(avgA + c2.elo / 2 - (avgB + c1.elo / 2));
       const swap = d2 < d1;
       const cand: ClubPick = {
         a: swap ? c2 : c1,

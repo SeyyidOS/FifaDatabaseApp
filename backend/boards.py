@@ -20,6 +20,7 @@ from auth import (
     verify_password,
 )
 from schemas import BoardCreate, BoardUpdate, Login
+from seasons import start_first_season
 
 router = APIRouter(prefix="/boards", tags=["boards"])
 
@@ -62,6 +63,7 @@ def create_board(body: BoardCreate, request: Request, x_admin_key: str | None = 
         except psycopg2.errors.UniqueViolation as exc:
             raise HTTPException(status_code=409, detail="That board name was just taken; try again") from exc
         board = cur.fetchone()
+        start_first_season(cur, board["id"])
     return _session(board, "admin", board["admin_version"])
 
 

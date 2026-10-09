@@ -61,7 +61,7 @@ export function ClubPicker({
   }, [open]);
 
   const sorted = useMemo(
-    () => [...clubs].sort((a, b) => (b.elo ?? 0) - (a.elo ?? 0) || a.name.localeCompare(b.name)),
+    () => [...clubs].sort((a, b) => b.elo - a.elo || a.name.localeCompare(b.name)),
     [clubs],
   );
   const filtered = useMemo(() => {
@@ -108,7 +108,7 @@ export function ClubPicker({
             {selected ? (
               <>
                 <Stars value={clubStars(selected.elo)} />
-                <span className="tabular">{t("elo", { elo: selected.elo ?? "—" })}</span>
+                <span className="tabular">{t("elo", { elo: selected.elo })}</span>
               </>
             ) : value?.kind === "custom" ? (
               t("custom")
@@ -169,7 +169,7 @@ export function ClubPicker({
                     <ClubCrest name={c.name} size="sm" />
                     <span className="min-w-0 flex-1 truncate">{c.name}</span>
                     <Stars value={clubStars(c.elo)} />
-                    <span className="tabular w-10 text-right text-xs text-muted">{c.elo ?? "—"}</span>
+                    <span className="tabular w-10 text-right text-xs text-muted">{c.elo}</span>
                     {selected?.id === c.id && <Check className="size-4 text-accent-text" />}
                   </button>
                 </li>

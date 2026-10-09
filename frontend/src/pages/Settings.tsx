@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { AddPlayer } from "../components/AddPlayer";
 import { DataGate } from "../components/DataGate";
+import { ClubsAdmin } from "../components/settings/ClubsAdmin";
 import { PageHeader } from "../components/layout/AppShell";
 import { ConfirmDialog } from "../components/ui/Dialog";
 import { Avatar, ClubCrest } from "../components/ui/Identity";
@@ -529,7 +530,7 @@ function PlayerRow({ player, played }: { player: Player; played: number }) {
             aria-label={t("newName")}
           />
           <Button type="submit" size="sm" variant="primary" loading={update.isPending}>
-            Save
+            {tc("save")}
           </Button>
         </form>
       ) : (
@@ -759,9 +760,14 @@ export default function Settings() {
                 )}
               </AnimatePresence>
               {role === "admin" && (
-                <Section delay={0.1}>
-                  <MatchesAdmin data={data} />
-                </Section>
+                <>
+                  <Section delay={0.1}>
+                    <ClubsAdmin data={data} />
+                  </Section>
+                  <Section delay={0.15}>
+                    <MatchesAdmin data={data} />
+                  </Section>
+                </>
               )}
             </div>
             {role === "admin" && (

@@ -84,7 +84,7 @@ wait_healthy() {  # $1 = container
 smoke_test() {
     echo "==> checking https://$DOMAIN (the first request may wait for the certificate)"
     for _ in $(seq 1 30); do
-        if curl -fsS --max-time 10 "https://$DOMAIN/api/clubs" 2>/dev/null | grep -q '"tier"'; then
+        if curl -fsS --max-time 10 "https://$DOMAIN/api/health" 2>/dev/null | grep -q '"ok": *true'; then
             # board data must never be served without signing in
             local code
             code=$(curl -s -o /dev/null -w '%{http_code}' "https://$DOMAIN/api/boards/main/players")

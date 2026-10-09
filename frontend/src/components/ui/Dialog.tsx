@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, CircleCheck } from "lucide-react";
 import { Button } from "./primitives";
 import { useT } from "../../hooks/useI18n";
 import { common } from "../../lib/messages";
@@ -62,6 +62,7 @@ export function ConfirmDialog({
   description,
   confirmLabel,
   loading,
+  tone = "danger",
 }: {
   open: boolean;
   onClose: () => void;
@@ -70,13 +71,22 @@ export function ConfirmDialog({
   description?: ReactNode;
   confirmLabel?: string;
   loading?: boolean;
+  /** "accent" for a confirmation that destroys nothing */
+  tone?: "danger" | "accent";
 }) {
   const tc = useT(common);
+  const danger = tone === "danger";
   return (
     <Modal open={open} onClose={onClose} labelledBy="confirm-title">
       <div className="flex gap-4">
-        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-loss/12 text-loss ring-1 ring-loss/25">
-          <AlertTriangle className="size-5" />
+        <span
+          className={
+            danger
+              ? "grid size-10 shrink-0 place-items-center rounded-xl bg-loss/12 text-loss ring-1 ring-loss/25"
+              : "grid size-10 shrink-0 place-items-center rounded-xl bg-accent/12 text-accent-text ring-1 ring-accent/25"
+          }
+        >
+          {danger ? <AlertTriangle className="size-5" /> : <CircleCheck className="size-5" />}
         </span>
         <div className="min-w-0">
           <h3 id="confirm-title" className="font-semibold">
@@ -90,7 +100,8 @@ export function ConfirmDialog({
           {tc("cancel")}
         </Button>
         <Button
-          className="bg-loss text-white hover:bg-loss/90 border-transparent"
+          variant={danger ? "secondary" : "primary"}
+          className={danger ? "bg-loss text-white hover:bg-loss/90 border-transparent" : undefined}
           onClick={onConfirm}
           loading={loading}
         >

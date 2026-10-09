@@ -5,7 +5,7 @@
  * Everything starts from an "appearance": one player in one match, with the win probability the Elo
  * model gave their side beforehand (clubs included), the Elo it moved, and the context around it.
  */
-import { DEFAULT_CLUB_ELO, type EloEngine } from "./elo";
+import type { EloEngine } from "./elo";
 import { duoKey, TIME_ZONE } from "./format";
 import { UPSET_THRESHOLD } from "./insights";
 import { addResult, emptyTally, outcomeForSide, type ParsedMatch, type Tally } from "./stats";
@@ -63,7 +63,6 @@ const SCORE: Record<Outcome, number> = { W: 1, D: 0.5, L: 0 };
 
 /** Every player's appearances, oldest first. Matches the Elo replay skipped are left out. */
 export function buildAppearances(parsed: ParsedMatch[], engine: EloEngine): Map<string, Appearance[]> {
-  const club = (name: string) => engine.clubElo.get(name) ?? DEFAULT_CLUB_ELO;
   const out = new Map<string, Appearance[]>();
   for (const m of [...parsed].reverse()) {
     const elo = engine.perMatch.get(m.id);
@@ -76,7 +75,7 @@ export function buildAppearances(parsed: ParsedMatch[], engine: EloEngine): Map<
       const delta = (side === "A" ? elo.teamA : elo.teamB)[0]?.delta ?? 0;
       const ownClub = side === "A" ? m.clubA : m.clubB;
       const oppClub = side === "A" ? m.clubB : m.clubA;
-      const clubDiff = club(ownClub) - club(oppClub);
+      const clubDiff = side === "A" ? m.clubAElo - m.clubBElo : m.clubBElo - m.clubAElo;
       const outcome = outcomeForSide(m, side);
       for (const name of team) {
         const list = out.get(name) ?? [];

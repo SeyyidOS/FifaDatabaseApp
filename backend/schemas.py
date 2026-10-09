@@ -1,7 +1,7 @@
 """Request bodies. Field names stay camelCase because that is what the frontend sends."""
 
 import re
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import AfterValidator, BaseModel, Field, StringConstraints, model_validator
 
@@ -19,6 +19,8 @@ def _player_name(name: str) -> str:
 
 PlayerName = Annotated[str, StringConstraints(min_length=1, max_length=30), AfterValidator(_player_name)]
 ClubName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+ClubElo = Annotated[int, Field(ge=0, le=3000)]
+SeasonName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
 BoardName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=60)]
 Password = Annotated[str, StringConstraints(min_length=6, max_length=128)]
 Score = Annotated[int, Field(ge=0, le=99)]
@@ -61,6 +63,26 @@ class PlayerIn(BaseModel):
 class PlayerUpdate(BaseModel):
     name: PlayerName | None = None
     archived: bool | None = None
+
+
+class SeasonIn(BaseModel):
+    name: SeasonName
+    copyFrom: int | None = None  # season whose clubs to start from
+
+
+class SeasonUpdate(BaseModel):
+    name: SeasonName | None = None
+    active: Literal[True] | None = None
+
+
+class ClubIn(BaseModel):
+    name: ClubName
+    elo: ClubElo
+
+
+class ClubUpdate(BaseModel):
+    name: ClubName | None = None
+    elo: ClubElo | None = None
 
 
 class MatchIn(BaseModel):

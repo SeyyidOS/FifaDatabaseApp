@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 import board_data
 import boards
 import migrations
+import seasons
 from db import CONNECTION_ERRORS, Database
 
 load_dotenv()
@@ -54,11 +55,6 @@ def health(request: Request):
     return {"ok": True}
 
 
-@app.get("/clubs")
-def clubs(request: Request):
-    """The club catalogue is shared by every board."""
-    return request.app.state.db.fetch_all("SELECT id, name, tier, elo FROM clubs ORDER BY tier, name")
-
-
 app.include_router(boards.router)
 app.include_router(board_data.router)
+app.include_router(seasons.router)

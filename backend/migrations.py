@@ -1,20 +1,18 @@
 """Schema migrations, applied in order at startup. Each one runs in a single transaction."""
 
-import csv
 import logging
 import os
 import secrets
 from collections.abc import Callable
-from pathlib import Path
 
 from psycopg2.extras import RealDictCursor
 
 from auth import hash_password
 from db import Database
+from elo import DEFAULT_CLUB_ELO
+from seasons import read_template
 
 log = logging.getLogger("fifa.migrations")
-
-CLUBS_SEED = Path(__file__).parent / "data" / "clubs.csv"
 
 # The original single-group schema. Idempotent, so it is safe on databases that predate migrations.
 V1_LEGACY = """
@@ -157,9 +155,76 @@ def v2_boards(cur: RealDictCursor) -> None:
     cur.execute(V2_FINISH)
 
 
+# Clubs per board, grouped into seasons (FC26, FC27, ...). Every match keeps the club ratings it was
+# played with, so re-rating clubs for a new game never rewrites anyone's history.
+V3_SEASONS = """
+CREATE TABLE seasons (
+    id SERIAL PRIMARY KEY,
+    board_id INT NOT NULL REFERENCES boards (id) ON DELETE CASCADE,
+    name VARCHAR(40) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX seasons_board_name_key ON seasons (board_id, LOWER(name));
+CREATE TABLE season_clubs (
+    id SERIAL PRIMARY KEY,
+    season_id INT NOT NULL REFERENCES seasons (id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    elo INT NOT NULL
+);
+CREATE UNIQUE INDEX season_clubs_name_key ON season_clubs (season_id, LOWER(name));
+-- the season new matches are recorded in
+ALTER TABLE boards ADD COLUMN active_season_id INT REFERENCES seasons (id);
+ALTER TABLE matches ADD COLUMN season_id INT REFERENCES seasons (id);
+ALTER TABLE matches ADD COLUMN club_a_elo INT, ADD COLUMN club_b_elo INT;
+"""
+
+V3_FINISH = """
+ALTER TABLE matches ALTER COLUMN season_id SET NOT NULL;
+ALTER TABLE matches ALTER COLUMN club_a_elo SET NOT NULL;
+ALTER TABLE matches ALTER COLUMN club_b_elo SET NOT NULL;
+DROP TABLE clubs;
+"""
+
+LEGACY_SEASON = "FC26"
+
+
+def v3_seasons(cur: RealDictCursor) -> None:
+    cur.execute(V3_SEASONS)
+    # the shared club list every rating so far was calculated with (seeded from FC26 if never filled)
+    cur.execute("SELECT name, elo FROM clubs ORDER BY id")
+    clubs = [(c["name"], c["elo"]) for c in cur.fetchall()] or read_template(LEGACY_SEASON)
+    cur.execute("SELECT id FROM boards ORDER BY id")
+    for board in cur.fetchall():
+        cur.execute("INSERT INTO seasons (board_id, name) VALUES (%s, %s) RETURNING id", (board["id"], LEGACY_SEASON))
+        season_id = cur.fetchone()["id"]
+        cur.executemany(
+            "INSERT INTO season_clubs (season_id, name, elo) VALUES (%s, %s, %s)",
+            [(season_id, name, elo) for name, elo in clubs],
+        )
+        cur.execute("UPDATE boards SET active_season_id = %s WHERE id = %s", (season_id, board["id"]))
+    # exact names, as the Elo replay looked them up; clubs that were never listed counted as the default
+    cur.execute(
+        """
+        UPDATE matches m
+        SET season_id = b.active_season_id,
+            club_a_elo = COALESCE(
+                (SELECT c.elo FROM season_clubs c WHERE c.season_id = b.active_season_id AND c.name = m.club_a), %(d)s
+            ),
+            club_b_elo = COALESCE(
+                (SELECT c.elo FROM season_clubs c WHERE c.season_id = b.active_season_id AND c.name = m.club_b), %(d)s
+            )
+        FROM boards b
+        WHERE b.id = m.board_id
+        """,
+        {"d": DEFAULT_CLUB_ELO},
+    )
+    cur.execute(V3_FINISH)
+
+
 MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (1, v1_legacy),
     (2, v2_boards),
+    (3, v3_seasons),
 ]
 
 
@@ -174,15 +239,3 @@ def migrate(db: Database) -> None:
             step(cur)
             cur.execute("INSERT INTO schema_version (version) VALUES (%s)", (version,))
             log.info("applied migration %d (%s)", version, step.__name__)
-    seed_clubs(db)
-
-
-def seed_clubs(db: Database) -> None:
-    with db.transaction() as cur:
-        cur.execute("SELECT COUNT(*) AS n FROM clubs")
-        if cur.fetchone()["n"] or not CLUBS_SEED.exists():
-            return
-        with CLUBS_SEED.open(newline="", encoding="utf-8") as f:
-            rows = [(r["name"], int(r["tier"]), int(r["elo"])) for r in csv.DictReader(f)]
-        cur.executemany("INSERT INTO clubs (name, tier, elo) VALUES (%s, %s, %s)", rows)
-        log.info("seeded %d clubs", len(rows))

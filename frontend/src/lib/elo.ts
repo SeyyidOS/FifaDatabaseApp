@@ -10,7 +10,7 @@ import { cleanName, parseApiTime, parseTeam } from "./format";
 import type { Club, Match, Player } from "./types";
 
 export const INITIAL_ELO = 1000;
-/** Rating used for clubs that are not in the clubs table (custom names). */
+/** Rating of clubs that are not in the active season's list (custom names). */
 export const DEFAULT_CLUB_ELO = 500;
 
 export function expectedScore(a: number, b: number): number {
@@ -67,6 +67,7 @@ export interface EloEngine {
   history: Map<number, EloPoint[]>;
   perMatch: Map<number, MatchElo>;
   nameToId: Map<string, number>;
+  /** the active season's club ratings, for matches not played yet */
   clubElo: Map<string, number>;
 }
 
@@ -120,16 +121,10 @@ function step(ratings: Map<number, number>, k: number, input: StepInput): StepRe
 
 const clubRating = (clubElo: Map<string, number>, club: string) => clubElo.get(club) ?? DEFAULT_CLUB_ELO;
 
-export function buildClubEloMap(clubs: Club[]): Map<string, number> {
-  const m = new Map<string, number>();
-  [...clubs]
-    .sort((x, y) => x.id - y.id)
-    .forEach((c) => {
-      if (!m.has(c.name)) m.set(c.name, c.elo ?? DEFAULT_CLUB_ELO);
-    });
-  return m;
-}
-
+/**
+ * Replays every match with the club ratings it was played with (stored on the match). `clubs` is
+ * the active season's list, which only previews of new matches use.
+ */
 export function runElo(players: Player[], clubs: Club[], matches: Match[], k: number): EloEngine {
   const nameToId = new Map<string, number>();
   [...players].sort((a, b) => a.id - b.id).forEach((p) => nameToId.set(cleanName(p.name), p.id));
@@ -141,7 +136,7 @@ export function runElo(players: Player[], clubs: Club[], matches: Match[], k: nu
     history.set(p.id, []);
   });
 
-  const clubElo = buildClubEloMap(clubs);
+  const clubElo = new Map(clubs.map((c) => [c.name, c.elo]));
   const perMatch = new Map<number, MatchElo>();
 
   const ordered = matches
@@ -162,8 +157,8 @@ export function runElo(players: Player[], clubs: Club[], matches: Match[], k: nu
     const r = step(ratings, k, {
       teamAIds,
       teamBIds,
-      clubARating: clubRating(clubElo, m.club_a),
-      clubBRating: clubRating(clubElo, m.club_b),
+      clubARating: m.club_a_elo,
+      clubBRating: m.club_b_elo,
       scoreA: Number(m.score_a) || 0,
       scoreB: Number(m.score_b) || 0,
     });
@@ -253,7 +248,6 @@ export function previewMatch(
 }
 
 /** FIFA-style star rating (0.5–5) from club Elo. */
-export function clubStars(elo: number | null | undefined): number {
-  const v = elo ?? DEFAULT_CLUB_ELO;
-  return Math.min(5, Math.max(0.5, Math.round((v / 1200) * 10) / 2));
+export function clubStars(elo: number): number {
+  return Math.min(5, Math.max(0.5, Math.round((elo / 1200) * 10) / 2));
 }

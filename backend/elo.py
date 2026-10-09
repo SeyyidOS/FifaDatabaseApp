@@ -1,6 +1,7 @@
 """Elo ratings, replayed from a board's full match history on every request.
 
-Each side's strength is its players' average rating plus half its club's rating. The rating change
+Each side's strength is its players' average rating plus half the rating its club had when the match
+was played (stored on the match, see seasons.py). The rating change
 is K × (result − expected) × a multiplier that rewards wide margins and upsets; every player on a
 side gets the same change. The frontend mirrors this in frontend/src/lib/elo.ts: keep them in sync.
 """
@@ -8,7 +9,7 @@ side gets the same change. The frontend mirrors this in frontend/src/lib/elo.ts:
 from db import Database
 
 INITIAL_ELO = 1000
-DEFAULT_CLUB_ELO = 500  # clubs that are not in the clubs table (custom names)
+DEFAULT_CLUB_ELO = 500  # clubs that are not in the season's list (custom names)
 
 
 def expected_score(a: float, b: float) -> float:
@@ -32,13 +33,12 @@ def margin_multiplier(
     return margin_factor * upset_bonus
 
 
-def compute_ratings(player_ids: list[int], clubs: list[dict], matches: list[dict], k_factor: int) -> dict[int, int]:
+def compute_ratings(player_ids: list[int], matches: list[dict], k_factor: int) -> dict[int, int]:
     """{player_id: elo} after replaying `matches` (oldest first; teams are lists of player ids)."""
-    club_elo = {c["name"]: c["elo"] if c.get("elo") is not None else DEFAULT_CLUB_ELO for c in clubs}
     ratings: dict[int, float] = {pid: float(INITIAL_ELO) for pid in player_ids}
 
-    def side_strength(ids: list[int], club: str) -> float:
-        return sum(ratings[i] for i in ids) / len(ids) + club_elo.get(club, DEFAULT_CLUB_ELO) / 2
+    def side_strength(ids: list[int], club_elo: int) -> float:
+        return sum(ratings[i] for i in ids) / len(ids) + club_elo / 2
 
     for m in matches:
         team_a = [pid for pid in m["team_a"] or [] if pid in ratings]
@@ -46,8 +46,8 @@ def compute_ratings(player_ids: list[int], clubs: list[dict], matches: list[dict
         if not team_a or not team_b:
             continue
 
-        strength_a = side_strength(team_a, m["club_a"])
-        strength_b = side_strength(team_b, m["club_b"])
+        strength_a = side_strength(team_a, m["club_a_elo"])
+        strength_b = side_strength(team_b, m["club_b_elo"])
         exp_a = expected_score(strength_a, strength_b)
 
         score_a, score_b = int(m["score_a"] or 0), int(m["score_b"] or 0)
@@ -71,10 +71,9 @@ def compute_ratings(player_ids: list[int], clubs: list[dict], matches: list[dict
 def board_ratings(db: Database, board_id: int, k_factor: int) -> dict[int, int]:
     """Ratings for every player of a board, archived ones included (they still shaped history)."""
     players = db.fetch_all("SELECT id FROM players WHERE board_id = %s ORDER BY id", (board_id,))
-    clubs = db.fetch_all("SELECT name, elo FROM clubs")
     matches = db.fetch_all(
         """
-        SELECT m.club_a, m.club_b, m.score_a, m.score_b,
+        SELECT m.club_a_elo, m.club_b_elo, m.score_a, m.score_b,
                ARRAY_AGG(mp.player_id ORDER BY mp.slot) FILTER (WHERE mp.side = 'A') AS team_a,
                ARRAY_AGG(mp.player_id ORDER BY mp.slot) FILTER (WHERE mp.side = 'B') AS team_b
         FROM matches m
@@ -85,4 +84,4 @@ def board_ratings(db: Database, board_id: int, k_factor: int) -> dict[int, int]:
         """,
         (board_id,),
     )
-    return compute_ratings([p["id"] for p in players], clubs, matches, k_factor)
+    return compute_ratings([p["id"] for p in players], matches, k_factor)

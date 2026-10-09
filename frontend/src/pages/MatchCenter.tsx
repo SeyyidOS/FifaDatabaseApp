@@ -83,6 +83,7 @@ const msg = defineMessages({
     shuffle: "Shuffle teams",
     clubs: "Clubs",
     clubsSub: "Balanced picks weigh squad Elo + half the club's rating",
+    seasonTip: "Club ratings of {season}, the active season",
     margin: "Fairness margin",
     randomClubs: "Balanced random clubs",
     fullTime: "Full time",
@@ -137,6 +138,7 @@ const msg = defineMessages({
     shuffle: "Takımları karıştır",
     clubs: "Kulüpler",
     clubsSub: "Dengeli seçim, kadro Elo'su + kulüp puanının yarısına bakar",
+    seasonTip: "Aktif sezon {season} kulüp puanları",
     margin: "Adalet payı",
     randomClubs: "Dengeli rastgele kulüpler",
     fullTime: "Maç sonu",
@@ -637,6 +639,15 @@ function MatchCenterInner({ data }: { data: Analytics }) {
               </span>
             }
             subtitle={t("clubsSub")}
+            action={
+              data.season && (
+                <span title={t("seasonTip", { season: data.season.name })}>
+                  <Pill tone="accent" className="font-display text-xs tracking-wide">
+                    {data.season.name}
+                  </Pill>
+                </span>
+              )
+            }
           >
             <div className="grid gap-3 md:grid-cols-2">
               <ClubPicker clubs={data.clubs} value={clubA} onChange={setClubA} side="A" placeholder={t("sideClub", { side: "A" })} />

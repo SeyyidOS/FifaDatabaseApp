@@ -11,19 +11,21 @@ import {
   type AnalyticsState,
   type RankedPlayer,
 } from "./analytics-context";
-import { useClubs, useMatches, useMe, usePlayers } from "./useData";
+import { useMatches, useMe, usePlayers, useSeasons } from "./useData";
 
 export function AnalyticsProvider({ children }: { children: ReactNode }) {
   const players = usePlayers();
-  const clubs = useClubs();
+  const seasons = useSeasons();
   const matches = useMatches();
   const settings = useMe();
 
   const data = useMemo<Analytics | null>(() => {
-    if (!players.data || !clubs.data || !matches.data || !settings.data) return null;
+    if (!players.data || !seasons.data || !matches.data || !settings.data) return null;
     const k = settings.data.kFactor ?? 24;
+    const season = seasons.data.find((s) => s.active) ?? null;
+    const clubs = season?.clubs ?? [];
     const parsed = parseMatches(matches.data);
-    const engine = runElo(players.data, clubs.data, matches.data, k);
+    const engine = runElo(players.data, clubs, matches.data, k);
     const stats = computePlayerStats(parsed);
     const matchdays = groupMatchdays(parsed);
 
@@ -32,7 +34,7 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     const before = lastDay
       ? runElo(
           players.data,
-          clubs.data,
+          clubs,
           matches.data.filter((m) => !matchdays[0].matches.some((x) => x.id === m.id)),
           k,
         )
@@ -72,7 +74,9 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
 
     return {
       players: players.data,
-      clubs: clubs.data,
+      seasons: seasons.data,
+      season,
+      clubs,
       matches: matches.data,
       parsed,
       engine,
@@ -87,15 +91,15 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
       duos: duoProfiles(appearances),
       k,
     };
-  }, [players.data, clubs.data, matches.data, settings.data]);
+  }, [players.data, seasons.data, matches.data, settings.data]);
 
   const value: AnalyticsState = {
     data,
-    isLoading: !data && (players.isLoading || clubs.isLoading || matches.isLoading || settings.isLoading),
-    error: (players.error || clubs.error || matches.error || settings.error) as Error | null,
+    isLoading: !data && (players.isLoading || seasons.isLoading || matches.isLoading || settings.isLoading),
+    error: (players.error || seasons.error || matches.error || settings.error) as Error | null,
     refetch: () => {
       players.refetch();
-      clubs.refetch();
+      seasons.refetch();
       matches.refetch();
       settings.refetch();
     },

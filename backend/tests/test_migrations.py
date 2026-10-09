@@ -8,6 +8,7 @@ from auth import verify_password
 from db import Database
 
 LEGACY_DATA = """
+INSERT INTO clubs (name, tier, elo) VALUES ('Arsenal', 1, 999), ('Chelsea', 1, 1100);
 INSERT INTO players (name) VALUES ('kerem'), ('seyyid'), ('ali'), ('veli');
 INSERT INTO matches (time, club_a, club_b, team_a, team_b, score_a, score_b) VALUES
     ('2025-07-27 15:00', 'Arsenal', 'Chelsea', '{kerem,seyyid}', '{ali,veli}', 3, 1),
@@ -70,8 +71,31 @@ def test_legacy_database_becomes_the_main_board(scratch_database, monkeypatch):
         }
         assert "team_a" not in columns and "board_id" in columns
         assert rows(cur, "SELECT to_regclass('elo_settings') AS t")[0]["t"] is None
-        assert [r["version"] for r in rows(cur, "SELECT version FROM schema_version ORDER BY version")] == [1, 2]
-        assert rows(cur, "SELECT COUNT(*) AS n FROM clubs")[0]["n"] == 45
+        assert [r["version"] for r in rows(cur, "SELECT version FROM schema_version ORDER BY version")] == [1, 2, 3]
+
+        # the shared club list becomes the board's first season, and every match keeps its club ratings
+        [season] = rows(cur, "SELECT s.*, b.active_season_id FROM seasons s JOIN boards b ON b.id = s.board_id")
+        assert (season["name"], season["active_season_id"]) == ("FC26", season["id"])
+        clubs = rows(cur, "SELECT name, elo FROM season_clubs ORDER BY name")
+        assert [(c["name"], c["elo"]) for c in clubs] == [("Arsenal", 999), ("Chelsea", 1100)]
+        played = rows(cur, "SELECT season_id, club_a_elo, club_b_elo FROM matches ORDER BY id")
+        assert [(m["season_id"], m["club_a_elo"], m["club_b_elo"]) for m in played] == [
+            (season["id"], 999, 1100),
+            (season["id"], 500, 999),  # Custom FC was never listed
+            (season["id"], 500, 500),
+        ]
+        assert rows(cur, "SELECT to_regclass('clubs') AS t")[0]["t"] is None
+
+
+def test_legacy_database_without_clubs_starts_from_the_fc26_list(scratch_database):
+    with psycopg2.connect(scratch_database) as conn, conn.cursor() as cur:
+        cur.execute(migrations.V1_LEGACY + "INSERT INTO players (name) VALUES ('kerem');")
+    db = Database(dsn=scratch_database)
+    try:
+        migrations.migrate(db)
+        assert db.fetch_one("SELECT COUNT(*) AS n FROM season_clubs")["n"] == 45
+    finally:
+        db.close()
 
 
 def test_fresh_database_gets_an_empty_board_schema(scratch_database):
@@ -79,6 +103,6 @@ def test_fresh_database_gets_an_empty_board_schema(scratch_database):
     try:
         migrations.migrate(db)
         assert db.fetch_one("SELECT COUNT(*) AS n FROM boards")["n"] == 0
-        assert db.fetch_one("SELECT COUNT(*) AS n FROM clubs")["n"] == 45
+        assert db.fetch_one("SELECT COUNT(*) AS n FROM seasons")["n"] == 0
     finally:
         db.close()

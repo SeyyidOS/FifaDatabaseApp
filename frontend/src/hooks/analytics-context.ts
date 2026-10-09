@@ -2,7 +2,7 @@ import { createContext } from "react";
 import type { Appearance, DuoProfile, EloDna } from "../lib/analysis";
 import type { EloEngine, EloPoint } from "../lib/elo";
 import type { Matchday, ParsedMatch, PlayerStats, Records } from "../lib/stats";
-import type { Club, Match, Player } from "../lib/types";
+import type { Club, Match, Player, Season } from "../lib/types";
 
 export interface RankedPlayer {
   id: number;
@@ -24,6 +24,11 @@ export interface RankedPlayer {
 
 export interface Analytics {
   players: Player[];
+  /** oldest first */
+  seasons: Season[];
+  /** the season new matches are played in */
+  season: Season | null;
+  /** its clubs, strongest first */
   clubs: Club[];
   matches: Match[];
   parsed: ParsedMatch[];

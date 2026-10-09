@@ -102,7 +102,7 @@ def delete_player(player_id: int, request: Request, access: BoardAccess = Depend
 def list_matches(request: Request, access: BoardAccess = Depends(board_access)):
     return _db(request).fetch_all(
         """
-        SELECT m.id, m.time, m.club_a, m.club_b, m.score_a, m.score_b,
+        SELECT m.id, m.time, m.season_id, m.club_a, m.club_b, m.club_a_elo, m.club_b_elo, m.score_a, m.score_b,
                ARRAY_AGG(p.name ORDER BY mp.slot) FILTER (WHERE mp.side = 'A') AS team_a,
                ARRAY_AGG(p.name ORDER BY mp.slot) FILTER (WHERE mp.side = 'B') AS team_b
         FROM matches m
@@ -132,13 +132,29 @@ def add_match(match: MatchIn, request: Request, access: BoardAccess = Depends(bo
         raise HTTPException(status_code=422, detail=f"Archived players can't play: {', '.join(archived)}")
 
     with _db(request).transaction() as cur:
-        # stored as UTC regardless of the database server's time zone
+        # the active season's clubs, matched case-insensitively; other names are custom clubs
         cur.execute(
             """
-            INSERT INTO matches (board_id, time, club_a, club_b, score_a, score_b)
-            VALUES (%s, NOW() AT TIME ZONE 'UTC', %s, %s, %s, %s) RETURNING id
+            SELECT c.name, c.elo FROM boards b JOIN season_clubs c ON c.season_id = b.active_season_id
+            WHERE b.id = %s AND LOWER(c.name) IN (LOWER(%s), LOWER(%s))
             """,
-            (access.id, match.clubA, match.clubB, match.scoreA, match.scoreB),
+            (access.id, match.clubA, match.clubB),
+        )
+        listed = {c["name"].lower(): c for c in cur.fetchall()}
+
+        def club(name: str) -> tuple[str, int]:
+            row = listed.get(name.lower())
+            return (row["name"], row["elo"]) if row else (name, elo.DEFAULT_CLUB_ELO)
+
+        (club_a, club_a_elo), (club_b, club_b_elo) = club(match.clubA), club(match.clubB)
+        # the club ratings are kept with the match; time is stored as UTC whatever the server's time zone
+        cur.execute(
+            """
+            INSERT INTO matches (board_id, season_id, time, club_a, club_b, club_a_elo, club_b_elo, score_a, score_b)
+            SELECT id, active_season_id, NOW() AT TIME ZONE 'UTC', %s, %s, %s, %s, %s, %s
+            FROM boards WHERE id = %s RETURNING id
+            """,
+            (club_a, club_b, club_a_elo, club_b_elo, match.scoreA, match.scoreB, access.id),
         )
         match_id = cur.fetchone()["id"]
         cur.executemany(

@@ -1,13 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { publicApi } from "../lib/api";
 import { updateSession } from "../lib/session";
 import type { NewMatch } from "../lib/types";
 import { useBoard } from "./useBoard";
 
 /** Every query of a board starts with ["board", slug], so a board can be refreshed or dropped at once. */
 const boardKey = (slug: string, ...rest: unknown[]) => ["board", slug, ...rest];
-
-export const useClubs = () => useQuery({ queryKey: ["clubs"], queryFn: publicApi.clubs, staleTime: 5 * 60_000 });
 
 export function useMe() {
   const { slug, api } = useBoard();
@@ -17,6 +14,11 @@ export function useMe() {
 export function usePlayers() {
   const { slug, api } = useBoard();
   return useQuery({ queryKey: boardKey(slug, "players"), queryFn: api.players });
+}
+
+export function useSeasons() {
+  const { slug, api } = useBoard();
+  return useQuery({ queryKey: boardKey(slug, "seasons"), queryFn: api.seasons });
 }
 
 export function useMatches() {
@@ -82,12 +84,56 @@ export function useDeletePlayer() {
 
 export function useAddMatch() {
   const { api } = useBoard();
-  return useBoardMutation((m: NewMatch) => api.addMatch(m), ["matches", "leaderboard"]);
+  return useBoardMutation((m: NewMatch) => api.addMatch(m), ["matches", "leaderboard", "seasons"]);
 }
 
 export function useDeleteMatch() {
   const { api } = useBoard();
-  return useBoardMutation((id: number) => api.deleteMatch(id), ["matches", "leaderboard"]);
+  return useBoardMutation((id: number) => api.deleteMatch(id), ["matches", "leaderboard", "seasons"]);
+}
+
+export function useCreateSeason() {
+  const { api } = useBoard();
+  return useBoardMutation((body: { name: string; copyFrom?: number }) => api.createSeason(body), ["seasons"]);
+}
+
+export function useUpdateSeason() {
+  const { api } = useBoard();
+  return useBoardMutation(
+    ({ id, ...changes }: { id: number; name?: string; active?: true }) => api.updateSeason(id, changes),
+    ["seasons"],
+  );
+}
+
+export function useDeleteSeason() {
+  const { api } = useBoard();
+  return useBoardMutation((id: number) => api.deleteSeason(id), ["seasons"]);
+}
+
+/** Club edits only touch the season's list: matches keep the ratings they were played with. */
+export function useAddClub() {
+  const { api } = useBoard();
+  return useBoardMutation(
+    ({ season, ...club }: { season: number; name: string; elo: number }) => api.addClub(season, club),
+    ["seasons"],
+  );
+}
+
+export function useUpdateClub() {
+  const { api } = useBoard();
+  return useBoardMutation(
+    ({ season, id, ...changes }: { season: number; id: number; name?: string; elo?: number }) =>
+      api.updateClub(season, id, changes),
+    ["seasons"],
+  );
+}
+
+export function useDeleteClub() {
+  const { api } = useBoard();
+  return useBoardMutation(
+    ({ season, id }: { season: number; id: number }) => api.deleteClub(season, id),
+    ["seasons"],
+  );
 }
 
 export function useUpdateBoard() {
