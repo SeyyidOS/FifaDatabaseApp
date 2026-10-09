@@ -52,8 +52,9 @@ for _error in CONNECTION_ERRORS:
 
 @app.get("/health")
 def health(request: Request):
+    """Also says which commit is live (APP_VERSION, set by deploy/deploy.sh)."""
     request.app.state.db.fetch_one("SELECT 1")
-    return {"ok": True}
+    return {"ok": True, "version": os.getenv("APP_VERSION", "dev")}
 
 
 app.include_router(boards.router)

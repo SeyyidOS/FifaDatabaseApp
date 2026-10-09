@@ -45,6 +45,8 @@ services:
       LEGACY_BOARD_PASSWORD: ${LEGACY_BOARD_PASSWORD:-}
       LEGACY_BOARD_ADMIN_PASSWORD: ${LEGACY_BOARD_ADMIN_PASSWORD:-}
       APP_TIMEZONE: Europe/Istanbul
+      # the commit being published (deploy/auto-deploy.sh), shown by /health and in Settings
+      APP_VERSION: ${APP_VERSION:-manual}
       CORS_ORIGINS: https://fifa.173.249.40.69.sslip.io
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)"]

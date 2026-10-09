@@ -1,0 +1,11 @@
+# Checks main once a minute; a pass with nothing new to publish takes about a second.
+[Unit]
+Description=FIFA Manager: check main for something to publish
+
+[Timer]
+OnCalendar=minutely
+AccuracySec=5s
+Unit=fifa-auto-deploy.service
+
+[Install]
+WantedBy=timers.target

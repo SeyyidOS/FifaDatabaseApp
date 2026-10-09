@@ -5,7 +5,7 @@ SINCE_EVER = {"start_time": "2000-01-01"}
 
 
 def test_health(api):
-    assert api.get("/health").json() == {"ok": True}
+    assert api.get("/health").json() == {"ok": True, "version": "dev"}
 
 
 # ----------- Boards & sign-in -----------

@@ -63,6 +63,8 @@ const json = (method: string, body?: unknown): RequestInit => ({
 
 /** Endpoints that need no sign-in. */
 export const publicApi = {
+  /** "version" is the short commit hash that is live */
+  health: () => request<{ ok: boolean; version: string }>("/health"),
   board: (slug: string) => request<BoardInfo>(`/boards/${encodeURIComponent(slug)}`),
   createBoard: (body: { name: string; password: string; adminPassword: string }) =>
     request<SignIn>("/boards", json("POST", body)),

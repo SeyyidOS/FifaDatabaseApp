@@ -6,6 +6,15 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   base: "/FifaDatabaseApp/",
   plugins: [react(), tailwindcss()],
+  // `npm run dev` talks to a local API (backend: uvicorn main:app --port 8080), like nginx does in production
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:8080",
+        rewrite: (path) => path.replace(/^\/api/, ""),
+      },
+    },
+  },
   build: {
     rollupOptions: {
       output: {

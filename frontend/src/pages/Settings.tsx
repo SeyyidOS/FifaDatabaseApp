@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Archive,
@@ -131,6 +131,8 @@ const msg = defineMessages({
     ratingsSub: "The K-factor sets how far ratings move per match",
     board: "Board",
     boardSub: "Name and passwords",
+    version: "Live version {version}",
+    versionTip: "The commit this site runs; opens it on GitHub",
   },
   tr: {
     copyFailed: "Kopyalanamadı",
@@ -220,6 +222,8 @@ const msg = defineMessages({
     ratingsSub: "K-faktörü, puanların maç başına ne kadar değişeceğini belirler",
     board: "Board",
     boardSub: "Ad ve şifreler",
+    version: "Canlıdaki sürüm {version}",
+    versionTip: "Sitenin çalıştırdığı commit; GitHub'da açar",
   },
 });
 
@@ -704,6 +708,32 @@ function MatchesAdmin({ data }: { data: Analytics }) {
 
 /* ---------------------------------- Page ----------------------------------- */
 
+/** Which commit the site runs, linked to it on GitHub (handy when two people ship changes). */
+function LiveVersion() {
+  const t = useT(msg);
+  const health = useQuery({ queryKey: ["health"], queryFn: publicApi.health, staleTime: 60_000 });
+  const version = health.data?.version;
+  if (!version) return null;
+  const isCommit = /^[0-9a-f]{7,40}$/.test(version);
+  return (
+    <p className="text-center text-xs text-faint">
+      {isCommit ? (
+        <a
+          href={`https://github.com/SeyyidOS/FifaDatabaseApp/commit/${version}`}
+          target="_blank"
+          rel="noreferrer"
+          title={t("versionTip")}
+          className="font-mono hover:text-fg"
+        >
+          {t("version", { version })}
+        </a>
+      ) : (
+        <span className="font-mono">{t("version", { version })}</span>
+      )}
+    </p>
+  );
+}
+
 function Section({ children, delay = 0 }: { children: ReactNode; delay?: number }) {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}>
@@ -787,6 +817,7 @@ export default function Settings() {
               </div>
             )}
           </div>
+          <LiveVersion />
         </div>
       )}
     </DataGate>
