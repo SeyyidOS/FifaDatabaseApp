@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, CalendarClock, Check, Grid3x3, Play, Plus, Shuffle, SkipForward, Undo2, X } from "lucide-react";
 import type { Analytics } from "../../hooks/analytics-context";
@@ -72,49 +72,48 @@ function heatCell(measure: PairMeasure, v: number, hi: number) {
   };
 }
 
-/** Who plays with and against whom: a staircase, each name on the diagonal heading its row and column. */
-function PairTable({ matches }: { matches: { a: string[]; b: string[] }[] }) {
+type Count = Record<PairMeasure, number>;
+
+/** One measure as a staircase, each name on the diagonal heading its row and column. */
+function Staircase({
+  measure,
+  people,
+  count,
+  focus,
+  setFocus,
+}: {
+  measure: PairMeasure;
+  people: string[];
+  count: (i: number, j: number) => Count;
+  focus: [number, number] | null;
+  setFocus: (f: [number, number] | null) => void;
+}) {
   const t = useT(planMessages);
-  const [measure, setMeasure] = useState<PairMeasure>("together");
-  const [focus, setFocus] = useState<[number, number] | null>(null);
-  const { together, against, key } = useMemo(() => pairCounts(matches), [matches]);
-  const people = useMemo(() => [...new Set(matches.flatMap((m) => [...m.a, ...m.b]))], [matches]);
-  const count = (i: number, j: number) => ({
-    together: together.get(key(people[i], people[j])) ?? 0,
-    against: against.get(key(people[i], people[j])) ?? 0,
-  });
-  const pairs = people.flatMap((_, i) => people.slice(0, i).map((_, j) => count(i, j)));
-  const values = pairs.map((c) => c[measure]);
-  const hi = Math.max(1, ...values);
+  const hi = Math.max(1, ...people.flatMap((_, i) => people.slice(0, i).map((_, j) => count(i, j)[measure])));
   const legend = hi <= 5 ? Array.from({ length: hi + 1 }, (_, v) => v) : [0, Math.round(hi / 3), Math.round((2 * hi) / 3), hi];
   const lit = (i: number) => !!focus && focus.includes(i);
   // room on the right for the last names, which stick out past the staircase
   const nameRoom = `${0.5 + 0.5 * Math.max(...people.map((p) => displayName(p).length))}rem`;
-  const caption = focus
-    ? t("pairTip", { a: displayName(people[focus[0]]), b: displayName(people[focus[1]]), ...count(focus[0], focus[1]) })
-    : t("pairsSummary", {
-        tMin: Math.min(...pairs.map((c) => c.together)),
-        tMax: Math.max(...pairs.map((c) => c.together)),
-        oMin: Math.min(...pairs.map((c) => c.against)),
-        oMax: Math.max(...pairs.map((c) => c.against)),
-      });
-
   return (
-    <div className="w-fit max-w-full">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="label">{t("pairsTitle")}</p>
-        <Segmented<PairMeasure>
-          size="sm"
-          value={measure}
-          onChange={setMeasure}
-          options={[
-            { value: "together", label: t("pairsTogether") },
-            { value: "against", label: t("pairsAgainst") },
-          ]}
-        />
+    <div className="min-w-0">
+      <div className="mb-2.5 flex items-center justify-between gap-3">
+        <span className="flex items-center gap-2 text-xs font-semibold">
+          <span className="size-2.5 rounded-[3px]" style={{ background: HEAT[measure].hue }} />
+          {t(measure === "together" ? "pairsTogether" : "pairsAgainst")}
+        </span>
+        <span className="flex items-center gap-1" aria-hidden>
+          {legend.map((v) => {
+            const cell = heatCell(measure, v, hi);
+            return (
+              <span key={v} className={cn("tabular grid size-5 place-items-center rounded-md text-[10px]", cell.className)} style={cell.style}>
+                {v}
+              </span>
+            );
+          })}
+        </span>
       </div>
       <div className="overflow-x-auto pb-1">
-        {/* square cells up to 2.25rem that shrink to fit a phone, so the whole staircase stays in view */}
+        {/* square cells up to 2.25rem that shrink to fit, so the whole staircase stays in view */}
         <div
           className="relative grid w-full gap-[3px] sm:gap-1"
           style={{ gridTemplateColumns: `repeat(${people.length}, minmax(0, 2.25rem))`, paddingRight: nameRoom }}
@@ -150,11 +149,12 @@ function PairTable({ matches }: { matches: { a: string[]; b: string[] }[] }) {
                 );
               })}
               <span className="relative grid aspect-square place-items-center" style={{ gridRow: i + 1, gridColumn: i + 1 }}>
+                {/* as big as a cell, up to the usual small avatar */}
                 <Avatar
                   name={p}
                   size="sm"
                   ring={lit(i) ? "accent" : undefined}
-                  className={cn("transition-opacity max-sm:size-5 max-sm:text-[9px]", focus && !lit(i) && "opacity-45")}
+                  className={cn("!size-full max-h-7 max-w-7 text-[10px] transition-opacity sm:text-xs", focus && !lit(i) && "opacity-45")}
                 />
                 <span
                   className={cn(
@@ -167,21 +167,56 @@ function PairTable({ matches }: { matches: { a: string[]; b: string[] }[] }) {
               </span>
             </Fragment>
           ))}
-          {/* the scale sits in the empty corner above the staircase */}
-          <span className="absolute top-0 right-0 flex items-center gap-1" aria-hidden>
-            {legend.map((v) => {
-              const cell = heatCell(measure, v, hi);
-              return (
-                <span key={v} className={cn("tabular grid size-5 place-items-center rounded-md text-[10px]", cell.className)} style={cell.style}>
-                  {v}
-                </span>
-              );
-            })}
-          </span>
         </div>
       </div>
-      {/* takes the block's width without widening it, so the text can change without moving anything */}
-      <p className="mt-3 min-h-8 w-0 min-w-full text-xs text-muted" aria-live="polite">
+    </div>
+  );
+}
+
+/**
+ * Who plays with and who against whom, side by side (stacked when narrow). Both staircases list the
+ * players in the same order, and pointing at a pair lights it up in both.
+ */
+function PairTable({ matches }: { matches: { a: string[]; b: string[] }[] }) {
+  const t = useT(planMessages);
+  const [focus, setFocus] = useState<[number, number] | null>(null);
+  const { together, against, key } = useMemo(() => pairCounts(matches), [matches]);
+  const people = useMemo(() => [...new Set(matches.flatMap((m) => [...m.a, ...m.b]))], [matches]);
+  // side by side only while each staircase keeps comfortable 26px cells, else one under the other
+  const box = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  const longest = Math.max(...people.map((p) => displayName(p).length));
+  const oneTable = people.length * 26 + (people.length - 1) * 4 + (0.5 + 0.5 * longest) * 16;
+  const sideBySide = width >= 2 * oneTable + 32;
+  const count = (i: number, j: number): Count => ({
+    together: together.get(key(people[i], people[j])) ?? 0,
+    against: against.get(key(people[i], people[j])) ?? 0,
+  });
+  const pairs = people.flatMap((_, i) => people.slice(0, i).map((_, j) => count(i, j)));
+  const caption = focus
+    ? t("pairTip", { a: displayName(people[focus[0]]), b: displayName(people[focus[1]]), ...count(focus[0], focus[1]) })
+    : t("pairsSummary", {
+        tMin: Math.min(...pairs.map((c) => c.together)),
+        tMax: Math.max(...pairs.map((c) => c.together)),
+        oMin: Math.min(...pairs.map((c) => c.against)),
+        oMax: Math.max(...pairs.map((c) => c.against)),
+      });
+
+  return (
+    <div ref={box}>
+      <p className="label mb-3">{t("pairsTitle")}</p>
+      <div className={cn("grid gap-x-8 gap-y-6", sideBySide && "grid-cols-2")}>
+        <Staircase measure="together" people={people} count={count} focus={focus} setFocus={setFocus} />
+        <Staircase measure="against" people={people} count={count} focus={focus} setFocus={setFocus} />
+      </div>
+      <p className="mt-3 min-h-8 text-xs text-muted" aria-live="polite">
         {caption}
       </p>
     </div>

@@ -598,9 +598,13 @@ function MatchCenterInner({ data }: { data: Analytics }) {
         }
       />
 
+      {/* the whole width: the plan's partnership tables sit side by side */}
+      <div className="mb-6">
+        <NightPlan data={data} present={present} onPlay={playPlanned} />
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-12">
         <div className="min-w-0 space-y-6 xl:col-span-7 2xl:col-span-8">
-          <NightPlan data={data} present={present} onPlay={playPlanned} />
           <LayoutGroup>
             {/* Step 1 — squad */}
             <Panel

@@ -4,7 +4,7 @@ import { Check, Shirt, Shuffle, X } from "lucide-react";
 import { useCards } from "../../hooks/useData";
 import { useT } from "../../hooks/useI18n";
 import { cn } from "../../lib/cn";
-import type { ClubEvaluation, SlotKey } from "../../lib/clubModel";
+import { STATS, type ClubEvaluation, type SlotKey } from "../../lib/clubModel";
 import { referenceSeason, runModel } from "../../lib/clubs";
 import { expectedScore } from "../../lib/elo";
 import { displayName } from "../../lib/format";
@@ -31,8 +31,49 @@ const LINES: { key: "lineXi" | "lineAtt" | "lineMid" | "lineDef" | "lineGk"; of:
   { key: "lineGk", of: (r) => r.slotAvg.GK },
 ];
 
-/** Bars start at 60 OVR: below that every squad looks alike, and a point of difference stays visible. */
-const barWidth = (v: number | null) => (v == null ? 0 : Math.max(4, Math.min(100, ((v - 60) / 32) * 100)));
+/**
+ * Bars start where every squad looks alike (60 overall, 40 for a stat), so a point of difference stays
+ * visible.
+ */
+const barWidth = (v: number | null, from: number, to: number) => (v == null ? 0 : Math.max(4, Math.min(100, ((v - from) / (to - from)) * 100)));
+
+interface CompareRow {
+  key: string;
+  label: string;
+  title?: string;
+  a: number | null;
+  b: number | null;
+  digits: number;
+  from: number;
+  to: number;
+}
+
+/** One side's numbers against the other's, bars growing out from the middle. */
+function CompareGroup({ title, rows, loaded }: { title: string; rows: CompareRow[]; loaded: boolean }) {
+  return (
+    <div className="min-w-0">
+      <p className="label mb-2.5 text-center">{title}</p>
+      <div className="space-y-2">
+        {rows.map((r) => {
+          const better = r.a != null && r.b != null ? Math.sign(Math.round(r.a * 10) - Math.round(r.b * 10)) : 0;
+          return (
+            <div key={r.key} className="grid grid-cols-[2.5rem_1fr_5.25rem_1fr_2.5rem] items-center gap-2 text-sm" title={r.title}>
+              <span className={cn("tabular text-right", better > 0 ? "font-bold text-fg" : "text-muted")}>{r.a?.toFixed(r.digits) ?? "—"}</span>
+              <span className="flex h-1.5 justify-end overflow-hidden rounded-full bg-surface-3">
+                {loaded && <span className={cn("rounded-full bg-team-a", better < 0 && "opacity-45")} style={{ width: `${barWidth(r.a, r.from, r.to)}%` }} />}
+              </span>
+              <span className="truncate text-center text-[11px] font-semibold text-faint uppercase">{r.label}</span>
+              <span className="flex h-1.5 overflow-hidden rounded-full bg-surface-3">
+                {loaded && <span className={cn("rounded-full bg-team-b", better > 0 && "opacity-45")} style={{ width: `${barWidth(r.b, r.from, r.to)}%` }} />}
+              </span>
+              <span className={cn("tabular", better < 0 ? "font-bold text-fg" : "text-muted")}>{r.b?.toFixed(r.digits) ?? "—"}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function SideHead({ side, club, elo, players }: { side: Side; club: string; elo?: number; players: string[] }) {
   const t = useT(clubMessages);
@@ -148,25 +189,35 @@ export function SquadsPreview({
               {note && <p className="mt-2 text-center text-[11px] text-faint">{note}</p>}
             </div>
           )}
-          <div className={cn("space-y-2", pA != null && "mt-4")}>
-            {LINES.map((line) => {
-              const va = ra ? line.of(ra) : null;
-              const vb = rb ? line.of(rb) : null;
-              const better = va != null && vb != null ? Math.sign(Math.round(va * 10) - Math.round(vb * 10)) : 0;
-              return (
-                <div key={line.key} className="grid grid-cols-[2.25rem_1fr_5.5rem_1fr_2.25rem] items-center gap-2 text-sm sm:grid-cols-[2.75rem_1fr_7rem_1fr_2.75rem]">
-                  <span className={cn("tabular text-right", better > 0 ? "font-bold text-fg" : "text-muted")}>{va?.toFixed(1) ?? "—"}</span>
-                  <span className="flex h-1.5 justify-end overflow-hidden rounded-full bg-surface-3">
-                    {rated && <span className={cn("rounded-full bg-team-a", better < 0 && "opacity-45")} style={{ width: `${barWidth(va)}%` }} />}
-                  </span>
-                  <span className="truncate text-center text-[11px] font-semibold text-faint uppercase">{t(line.key)}</span>
-                  <span className="flex h-1.5 overflow-hidden rounded-full bg-surface-3">
-                    {rated && <span className={cn("rounded-full bg-team-b", better > 0 && "opacity-45")} style={{ width: `${barWidth(vb)}%` }} />}
-                  </span>
-                  <span className={cn("tabular", better < 0 ? "font-bold text-fg" : "text-muted")}>{vb?.toFixed(1) ?? "—"}</span>
-                </div>
-              );
-            })}
+          {/* the eleven line by line, and its outfield card stats */}
+          <div className={cn("grid gap-x-8 gap-y-5 sm:grid-cols-2", pA != null && "mt-5")}>
+            <CompareGroup
+              title={t("mcLines")}
+              loaded={!!rated}
+              rows={LINES.map((line) => ({
+                key: line.key,
+                label: t(line.key),
+                a: ra ? line.of(ra) : null,
+                b: rb ? line.of(rb) : null,
+                digits: 1,
+                from: 60,
+                to: 92,
+              }))}
+            />
+            <CompareGroup
+              title={t("mcStats")}
+              loaded={!!rated}
+              rows={STATS.map((k) => ({
+                key: k,
+                label: k,
+                title: t(`stat${k}`),
+                a: ra?.stats[k] ?? null,
+                b: rb?.stats[k] ?? null,
+                digits: 0,
+                from: 40,
+                to: 95,
+              }))}
+            />
           </div>
         </div>
 

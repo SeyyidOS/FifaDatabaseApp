@@ -1,23 +1,91 @@
 import { motion } from "motion/react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
-import { FlaskConical } from "lucide-react";
+import { ArrowDown, ArrowUp, FlaskConical } from "lucide-react";
 import { BoardLink } from "../components/board/BoardLink";
 import { clubMessages, slotMessages } from "../components/clubs/messages";
 import { ModelWorkshop } from "../components/clubs/ModelWorkshop";
 import { DataGate } from "../components/DataGate";
 import { PageHeader } from "../components/layout/AppShell";
 import { ClubCrest, Stars } from "../components/ui/Identity";
-import { Button, EmptyState, FormPills, Pill } from "../components/ui/primitives";
+import { Button, EmptyState, FormPills, Pill, Segmented } from "../components/ui/primitives";
 import type { Analytics } from "../hooks/analytics-context";
 import { useBoard } from "../hooks/useBoard";
 import { useCards } from "../hooks/useData";
 import { useT } from "../hooks/useI18n";
+import { useSessionState } from "../hooks/useSessionState";
 import { cn } from "../lib/cn";
-import type { SlotKey } from "../lib/clubModel";
+import { SLOTS, STATS, type RatedClub, type SlotKey, type Stat } from "../lib/clubModel";
 import { clubFinder, clubPath, clubRecord, distinctGameName, LATEST_GAME, referenceSeason, runModel } from "../lib/clubs";
 import { clubStars } from "../lib/elo";
 import { formatDay } from "../lib/format";
+import type { Club } from "../lib/types";
+
+type View = "overview" | "positions" | "stats";
+type SortKey = "elo" | "xi" | "bench" | "ovr" | "move" | `S${SlotKey}` | `T${Stat}`;
+
+interface Row {
+  club: Club;
+  rank: number;
+  rated: RatedClub | null;
+  before: Club | null;
+}
+
+/** The number a column sorts by (null sorts last either way). */
+function valueOf(r: Row, key: SortKey): number | null {
+  if (key === "elo") return r.club.elo;
+  if (key === "xi") return r.rated?.xiScore ?? null;
+  if (key === "bench") return r.rated?.benchScore ?? null;
+  if (key === "ovr") return r.rated?.ovr ?? null;
+  if (key === "move") return r.before ? r.club.elo - r.before.elo : null;
+  if (key.startsWith("S")) return r.rated?.slotAvg[key.slice(1) as SlotKey] ?? null;
+  return r.rated?.stats[key.slice(1) as Stat] ?? null;
+}
+
+function SortHeader({
+  k,
+  sort,
+  onSort,
+  title,
+  className,
+  children,
+}: {
+  k: SortKey;
+  sort: { key: SortKey; dir: 1 | -1 };
+  onSort: (k: SortKey) => void;
+  title?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  const active = sort.key === k;
+  return (
+    <th className={cn("px-2 py-3 text-right sm:px-3", className)} aria-sort={active ? (sort.dir < 0 ? "descending" : "ascending") : undefined}>
+      <button
+        type="button"
+        onClick={() => onSort(k)}
+        title={title}
+        className={cn("inline-flex items-center gap-0.5 uppercase transition-colors hover:text-fg", active && "text-accent-text")}
+      >
+        {children}
+        {active && (sort.dir < 0 ? <ArrowDown className="size-3" strokeWidth={3} /> : <ArrowUp className="size-3" strokeWidth={3} />)}
+      </button>
+    </th>
+  );
+}
+
+/** A value tinted by where it sits between the column's lowest and highest. */
+function Heat({ value, min, max, digits, best }: { value: number | null; min: number; max: number; digits: number; best: boolean }) {
+  if (value == null) return <span className="text-faint">—</span>;
+  const share = max > min ? (value - min) / (max - min) : 0.5;
+  return (
+    <span
+      className={cn("tabular inline-block min-w-10 rounded-md px-1.5 py-0.5 text-center", best ? "font-bold text-fg" : "text-fg/90")}
+      style={{ background: `color-mix(in oklab, var(--chart-1) ${Math.round(4 + share * 34)}%, transparent)` }}
+    >
+      {value.toFixed(digits)}
+    </span>
+  );
+}
 
 function ClubsInner({ data }: { data: Analytics }) {
   const t = useT(clubMessages);
@@ -26,6 +94,9 @@ function ClubsInner({ data }: { data: Analytics }) {
   const [params, setParams] = useSearchParams();
   const season = data.seasons.find((s) => String(s.id) === params.get("season")) ?? data.season ?? data.seasons.at(-1) ?? null;
   const [league, setLeague] = useState("");
+  const [view, setView] = useSessionState<View>("clubs-view", "overview");
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "elo", dir: -1 });
+  const onSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir < 0 ? 1 : -1 } : { key, dir: -1 }));
   const [workshop, setWorkshop] = useState(params.get("model") === "1");
   const cards = useCards(season?.game);
   const reference = season ? referenceSeason(data.seasons, season) : null;
@@ -43,12 +114,34 @@ function ClubsInner({ data }: { data: Analytics }) {
     return season.clubs.map((c, i) => {
       const rated = (c.eaId != null ? byEa.get(c.eaId) : undefined) ?? byName.get(c.name.toLowerCase()) ?? null;
       const before = ref ? ref({ eaId: c.eaId ?? -1, name: c.name }) : null;
-      return { club: c, rank: i + 1, rated, before, record: clubRecord(data.parsed, c.name) };
+      return { club: c, rank: i + 1, rated, before, record: clubRecord(data.parsed, c.name) } as Row & { record: ReturnType<typeof clubRecord> };
     });
   }, [season, model, reference, data.parsed]);
 
   const leagues = useMemo(() => [...new Set(rows.map((r) => r.rated?.club.league).filter(Boolean) as string[])].sort(), [rows]);
-  const shown = league ? rows.filter((r) => r.rated?.club.league === league) : rows;
+  const filtered = league ? rows.filter((r) => r.rated?.club.league === league) : rows;
+  const shown = useMemo(() => {
+    const list = [...filtered];
+    return list.sort((a, b) => {
+      const va = valueOf(a, sort.key);
+      const vb = valueOf(b, sort.key);
+      if (va == null || vb == null) return va == null ? (vb == null ? a.rank - b.rank : 1) : -1;
+      return (va - vb) * sort.dir || a.rank - b.rank;
+    });
+  }, [filtered, sort]);
+  // the views beyond the overview need the card model
+  const shownView: View = model ? view : "overview";
+  const columns: { key: SortKey; label: string; title?: string; digits: number }[] =
+    shownView === "positions"
+      ? SLOTS.map((sl) => ({ key: `S${sl.key}` as SortKey, label: ts(sl.key), title: ts(`${sl.key}n`), digits: 1 }))
+      : shownView === "stats"
+        ? STATS.map((k) => ({ key: `T${k}` as SortKey, label: k, title: t(`stat${k}`), digits: 0 }))
+        : [];
+  const range = (key: SortKey) => {
+    const vs = filtered.map((r) => valueOf(r, key)).filter((v): v is number => v != null);
+    return { min: Math.min(...vs), max: Math.max(...vs) };
+  };
+  const ranges = Object.fromEntries(columns.map((c) => [c.key, range(c.key)]));
   const top = Math.max(1, ...rows.map((r) => r.club.elo));
   const bottom = Math.min(0, ...rows.map((r) => r.club.elo));
   const canTune = role === "admin" && season && !season.active;
@@ -114,6 +207,18 @@ function ClubsInner({ data }: { data: Analytics }) {
             ))}
           </select>
         )}
+        {model && (
+          <Segmented<View>
+            size="sm"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: "overview", label: t("viewOverview") },
+              { value: "positions", label: t("viewPositions") },
+              { value: "stats", label: t("viewStats") },
+            ]}
+          />
+        )}
         {model?.agree && reference && (
           <span title={t("agreeTip", { season: reference.name, mad: model.agree.mad.toFixed(1) })} className="ml-auto">
             <Pill tone="accent">{t("agree", { season: reference.name, rho: model.agree.rho.toFixed(2) })}</Pill>
@@ -128,123 +233,158 @@ function ClubsInner({ data }: { data: Analytics }) {
       {cards.error && <p className="text-sm text-loss">{t("cardsFailed", { game: season.game ?? "" })}</p>}
 
       <div className="card overflow-hidden">
-        <table className="w-full border-collapse text-sm">
-          <thead className="border-b border-line bg-surface-2/50 text-[11px] font-semibold tracking-wider whitespace-nowrap text-faint uppercase">
-            <tr>
-              <th className="w-10 px-3 py-3 text-left">{t("rank")}</th>
-              <th className="px-2 py-3 text-left">{t("club")}</th>
-              <th className="w-28 px-3 py-3 text-right sm:w-40">{t("elo")}</th>
-              <th className="hidden px-3 py-3 text-left lg:table-cell">{t("form")}</th>
-              {model && (
-                <>
-                  <th className="hidden px-3 py-3 text-right md:table-cell" title={t("xiTip")}>
-                    {t("xi")}
-                  </th>
-                  <th className="hidden px-3 py-3 text-right xl:table-cell" title={t("benchTip")}>
-                    {t("bench")}
-                  </th>
-                  <th className="hidden px-3 py-3 text-right md:table-cell" title={t("ovrTip")}>
-                    {t("ovr")}
-                  </th>
-                </>
-              )}
-              {reference && <th className="hidden px-3 py-3 text-right sm:table-cell">{t("vs", { season: reference.name })}</th>}
-              {model && <th className="hidden px-3 py-3 text-left xl:table-cell">{t("notes")}</th>}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line/60">
-            {shown.map(({ club, rank, rated, before, record }, i) => (
-              <motion.tr
-                key={club.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: Math.min(i, 20) * 0.015 }}
-                className="group hover:bg-surface-2/50"
-              >
-                <td className="tabular px-3 py-2.5 font-display text-lg font-bold text-faint">{rank}</td>
-                <td className="min-w-0 px-2 py-2.5">
-                  <BoardLink to={clubPath(club.name) + (season.active ? "" : `?season=${season.id}`)} className="flex min-w-0 items-center gap-3">
-                    <ClubCrest name={club.name} size="md" />
-                    <span className="min-w-0">
-                      <span className="block truncate font-semibold group-hover:text-accent-text">{club.name}</span>
-                      <span className="block truncate text-xs text-muted">
-                        {rated
-                          ? [rated.club.league, distinctGameName(club.name, rated.club.gameName) && t("inGame", { name: rated.club.gameName })]
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-sm">
+            <thead className="border-b border-line bg-surface-2/50 text-[11px] font-semibold tracking-wider whitespace-nowrap text-faint uppercase">
+              <tr>
+                <th className="w-10 px-3 py-3 text-left">{t("rank")}</th>
+                <th className="sticky left-0 z-10 bg-surface-2 px-2 py-3 text-left sm:static sm:bg-transparent">{t("club")}</th>
+                <SortHeader k="elo" sort={sort} onSort={onSort} className="w-24 sm:w-40">
+                  {t("elo")}
+                </SortHeader>
+                {shownView === "overview" ? (
+                  <>
+                    <th className="hidden px-3 py-3 text-left lg:table-cell">{t("form")}</th>
+                    {model && (
+                      <>
+                        <SortHeader k="xi" sort={sort} onSort={onSort} title={t("xiTip")} className="hidden md:table-cell">
+                          {t("xi")}
+                        </SortHeader>
+                        <SortHeader k="bench" sort={sort} onSort={onSort} title={t("benchTip")} className="hidden xl:table-cell">
+                          {t("bench")}
+                        </SortHeader>
+                        <SortHeader k="ovr" sort={sort} onSort={onSort} title={t("ovrTip")} className="hidden md:table-cell">
+                          {t("ovr")}
+                        </SortHeader>
+                      </>
+                    )}
+                    {reference && (
+                      <SortHeader k="move" sort={sort} onSort={onSort} className="hidden sm:table-cell">
+                        {t("vs", { season: reference.name })}
+                      </SortHeader>
+                    )}
+                    {model && <th className="hidden px-3 py-3 text-left xl:table-cell">{t("notes")}</th>}
+                  </>
+                ) : (
+                  columns.map((c) => (
+                    <SortHeader key={c.key} k={c.key} sort={sort} onSort={onSort} title={c.title} className="text-center">
+                      {c.label}
+                    </SortHeader>
+                  ))
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line/60">
+              {shown.map(({ club, rank, rated, before, record }, i) => (
+                <motion.tr
+                  key={club.id}
+                  layout="position"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: Math.min(i, 20) * 0.015 }}
+                  className="group hover:bg-surface-2/50"
+                >
+                  <td className="tabular px-3 py-2.5 font-display text-lg font-bold text-faint">{rank}</td>
+                  <td className="sticky left-0 z-10 max-w-[9.5rem] min-w-[8.5rem] bg-surface px-2 py-2.5 group-hover:bg-surface-2 sm:static sm:max-w-none sm:bg-transparent sm:group-hover:bg-transparent">
+                    <BoardLink to={clubPath(club.name) + (season.active ? "" : `?season=${season.id}`)} className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+                      <ClubCrest name={club.name} size="md" />
+                      <span className="min-w-0">
+                        <span className="block truncate font-semibold group-hover:text-accent-text">{club.name}</span>
+                        <span className="block truncate text-xs text-muted">
+                          {rated ? (
+                            [rated.club.league, distinctGameName(club.name, rated.club.gameName) && t("inGame", { name: rated.club.gameName })]
                               .filter(Boolean)
                               .join(" · ")
-                          : <Stars value={clubStars(club.elo)} />}
-                      </span>
-                    </span>
-                  </BoardLink>
-                </td>
-                <td className="px-3 py-2.5 text-right">
-                  <span className="tabular font-display text-xl font-bold">{club.elo}</span>
-                  {club.modelElo != null && club.adjust !== 0 && (
-                    <span
-                      className="tabular ml-1 text-[11px] font-semibold text-draw"
-                      title={t("adjusted", { model: club.modelElo, adjust: `${club.adjust > 0 ? "+" : ""}${club.adjust}` })}
-                    >
-                      {club.adjust > 0 ? "+" : ""}
-                      {club.adjust}
-                    </span>
-                  )}
-                  <span className="mt-1 ml-auto block h-1 w-full max-w-28 overflow-hidden rounded-full bg-surface-3">
-                    <span className="block h-full rounded-full bg-accent" style={{ width: `${((club.elo - bottom) / (top - bottom)) * 100}%` }} />
-                  </span>
-                </td>
-                <td className="hidden px-3 py-2.5 lg:table-cell">
-                  {record.played ? (
-                    <span className="flex items-center gap-2">
-                      <FormPills outcomes={record.outcomes.slice(0, 5)} />
-                      <span className="text-xs whitespace-nowrap text-faint">{t("games", { n: record.played })}</span>
-                    </span>
-                  ) : (
-                    <span className="text-faint">—</span>
-                  )}
-                </td>
-                {model && (
-                  <>
-                    <td className="tabular hidden px-3 py-2.5 text-right font-semibold md:table-cell">{rated?.xiScore?.toFixed(1) ?? "—"}</td>
-                    <td className="tabular hidden px-3 py-2.5 text-right text-muted xl:table-cell">{rated?.benchScore?.toFixed(1) ?? "—"}</td>
-                    <td className="tabular hidden px-3 py-2.5 text-right md:table-cell">{rated?.ovr?.toFixed(1) ?? "—"}</td>
-                  </>
-                )}
-                {reference && (
-                  <td className="hidden px-3 py-2.5 text-right sm:table-cell">
-                    {before ? (
-                      <span className="tabular text-xs">
-                        <span className="text-muted">{before.elo}</span>{" "}
-                        <span className={cn("font-semibold", club.elo > before.elo ? "text-win" : club.elo < before.elo ? "text-loss" : "text-faint")}>
-                          {club.elo > before.elo ? "▲" : club.elo < before.elo ? "▼" : "="}
-                          {club.elo !== before.elo && Math.abs(club.elo - before.elo)}
+                          ) : (
+                            <Stars value={clubStars(club.elo)} />
+                          )}
                         </span>
                       </span>
-                    ) : (
-                      <Pill tone="accent">{t("newClub")}</Pill>
+                    </BoardLink>
+                  </td>
+                  <td className="px-2 py-2.5 text-right sm:px-3">
+                    <span className="tabular font-display text-xl font-bold">{club.elo}</span>
+                    {club.modelElo != null && club.adjust !== 0 && (
+                      <span
+                        className="tabular ml-1 text-[11px] font-semibold text-draw"
+                        title={t("adjusted", { model: club.modelElo, adjust: `${club.adjust > 0 ? "+" : ""}${club.adjust}` })}
+                      >
+                        {club.adjust > 0 ? "+" : ""}
+                        {club.adjust}
+                      </span>
                     )}
-                  </td>
-                )}
-                {model && (
-                  <td className="hidden px-3 py-2.5 xl:table-cell">
-                    <span className="flex flex-wrap gap-1">
-                      {Object.entries(rated?.missingBy ?? {}).map(([slot, n]) => (
-                        <Pill key={slot} tone="loss">
-                          {t("missing", { n: n!, slot: ts(slot as SlotKey) })}
-                        </Pill>
-                      ))}
-                      {!!rated?.altUsed.length && (
-                        <span title={rated.altUsed.map((a) => `${a.p.fullName}: ${a.p.pos} → ${ts(a.slot)}`).join(", ")}>
-                          <Pill>{t("altUsed", { n: rated.altUsed.length })}</Pill>
-                        </span>
-                      )}
+                    <span className="mt-1 ml-auto block h-1 w-full max-w-28 overflow-hidden rounded-full bg-surface-3">
+                      <span className="block h-full rounded-full bg-accent" style={{ width: `${((club.elo - bottom) / (top - bottom)) * 100}%` }} />
                     </span>
                   </td>
-                )}
-              </motion.tr>
-            ))}
-          </tbody>
-        </table>
+                  {shownView === "overview" ? (
+                    <>
+                      <td className="hidden px-3 py-2.5 lg:table-cell">
+                        {record.played ? (
+                          <span className="flex items-center gap-2">
+                            <FormPills outcomes={record.outcomes.slice(0, 5)} />
+                            <span className="text-xs whitespace-nowrap text-faint">{t("games", { n: record.played })}</span>
+                          </span>
+                        ) : (
+                          <span className="text-faint">—</span>
+                        )}
+                      </td>
+                      {model && (
+                        <>
+                          <td className="tabular hidden px-3 py-2.5 text-right font-semibold md:table-cell">{rated?.xiScore?.toFixed(1) ?? "—"}</td>
+                          <td className="tabular hidden px-3 py-2.5 text-right text-muted xl:table-cell">{rated?.benchScore?.toFixed(1) ?? "—"}</td>
+                          <td className="tabular hidden px-3 py-2.5 text-right md:table-cell">{rated?.ovr?.toFixed(1) ?? "—"}</td>
+                        </>
+                      )}
+                      {reference && (
+                        <td className="hidden px-3 py-2.5 text-right sm:table-cell">
+                          {before ? (
+                            <span className="tabular text-xs">
+                              <span className="text-muted">{before.elo}</span>{" "}
+                              <span className={cn("font-semibold", club.elo > before.elo ? "text-win" : club.elo < before.elo ? "text-loss" : "text-faint")}>
+                                {club.elo > before.elo ? "▲" : club.elo < before.elo ? "▼" : "="}
+                                {club.elo !== before.elo && Math.abs(club.elo - before.elo)}
+                              </span>
+                            </span>
+                          ) : (
+                            <Pill tone="accent">{t("newClub")}</Pill>
+                          )}
+                        </td>
+                      )}
+                      {model && (
+                        <td className="hidden px-3 py-2.5 xl:table-cell">
+                          <span className="flex flex-wrap gap-1">
+                            {Object.entries(rated?.missingBy ?? {}).map(([slot, n]) => (
+                              <Pill key={slot} tone="loss">
+                                {t("missing", { n: n!, slot: ts(slot as SlotKey) })}
+                              </Pill>
+                            ))}
+                            {!!rated?.altUsed.length && (
+                              <span title={rated.altUsed.map((a) => `${a.p.fullName}: ${a.p.pos} → ${ts(a.slot)}`).join(", ")}>
+                                <Pill>{t("altUsed", { n: rated.altUsed.length })}</Pill>
+                              </span>
+                            )}
+                          </span>
+                        </td>
+                      )}
+                    </>
+                  ) : (
+                    columns.map((c) => {
+                      const v = valueOf({ club, rank, rated, before }, c.key);
+                      return (
+                        <td key={c.key} className="px-1 py-2.5 text-center sm:px-2">
+                          <Heat value={v} {...ranges[c.key]} digits={c.digits} best={v != null && v === ranges[c.key].max} />
+                        </td>
+                      );
+                    })
+                  )}
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {!shown.length && <EmptyState title={rows.length ? t("noLeague") : t("noClubs")} />}
+        {shownView !== "overview" && <p className="border-t border-line px-4 py-3 text-xs text-faint sm:px-5">{t(shownView === "stats" ? "statsNote" : "positionsNote")}</p>}
       </div>
     </div>
   );
