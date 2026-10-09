@@ -1,0 +1,13 @@
+# Installed by deploy/README.md ("Continuous deployment"); runs one pass of deploy/auto-deploy.sh.
+[Unit]
+Description=FIFA Manager: publish main once its CI has passed
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+Environment=FIFA_BASE=/root/programs/fifa-app
+ExecStart=/root/programs/fifa-app/repo/deploy/auto-deploy.sh
+# a full build and deploy takes a few minutes
+TimeoutStartSec=30min
+Nice=10

@@ -1,0 +1,89 @@
+# Public deployment on this server (see deploy/README.md).
+# fifa_web joins the existing Caddy network (mlflow_net); Caddy terminates HTTPS for the public hostname
+# and forwards it to fifa_web:8080. The API and database sit on a private, internal-only network, and
+# nothing is published on a host port.
+name: fifa
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: fifa_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fifa_db
+      POSTGRES_USER: fifa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in secrets.env}
+    volumes:
+      - ${FIFA_BASE:-/root/programs/fifa-app}/pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fifa -d fifa_db"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    # the host also runs other long-lived services: cap what this app can take
+    mem_limit: 512m
+    cpus: 1.0
+    security_opt: ["no-new-privileges:true"]
+    networks: [internal]
+
+  api:
+    build: ../backend
+    image: fifa-api:local
+    container_name: fifa_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: fifa_db
+      DB_PORT: "5432"
+      DB_NAME: fifa_db
+      DB_USER: fifa
+      DB_PASS: ${POSTGRES_PASSWORD:?set in secrets.env}
+      SECRET_KEY: ${SECRET_KEY:?set in secrets.env}
+      ADMIN_KEY: ${ADMIN_KEY:?set in secrets.env}
+      # only used once, when data from before boards existed becomes the "main" board
+      LEGACY_BOARD_PASSWORD: ${LEGACY_BOARD_PASSWORD:-}
+      LEGACY_BOARD_ADMIN_PASSWORD: ${LEGACY_BOARD_ADMIN_PASSWORD:-}
+      APP_TIMEZONE: Europe/Istanbul
+      # the commit being published (deploy/auto-deploy.sh), shown by /health and in Settings
+      APP_VERSION: ${APP_VERSION:-manual}
+      CORS_ORIGINS: https://fifa.173.249.40.69.sslip.io
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    mem_limit: 256m
+    cpus: 1.0
+    pids_limit: 128
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks: [internal]
+
+  web:
+    build: ../frontend
+    image: fifa-web:local
+    container_name: fifa_web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_UPSTREAM: fifa_api:8080
+      NGINX_ENVSUBST_FILTER: "^API_UPSTREAM$"
+    mem_limit: 128m
+    cpus: 0.5
+    security_opt: ["no-new-privileges:true"]
+    networks: [internal, proxy]
+
+networks:
+  internal:
+    name: fifa_internal
+    internal: true
+  proxy:
+    external: true
+    name: mlflow_net

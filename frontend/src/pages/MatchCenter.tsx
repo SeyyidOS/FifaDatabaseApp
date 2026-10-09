@@ -1,0 +1,864 @@
+import confetti from "canvas-confetti";
+import { AnimatePresence, LayoutGroup, motion } from "motion/react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+import {
+  ArrowLeftRight,
+  ChevronRight,
+  Dices,
+  Minus,
+  Plus,
+  RotateCcw,
+  Scale,
+  Shirt,
+  Shuffle,
+  Sparkles,
+  Trophy,
+  Users,
+  X,
+} from "lucide-react";
+import { AddPlayer } from "../components/AddPlayer";
+import { SquadsPreview } from "../components/clubs/SquadsPreview";
+import { NightPlan } from "../components/fixture/NightPlan";
+import { planMessages } from "../components/fixture/messages";
+import { DataGate } from "../components/DataGate";
+import { PageHeader } from "../components/layout/AppShell";
+import { MatchCard } from "../components/match/MatchCard";
+import { ClubPicker } from "../components/ui/ClubPicker";
+import { Avatar, ClubCrest } from "../components/ui/Identity";
+import { Button, Delta, EmptyState, Panel, Pill, Segmented, Switch } from "../components/ui/primitives";
+import type { Analytics } from "../hooks/analytics-context";
+import { useAddMatch } from "../hooks/useData";
+import { useBoard } from "../hooks/useBoard";
+import { useSessionState } from "../hooks/useSessionState";
+import { choiceName, type ClubChoice } from "../lib/clubChoice";
+import { cn } from "../lib/cn";
+import { INITIAL_ELO, previewMatch } from "../lib/elo";
+import { cleanName, displayName, matchdayKey } from "../lib/format";
+import {
+  generateTeams,
+  lastTeammates,
+  pickBalancedClubs,
+  teamAverage,
+  type TeamMode,
+} from "../lib/matchmaking";
+import type { Side } from "../lib/types";
+import { useT } from "../hooks/useI18n";
+import { defineMessages } from "../lib/i18n";
+
+const msg = defineMessages({
+  en: {
+    markAbsent: "Mark as not here",
+    remove: "Remove",
+    markHere: "Mark as here",
+    assign: "Assign to side {side}",
+    side: "Side {side}",
+    avg: "avg",
+    tapSide: "Tap {side} on a player",
+    orShuffle: "or shuffle teams",
+    probClubs: "Win probability · incl. clubs",
+    probSquads: "Win probability · squads only",
+    decrease: "Decrease",
+    increase: "Increase",
+    sideScore: "Side {side} score",
+    sideClub: "Side {side} club",
+    noPlayers: "No players yet",
+    draftFailed: "Couldn't draft teams",
+    tooFew: "Pick at least {n} players for {mode}.",
+    noSplit: "Every split reunites last match's partners. Add more players or change the mode.",
+    balancedDraft: "Balanced draft · {diff} Elo apart",
+    drafted: "Teams drafted",
+    splitUp: "Last match's partners were split up.",
+    fairPairs: "{n} fair pairings within ±{margin} · this one is {diff} apart",
+    nothingWithin: "Nothing within ±{margin}: the closest pairing is {diff} apart",
+    needPlayers: "Both sides need at least one player",
+    needClubs: "Pick a club for each side",
+    sideWins: "{names} win {hi}–{lo}",
+    drawScore: "Draw {a}–{b}",
+    swing: "Elo swing: {delta} per player",
+    saveFailed: "Couldn't save the result",
+    eyebrow: "Match center",
+    title: "Kick-off",
+    description: "Draft fair teams, pick balanced clubs and log the result. Elo updates the moment you hit save.",
+    swap: "Swap sides",
+    reset: "Reset",
+    squad: "Squad & teams",
+    squadSub: "{here} of {all} players here · tap a name to mark absent",
+    balance: "Balance by Elo",
+    shuffle: "Shuffle teams",
+    clubs: "Clubs",
+    clubsSub: "Balanced picks weigh squad Elo + half the club's rating",
+    seasonTip: "Club ratings of {season}, the active season",
+    squadsCta: "Compare the squads",
+    squadsCtaSub: "Best elevens, line by line, and the win chance · nothing changes",
+    squadsOpen: "See squads",
+    margin: "Fairness margin",
+    randomClubs: "Balanced random clubs",
+    fullTime: "Full time",
+    ready: "{n}/2 ready",
+    vs: "vs",
+    multiplier: "Margin & upset multiplier ×{x}",
+    save: "Save result {a}–{b}",
+    tonight: "Tonight",
+    tonightSub: "{n} match logged this session|{n} matches logged this session",
+    tonightEmpty: "Session starts with the first result",
+    noneTonight: "No matches yet tonight",
+    noneTonightHint: "Results you save here show up instantly across the app.",
+  },
+  tr: {
+    markAbsent: "Burada değil olarak işaretle",
+    remove: "Çıkar",
+    markHere: "Burada olarak işaretle",
+    assign: "{side} tarafına al",
+    side: "{side} tarafı",
+    avg: "ort.",
+    tapSide: "Bir oyuncuda {side}'ya dokun",
+    orShuffle: "ya da takımları karıştır",
+    probClubs: "Kazanma ihtimali · kulüpler dahil",
+    probSquads: "Kazanma ihtimali · sadece kadrolar",
+    decrease: "Azalt",
+    increase: "Artır",
+    sideScore: "{side} tarafının skoru",
+    sideClub: "{side} tarafının kulübü",
+    noPlayers: "Henüz oyuncu yok",
+    draftFailed: "Takımlar kurulamadı",
+    tooFew: "{mode} için en az {n} oyuncu seç.",
+    noSplit: "Her dağılım son maçın ortaklarını bir araya getiriyor. Oyuncu ekle ya da modu değiştir.",
+    balancedDraft: "Dengeli kura · aradaki fark {diff} Elo",
+    drafted: "Takımlar kuruldu",
+    splitUp: "Son maçın ortakları ayrıldı.",
+    fairPairs: "±{margin} içinde {n} adil eşleşme · bunun farkı {diff}",
+    nothingWithin: "±{margin} içinde eşleşme yok: en yakını {diff} farklı",
+    needPlayers: "İki tarafta da en az bir oyuncu olmalı",
+    needClubs: "Her taraf için bir kulüp seç",
+    sideWins: "{names} {hi}–{lo} kazandı",
+    drawScore: "Beraberlik {a}–{b}",
+    swing: "Elo değişimi: oyuncu başı {delta}",
+    saveFailed: "Sonuç kaydedilemedi",
+    eyebrow: "Maç merkezi",
+    title: "Başlama Düdüğü",
+    description: "Adil takımlar kur, dengeli kulüpler seç ve sonucu gir. Kaydettiğin anda Elo güncellenir.",
+    swap: "Tarafları değiştir",
+    reset: "Sıfırla",
+    squad: "Kadro & takımlar",
+    squadSub: "{all} oyuncudan {here} kişi burada · gelmeyeni işaretlemek için ismine dokun",
+    balance: "Elo'ya göre dengele",
+    shuffle: "Takımları karıştır",
+    clubs: "Kulüpler",
+    clubsSub: "Dengeli seçim, kadro Elo'su + kulüp puanının yarısına bakar",
+    seasonTip: "Aktif sezon {season} kulüp puanları",
+    squadsCta: "Kadroları karşılaştır",
+    squadsCtaSub: "En iyi 11'ler, hat hat güç ve kazanma ihtimali · seçimin değişmez",
+    squadsOpen: "Kadroları gör",
+    margin: "Adalet payı",
+    randomClubs: "Dengeli rastgele kulüpler",
+    fullTime: "Maç sonu",
+    ready: "{n}/2 hazır",
+    vs: "-",
+    multiplier: "Fark & sürpriz çarpanı ×{x}",
+    save: "Sonucu kaydet {a}–{b}",
+    tonight: "Bu gece",
+    tonightSub: "Bu oturumda {n} maç girildi|Bu oturumda {n} maç girildi",
+    tonightEmpty: "Oturum ilk sonuçla başlar",
+    noneTonight: "Bu gece henüz maç yok",
+    noneTonightHint: "Burada kaydettiğin sonuçlar hemen tüm uygulamada görünür.",
+  },
+});
+
+const sideColor = (s: Side) => (s === "A" ? "var(--team-a)" : "var(--team-b)");
+
+function burst(side: Side | "D") {
+  const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#c8ff3d";
+  const colors =
+    side === "D"
+      ? [accent, "#fbbf24", "#ffffff"]
+      : [side === "A" ? "#22d3ee" : "#a78bfa", accent, "#ffffff"];
+  const opts = { particleCount: 90, spread: 70, startVelocity: 48, colors, disableForReducedMotion: true };
+  confetti({ ...opts, angle: 60, origin: { x: 0, y: 0.75 } });
+  confetti({ ...opts, angle: 120, origin: { x: 1, y: 0.75 } });
+}
+
+/* ------------------------------- Pool chip --------------------------------- */
+
+function PoolChip({
+  name,
+  elo,
+  present,
+  side,
+  onTogglePresent,
+  onAssign,
+}: {
+  name: string;
+  elo: number;
+  present: boolean;
+  side: Side | null;
+  onTogglePresent: () => void;
+  onAssign: (s: Side) => void;
+}) {
+  const t = useT(msg);
+  return (
+    <motion.div
+      layout
+      className={cn(
+        "group relative flex min-w-0 items-center gap-1.5 rounded-xl border bg-surface-2 py-2 pr-1 pl-1.5 transition-colors sm:gap-2.5 sm:pr-1.5 sm:pl-2",
+        present ? "border-line hover:border-line-strong" : "border-dashed border-line opacity-45",
+        side === "A" && "border-team-a/60 bg-team-a/[0.07]",
+        side === "B" && "border-team-b/60 bg-team-b/[0.07]",
+      )}
+    >
+      <button
+        onClick={onTogglePresent}
+        className="flex min-w-0 flex-1 items-center gap-2 text-left sm:gap-2.5"
+        title={present ? t("markAbsent") : t("markHere")}
+      >
+        <Avatar name={name} size="sm" className="max-sm:size-6" />
+        <span className="min-w-0">
+          <span className="block truncate text-[13px] font-medium sm:text-sm">{displayName(name)}</span>
+          <span className="tabular block text-[11px] text-muted">{elo}</span>
+        </span>
+      </button>
+      <span className="flex shrink-0 gap-0.5 sm:gap-1">
+        {(["A", "B"] as Side[]).map((s) => (
+          <button
+            key={s}
+            onClick={() => onAssign(s)}
+            disabled={!present}
+            className={cn(
+              "grid size-6 place-items-center rounded-md font-display text-xs font-bold transition-all sm:size-7 sm:rounded-lg sm:text-sm",
+              side === s ? "text-bg" : "bg-surface-3 text-muted hover:text-fg",
+            )}
+            style={side === s ? { background: sideColor(s) } : undefined}
+            aria-label={t("assign", { side: s })}
+          >
+            {s}
+          </button>
+        ))}
+      </span>
+    </motion.div>
+  );
+}
+
+/* ------------------------------- Team panel -------------------------------- */
+
+function TeamPanel({
+  side,
+  names,
+  eloByName,
+  onRemove,
+}: {
+  side: Side;
+  names: string[];
+  eloByName: Map<string, number>;
+  onRemove: (n: string) => void;
+}) {
+  const t = useT(msg);
+  const avg = Math.round(teamAverage(names, eloByName));
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl border border-line bg-surface-2/60 p-4"
+      style={{ boxShadow: `inset 0 2px 0 ${sideColor(side)}` }}
+    >
+      <div
+        className="pointer-events-none absolute -top-16 left-1/2 size-40 -translate-x-1/2 rounded-full blur-3xl"
+        style={{ background: sideColor(side), opacity: 0.12 }}
+      />
+      <div className="relative mb-3 flex items-center justify-between">
+        <span className="flex items-center gap-2">
+          <span className="size-2.5 rounded-full" style={{ background: sideColor(side) }} />
+          <span className="display text-lg">{t("side", { side })}</span>
+        </span>
+        {names.length > 0 && (
+          <span className="text-xs text-muted">
+            {t("avg")} <span className="tabular font-semibold text-fg">{avg}</span>
+          </span>
+        )}
+      </div>
+      <div className="relative min-h-[104px] space-y-2">
+        <AnimatePresence mode="popLayout" initial={false}>
+          {names.map((n) => (
+            <motion.div
+              layout
+              layoutId={`team-${n}`}
+              key={n}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ type: "spring", bounce: 0.25, duration: 0.5 }}
+              className="flex items-center gap-3 rounded-xl bg-surface px-2.5 py-2 ring-1 ring-line"
+            >
+              <Avatar name={n} size="md" ring={side === "A" ? "a" : "b"} />
+              <span className="flex-1 font-semibold">{displayName(n)}</span>
+              <span className="tabular text-sm text-muted">{eloByName.get(cleanName(n)) ?? INITIAL_ELO}</span>
+              <button onClick={() => onRemove(n)} className="rounded-md p-1 text-faint hover:bg-surface-3 hover:text-fg" aria-label={t("remove")}>
+                <X className="size-3.5" />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+        {!names.length && (
+          <div className="grid h-[104px] place-items-center rounded-xl border border-dashed border-line text-center text-xs text-faint">
+            {t("tapSide", { side })}
+            <br />
+            {t("orShuffle")}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function WinProbability({ pA, withClubs }: { pA: number; withClubs: boolean }) {
+  const t = useT(msg);
+  const a = Math.round(pA * 100);
+  const b = 100 - a;
+  return (
+    <div>
+      <div className="mb-2 flex items-end justify-between">
+        <span className="display tabular text-2xl" style={{ color: sideColor("A") }}>
+          {a}%
+        </span>
+        <span className="label">{withClubs ? t("probClubs") : t("probSquads")}</span>
+        <span className="display tabular text-2xl" style={{ color: sideColor("B") }}>
+          {b}%
+        </span>
+      </div>
+      <div className="flex h-2.5 gap-1 overflow-hidden rounded-full">
+        <motion.div
+          className="h-full rounded-l-full"
+          style={{ background: sideColor("A") }}
+          animate={{ width: `${a}%` }}
+          transition={{ type: "spring", bounce: 0.1, duration: 0.8 }}
+        />
+        <motion.div
+          className="h-full flex-1 rounded-r-full"
+          style={{ background: sideColor("B") }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------- Scoreboard -------------------------------- */
+
+function Stepper({ value, onChange, side }: { value: number; onChange: (v: number) => void; side: Side }) {
+  const t = useT(msg);
+  return (
+    <div className="flex items-center gap-1.5">
+      <button
+        onClick={() => onChange(Math.max(0, value - 1))}
+        className="grid size-9 place-items-center rounded-xl bg-surface-3 text-muted transition-colors hover:text-fg active:scale-95"
+        aria-label={t("decrease")}
+      >
+        <Minus className="size-4" />
+      </button>
+      <input
+        value={value}
+        inputMode="numeric"
+        onChange={(e) => {
+          const v = parseInt(e.target.value.replace(/\D/g, ""), 10);
+          onChange(Number.isFinite(v) ? Math.min(99, v) : 0);
+        }}
+        onFocus={(e) => e.target.select()}
+        className="display tabular w-14 bg-transparent text-center text-5xl outline-none"
+        style={{ color: sideColor(side) }}
+        aria-label={t("sideScore", { side })}
+      />
+      <button
+        onClick={() => onChange(Math.min(99, value + 1))}
+        className="grid size-9 place-items-center rounded-xl bg-surface-3 text-muted transition-colors hover:text-fg active:scale-95"
+        aria-label={t("increase")}
+      >
+        <Plus className="size-4" />
+      </button>
+    </div>
+  );
+}
+
+function ScoreRow({
+  side,
+  club,
+  names,
+  score,
+  onScore,
+  delta,
+  eloByName,
+}: {
+  side: Side;
+  club: string;
+  names: string[];
+  score: number;
+  onScore: (v: number) => void;
+  delta: number | null;
+  eloByName: Map<string, number>;
+}) {
+  const t = useT(msg);
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        {club ? (
+          <ClubCrest name={club} size="lg" />
+        ) : (
+          <span
+            className="grid h-[50px] w-[44px] place-items-center rounded-xl border border-dashed text-xs font-bold"
+            style={{ borderColor: sideColor(side), color: sideColor(side) }}
+          >
+            {side}
+          </span>
+        )}
+        <div className="min-w-0">
+          <p className="truncate font-semibold">{club || t("sideClub", { side })}</p>
+          <p className="truncate text-xs text-muted">{names.length ? names.map(displayName).join(" & ") : t("noPlayers")}</p>
+          {delta !== null && names.length > 0 && (
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-faint">
+              {names.map((n) => {
+                const before = eloByName.get(cleanName(n)) ?? INITIAL_ELO;
+                return (
+                  <span key={n} className="tabular">
+                    {before}→<span className="text-fg">{Math.round(before + delta)}</span>
+                  </span>
+                );
+              })}
+              <Delta value={delta} />
+            </p>
+          )}
+        </div>
+      </div>
+      <Stepper value={score} onChange={onScore} side={side} />
+    </div>
+  );
+}
+
+/* ---------------------------------- Page ----------------------------------- */
+
+function MatchCenterInner({ data }: { data: Analytics }) {
+  // drafts are per board: names can repeat across boards
+  const { slug } = useBoard();
+  const t = useT(msg);
+  const allNames = useMemo(() => data.ranking.map((p) => p.name), [data.ranking]);
+  const [absent, setAbsent] = useSessionState<string[]>(`${slug}:mc-absent`, []);
+  const [mode, setMode] = useSessionState<TeamMode>(`${slug}:mc-mode`, "2v2");
+  const [balance, setBalance] = useSessionState(`${slug}:mc-balance`, true);
+  const [teamARaw, setTeamA] = useSessionState<string[]>(`${slug}:mc-team-a`, []);
+  const [teamBRaw, setTeamB] = useSessionState<string[]>(`${slug}:mc-team-b`, []);
+  const [clubA, setClubA] = useSessionState<ClubChoice>(`${slug}:mc-club-a`, null);
+  const [clubB, setClubB] = useSessionState<ClubChoice>(`${slug}:mc-club-b`, null);
+  const [margin, setMargin] = useSessionState(`${slug}:mc-margin`, 75);
+  const [scoreA, setScoreA] = useSessionState(`${slug}:mc-score-a`, 0);
+  const [scoreB, setScoreB] = useSessionState(`${slug}:mc-score-b`, 0);
+  const [clubHint, setClubHint] = useState<string | null>(null);
+  const [squads, setSquads] = useState(false);
+  const tp = useT(planMessages);
+  const addMatch = useAddMatch();
+
+  const teamA = teamARaw.filter((n) => allNames.includes(n));
+  const teamB = teamBRaw.filter((n) => allNames.includes(n));
+  const present = allNames.filter((n) => !absent.includes(n));
+  const sideOf = (n: string): Side | null => (teamA.includes(n) ? "A" : teamB.includes(n) ? "B" : null);
+
+  const clubAName = choiceName(clubA, data.clubs);
+  const clubBName = choiceName(clubB, data.clubs);
+  // both picked from the season's list: their squads can be shown
+  const seasonClubs: [string, string] | null =
+    clubA?.kind === "club" && clubB?.kind === "club" && clubAName && clubBName ? [clubAName, clubBName] : null;
+  const preview = previewMatch(data.engine, {
+    teamA,
+    teamB,
+    clubA: clubAName || undefined,
+    clubB: clubBName || undefined,
+    scoreA,
+    scoreB,
+  });
+  const recent = useMemo(() => lastTeammates(data.parsed), [data.parsed]);
+  const tonightKey = matchdayKey(new Date());
+  const tonight = data.parsed.filter((m) => m.matchday === tonightKey);
+
+  const assign = (n: string, s: Side) => {
+    const [mine, setMine, setOther] = s === "A" ? [teamA, setTeamA, setTeamB] : [teamB, setTeamB, setTeamA];
+    setMine(mine.includes(n) ? mine.filter((x) => x !== n) : [...mine, n]);
+    setOther((o) => o.filter((x) => x !== n));
+  };
+  const togglePresent = (n: string) => {
+    setAbsent((a) => (a.includes(n) ? a.filter((x) => x !== n) : [...a, n]));
+    setTeamA((t) => t.filter((x) => x !== n));
+    setTeamB((t) => t.filter((x) => x !== n));
+  };
+
+  const shuffle = () => {
+    const r = generateTeams({ pool: present, mode, balance, eloByName: data.eloByName, recentPartners: recent });
+    if (!r.ok) {
+      toast.error(t("draftFailed"), {
+        description: r.reason === "too-few" ? t("tooFew", { n: r.needed, mode }) : t("noSplit"),
+      });
+      return;
+    }
+    setTeamA(r.teamA);
+    setTeamB(r.teamB);
+    toast(balance ? t("balancedDraft", { diff: Math.round(r.diff) }) : t("drafted"), {
+      description: t("splitUp"),
+      icon: <Shuffle className="size-4" />,
+    });
+  };
+
+  const pickClubs = () => {
+    const pick = pickBalancedClubs(
+      data.clubs,
+      teamAverage(teamA, data.eloByName),
+      teamAverage(teamB, data.eloByName),
+      margin,
+      clubA?.kind === "club" && clubB?.kind === "club" ? { a: clubA.id, b: clubB.id } : undefined,
+    );
+    if (!pick) return;
+    setClubA({ kind: "club", id: pick.a.id });
+    setClubB({ kind: "club", id: pick.b.id });
+    setClubHint(
+      pick.withinMargin
+        ? t("fairPairs", { n: pick.candidates, margin, diff: Math.round(pick.diff) })
+        : t("nothingWithin", { margin, diff: Math.round(pick.diff) }),
+    );
+  };
+
+  const swap = () => {
+    setTeamA(teamB);
+    setTeamB(teamA);
+    setClubA(clubB);
+    setClubB(clubA);
+    setScoreA(scoreB);
+    setScoreB(scoreA);
+  };
+
+  /** A match of tonight's plan: its line-up goes in, then on to the clubs. */
+  const playPlanned = (a: string[], b: string[], slot: number) => {
+    setAbsent((prev) => prev.filter((n) => !a.includes(n) && !b.includes(n)));
+    if (a.length === 2 && b.length === 2) setMode("2v2");
+    setTeamA(a);
+    setTeamB(b);
+    setClubA(null);
+    setClubB(null);
+    setScoreA(0);
+    setScoreB(0);
+    setClubHint(null);
+    toast(tp("loaded", { n: slot + 1 }), { icon: <Shuffle className="size-4" /> });
+    requestAnimationFrame(() => document.getElementById("mc-clubs")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+
+  const reset = () => {
+    setTeamA([]);
+    setTeamB([]);
+    setClubA(null);
+    setClubB(null);
+    setScoreA(0);
+    setScoreB(0);
+    setClubHint(null);
+  };
+
+  const problem = !teamA.length || !teamB.length
+    ? t("needPlayers")
+    : !clubAName || !clubBName
+      ? t("needClubs")
+      : null;
+
+  const submit = async () => {
+    if (problem) return;
+    const result: Side | "D" = scoreA > scoreB ? "A" : scoreB > scoreA ? "B" : "D";
+    try {
+      await addMatch.mutateAsync({ clubA: clubAName, clubB: clubBName, teamA, teamB, scoreA, scoreB });
+      burst(result);
+      const winners = result === "A" ? teamA : result === "B" ? teamB : null;
+      const d = result === "A" ? preview.deltaA : result === "B" ? preview.deltaB : preview.deltaA;
+      toast.success(
+        winners
+          ? t("sideWins", { names: winners.map(displayName).join(" & "), hi: Math.max(scoreA, scoreB), lo: Math.min(scoreA, scoreB) })
+          : t("drawScore", { a: scoreA, b: scoreB }),
+        { description: d !== null ? t("swing", { delta: `${d >= 0 ? "+" : "−"}${Math.abs(Math.round(d))}` }) : undefined },
+      );
+      setScoreA(0);
+      setScoreB(0);
+    } catch (e) {
+      toast.error(t("saveFailed"), { description: (e as Error).message });
+    }
+  };
+
+  const filledSteps = [teamA.length && teamB.length, clubAName && clubBName].filter(Boolean).length;
+
+  return (
+    <div>
+      <PageHeader
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
+        actions={
+          <>
+            <Button variant="ghost" onClick={swap}>
+              <ArrowLeftRight className="size-4" /> {t("swap")}
+            </Button>
+            <Button variant="ghost" onClick={reset}>
+              <RotateCcw className="size-4" /> {t("reset")}
+            </Button>
+          </>
+        }
+      />
+
+      {/* the whole width: the plan's partnership tables sit side by side */}
+      <div className="mb-6">
+        <NightPlan data={data} present={present} onPlay={playPlanned} />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-12">
+        <div className="min-w-0 space-y-6 xl:col-span-7 2xl:col-span-8">
+          <LayoutGroup>
+            {/* Step 1 — squad */}
+            <Panel
+              title={
+                <span className="flex items-center gap-2">
+                  <StepDot n={1} done={teamA.length > 0 && teamB.length > 0} /> {t("squad")}
+                </span>
+              }
+              subtitle={t("squadSub", { here: present.length, all: allNames.length })}
+              action={<AddPlayer players={data.players} />}
+              bodyClassName="p-3.5 sm:p-5"
+            >
+              <div className="mb-5 flex flex-wrap items-center gap-3">
+                <Segmented<TeamMode>
+                  value={mode}
+                  onChange={setMode}
+                  options={[
+                    { value: "1v1", label: "1 v 1" },
+                    { value: "2v2", label: "2 v 2" },
+                    { value: "1v2", label: "1 v 2" },
+                  ]}
+                />
+                <Switch
+                  checked={balance}
+                  onChange={setBalance}
+                  label={
+                    <span className="inline-flex items-center gap-1.5">
+                      <Scale className="size-3.5" /> {t("balance")}
+                    </span>
+                  }
+                />
+                <Button variant="primary" className="ml-auto" onClick={shuffle}>
+                  <Dices className="size-4" /> {t("shuffle")}
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+                {allNames.map((n) => (
+                  <PoolChip
+                    key={n}
+                    name={n}
+                    elo={data.eloByName.get(cleanName(n)) ?? INITIAL_ELO}
+                    present={!absent.includes(n)}
+                    side={sideOf(n)}
+                    onTogglePresent={() => togglePresent(n)}
+                    onAssign={(s) => assign(n, s)}
+                  />
+                ))}
+              </div>
+
+              <div className="mt-6 grid gap-4 md:grid-cols-2">
+                <TeamPanel side="A" names={teamA} eloByName={data.eloByName} onRemove={(n) => assign(n, "A")} />
+                <TeamPanel side="B" names={teamB} eloByName={data.eloByName} onRemove={(n) => assign(n, "B")} />
+              </div>
+              {teamA.length > 0 && teamB.length > 0 && (
+                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-5">
+                  <WinProbability pA={preview.expectedA} withClubs={!!(clubAName && clubBName)} />
+                </motion.div>
+              )}
+            </Panel>
+          </LayoutGroup>
+
+          {/* Step 2 — clubs */}
+          <div id="mc-clubs" className="scroll-mt-24">
+            <Panel
+              title={
+                <span className="flex items-center gap-2">
+                  <StepDot n={2} done={!!(clubAName && clubBName)} /> {t("clubs")}
+                </span>
+              }
+              subtitle={t("clubsSub")}
+              action={
+                data.season && (
+                  <span title={t("seasonTip", { season: data.season.name })}>
+                    <Pill tone="accent" className="font-display text-xs tracking-wide">
+                      {data.season.name}
+                    </Pill>
+                  </span>
+                )
+              }
+            >
+              <div className="grid gap-3 md:grid-cols-2">
+                <ClubPicker clubs={data.clubs} value={clubA} onChange={setClubA} side="A" placeholder={t("sideClub", { side: "A" })} />
+                <ClubPicker clubs={data.clubs} value={clubB} onChange={setClubB} side="B" placeholder={t("sideClub", { side: "B" })} />
+              </div>
+              <AnimatePresence initial={false}>
+                {data.season?.game && seasonClubs && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setSquads(true)}
+                      className="group mt-3 flex w-full items-center gap-3 rounded-2xl border border-line bg-surface-2/50 px-3 py-2.5 text-left transition-colors hover:border-line-strong hover:bg-surface-2 sm:px-4"
+                    >
+                      <span className="flex shrink-0 items-center gap-1">
+                        <ClubCrest name={seasonClubs[0]} size="sm" />
+                        <ClubCrest name={seasonClubs[1]} size="sm" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold">{t("squadsCta")}</span>
+                        <span className="block text-xs text-muted max-sm:line-clamp-2 sm:truncate">{t("squadsCtaSub")}</span>
+                      </span>
+                      <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-accent-text">
+                        <Shirt className="size-4" />
+                        <span className="max-sm:hidden">{t("squadsOpen")}</span>
+                        <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+                      </span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-line bg-surface-2/50 p-4 sm:flex-row sm:items-center">
+                <div className="flex-1">
+                  <div className="mb-2 flex items-center justify-between text-xs">
+                    <span className="text-muted">{t("margin")}</span>
+                    <span className="tabular font-semibold">±{margin}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={300}
+                    step={5}
+                    value={margin}
+                    onChange={(e) => setMargin(Number(e.target.value))}
+                    className="range"
+                    style={{ ["--fill" as string]: `${(margin / 300) * 100}%` }}
+                  />
+                </div>
+                <Button variant="secondary" onClick={pickClubs}>
+                  <Sparkles className="size-4 text-accent-text" /> {t("randomClubs")}
+                </Button>
+              </div>
+              <AnimatePresence>
+                {clubHint && (
+                  <motion.p
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-3 text-xs text-muted"
+                  >
+                    {clubHint}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </Panel>
+          </div>
+          {data.season && seasonClubs && (
+            <SquadsPreview
+              open={squads}
+              onClose={() => setSquads(false)}
+              season={data.season}
+              seasons={data.seasons}
+              clubs={seasonClubs}
+              teams={[teamA, teamB]}
+              chance={teamA.length && teamB.length ? preview.expectedA : null}
+              note={clubHint}
+              onReroll={pickClubs}
+            />
+          )}
+        </div>
+
+        {/* Step 3 — scoreboard */}
+        <div className="min-w-0 xl:col-span-5 2xl:col-span-4">
+          <div className="space-y-6 xl:sticky xl:top-24">
+            <section className="card overflow-hidden">
+              <div className="flex items-center justify-between border-b border-line px-5 py-4">
+                <span className="flex items-center gap-2 text-[15px] font-semibold">
+                  <StepDot n={3} done={false} /> {t("fullTime")}
+                </span>
+                <Pill tone={filledSteps === 2 ? "accent" : "neutral"}>{t("ready", { n: filledSteps })}</Pill>
+              </div>
+              <div className="space-y-4 p-5">
+                <ScoreRow
+                  side="A"
+                  club={clubAName}
+                  names={teamA}
+                  score={scoreA}
+                  onScore={setScoreA}
+                  delta={preview.deltaA}
+                  eloByName={data.eloByName}
+                />
+                <div className="flex items-center gap-3">
+                  <div className="hairline flex-1" />
+                  <span className="label">{t("vs")}</span>
+                  <div className="hairline flex-1" />
+                </div>
+                <ScoreRow
+                  side="B"
+                  club={clubBName}
+                  names={teamB}
+                  score={scoreB}
+                  onScore={setScoreB}
+                  delta={preview.deltaB}
+                  eloByName={data.eloByName}
+                />
+                {preview.deltaA !== null && preview.multiplier > 1.05 && (
+                  <p className="text-center text-[11px] text-faint">
+                    {t("multiplier", { x: preview.multiplier.toFixed(2) })}
+                  </p>
+                )}
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="mt-2 w-full"
+                  disabled={!!problem}
+                  loading={addMatch.isPending}
+                  onClick={submit}
+                >
+                  <Trophy className="size-5" />
+                  {t("save", { a: scoreA, b: scoreB })}
+                </Button>
+                {problem && <p className="text-center text-xs text-muted">{problem}</p>}
+              </div>
+            </section>
+
+            <Panel
+              title={t("tonight")}
+              subtitle={tonight.length ? t("tonightSub", { n: tonight.length }) : t("tonightEmpty")}
+              icon={<Users className="size-4" />}
+            >
+              {tonight.length ? (
+                <div className="space-y-2">
+                  {tonight.map((m) => (
+                    <MatchCard key={m.id} match={m} elo={data.engine.perMatch.get(m.id)} className="shadow-none" />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  className="py-6"
+                  icon={<Trophy className="size-5" />}
+                  title={t("noneTonight")}
+                  description={t("noneTonightHint")}
+                />
+              )}
+            </Panel>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepDot({ n, done }: { n: number; done: boolean }) {
+  return (
+    <span
+      className={cn(
+        "grid size-6 place-items-center rounded-full font-display text-sm font-bold",
+        done ? "bg-accent text-accent-ink" : "bg-surface-3 text-muted ring-1 ring-line-strong",
+      )}
+    >
+      {n}
+    </span>
+  );
+}
+
+export default function MatchCenter() {
+  return <DataGate>{(data) => <MatchCenterInner data={data} />}</DataGate>;
+}

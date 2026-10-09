@@ -1,0 +1,15 @@
+# FIFA Manager — public site. Managed by fifa-app/deploy/deploy.sh; run it with --remove to unpublish.
+fifa.173.249.40.69.sslip.io {
+	encode gzip zstd
+	request_body {
+		max_size 64KB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+	reverse_proxy fifa_web:8080
+}

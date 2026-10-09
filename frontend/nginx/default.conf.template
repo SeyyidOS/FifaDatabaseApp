@@ -1,0 +1,45 @@
+# Rendered at container start by the nginx image's envsubst step (only ${API_UPSTREAM} is
+# substituted; nginx's own $variables are left alone). The API itself checks the admin key.
+
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    server_tokens off;
+    client_max_body_size 64k;
+
+    location = /healthz {
+        access_log off;
+        return 200 "ok\n";
+    }
+
+    location /api/ {
+        proxy_pass http://${API_UPSTREAM}/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # Hashed build assets never change; crests rarely do.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+    location /crests/ {
+        add_header Cache-Control "public, max-age=604800";
+        try_files $uri =404;
+    }
+    # Card faces rarely change; a game's card list is revalidated so a new import shows up at once.
+    location /games/ {
+        add_header Cache-Control "public, max-age=604800";
+        try_files $uri =404;
+    }
+    location ~ ^/games/.+\.json$ {
+        add_header Cache-Control "no-cache";
+        try_files $uri =404;
+    }
+
+    location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri $uri/ /index.html;
+    }
+}

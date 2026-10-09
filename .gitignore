@@ -1,7 +1,7 @@
 # -------------------
 # Python (Backend)
 # -------------------
-backend/__pycache__/
+__pycache__/
 backend/*.pyc
 backend/*.pyo
 backend/*.pyd
@@ -55,7 +55,6 @@ frontend/.env
 # -------------------
 # Docker
 # -------------------
-backend/.dockerignore
 docker-compose.override.yml
 
 # -------------------
@@ -71,3 +70,13 @@ Thumbs.db
 # -------------------
 *.bak
 *.tmp
+
+# -------------------
+# Local data (never commit: contains user password hashes and tokens)
+# -------------------
+fifa-app-backup/
+deploy-local/
+
+# Card study exports shared by other developers (import them with frontend/scripts/import-fc-cards.py)
+fc27-elo.zip
+*-elo.zip
