@@ -11,11 +11,14 @@ export function Modal({
   onClose,
   children,
   labelledBy,
+  wide,
 }: {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
   labelledBy?: string;
+  /** room for side-by-side content */
+  wide?: boolean;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -39,7 +42,11 @@ export function Modal({
             role="dialog"
             aria-modal
             aria-labelledby={labelledBy}
-            className="card relative w-full max-w-md p-6"
+            className={
+              wide
+                ? "card relative max-h-[90vh] w-full max-w-4xl overflow-y-auto p-4 sm:p-6"
+                : "card relative w-full max-w-md p-6"
+            }
             initial={{ opacity: 0, y: 16, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.98 }}

@@ -7,6 +7,7 @@ import type {
   DuoStanding,
   Match,
   NewMatch,
+  NightPlan,
   Player,
   PlayerStanding,
   Season,
@@ -113,6 +114,12 @@ export function boardApi(slug: string, token: string) {
       call<Club>(`/seasons/${season}/clubs/${id}`, json("PATCH", changes)),
     deleteClub: (season: number, id: number) =>
       call<{ message: string }>(`/seasons/${season}/clubs/${id}`, json("DELETE")),
+
+    plan: () => call<NightPlan | null>("/fixture"),
+    savePlan: (body: { rules: object; matches: { teamA: string[]; teamB: string[] }[] }) =>
+      call<NightPlan>("/fixture", json("PUT", body)),
+    closePlan: () => call<{ message: string }>("/fixture", json("DELETE")),
+    skipPlanned: (slot: number, skipped: boolean) => call<NightPlan>(`/fixture/matches/${slot}`, json("PATCH", { skipped })),
 
     leaderboard: {
       players: (start: string) => call<PlayerStanding[]>(`/leaderboard/players?start_time=${start}`),

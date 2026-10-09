@@ -9,6 +9,7 @@ import {
   Plus,
   RotateCcw,
   Scale,
+  Shirt,
   Shuffle,
   Sparkles,
   Trophy,
@@ -16,6 +17,9 @@ import {
   X,
 } from "lucide-react";
 import { AddPlayer } from "../components/AddPlayer";
+import { SquadsPreview } from "../components/clubs/SquadsPreview";
+import { NightPlan } from "../components/fixture/NightPlan";
+import { planMessages } from "../components/fixture/messages";
 import { DataGate } from "../components/DataGate";
 import { PageHeader } from "../components/layout/AppShell";
 import { MatchCard } from "../components/match/MatchCard";
@@ -84,6 +88,8 @@ const msg = defineMessages({
     clubs: "Clubs",
     clubsSub: "Balanced picks weigh squad Elo + half the club's rating",
     seasonTip: "Club ratings of {season}, the active season",
+    squads: "Squads",
+    squadsTip: "Both clubs' best elevens side by side",
     margin: "Fairness margin",
     randomClubs: "Balanced random clubs",
     fullTime: "Full time",
@@ -139,6 +145,8 @@ const msg = defineMessages({
     clubs: "Kulüpler",
     clubsSub: "Dengeli seçim, kadro Elo'su + kulüp puanının yarısına bakar",
     seasonTip: "Aktif sezon {season} kulüp puanları",
+    squads: "Kadrolar",
+    squadsTip: "İki kulübün en iyi ilk 11'i yan yana",
     margin: "Adalet payı",
     randomClubs: "Dengeli rastgele kulüpler",
     fullTime: "Maç sonu",
@@ -435,6 +443,8 @@ function MatchCenterInner({ data }: { data: Analytics }) {
   const [scoreA, setScoreA] = useSessionState(`${slug}:mc-score-a`, 0);
   const [scoreB, setScoreB] = useSessionState(`${slug}:mc-score-b`, 0);
   const [clubHint, setClubHint] = useState<string | null>(null);
+  const [squads, setSquads] = useState(false);
+  const tp = useT(planMessages);
   const addMatch = useAddMatch();
 
   const teamA = teamARaw.filter((n) => allNames.includes(n));
@@ -444,6 +454,9 @@ function MatchCenterInner({ data }: { data: Analytics }) {
 
   const clubAName = choiceName(clubA, data.clubs);
   const clubBName = choiceName(clubB, data.clubs);
+  // both picked from the season's list: their squads can be shown
+  const seasonClubs: [string, string] | null =
+    clubA?.kind === "club" && clubB?.kind === "club" && clubAName && clubBName ? [clubAName, clubBName] : null;
   const preview = previewMatch(data.engine, {
     teamA,
     teamB,
@@ -510,6 +523,21 @@ function MatchCenterInner({ data }: { data: Analytics }) {
     setScoreB(scoreA);
   };
 
+  /** A match of tonight's plan: its line-up goes in, then on to the clubs. */
+  const playPlanned = (a: string[], b: string[], slot: number) => {
+    setAbsent((prev) => prev.filter((n) => !a.includes(n) && !b.includes(n)));
+    if (a.length === 2 && b.length === 2) setMode("2v2");
+    setTeamA(a);
+    setTeamB(b);
+    setClubA(null);
+    setClubB(null);
+    setScoreA(0);
+    setScoreB(0);
+    setClubHint(null);
+    toast(tp("loaded", { n: slot + 1 }), { icon: <Shuffle className="size-4" /> });
+    requestAnimationFrame(() => document.getElementById("mc-clubs")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+
   const reset = () => {
     setTeamA([]);
     setTeamB([]);
@@ -569,6 +597,7 @@ function MatchCenterInner({ data }: { data: Analytics }) {
 
       <div className="grid gap-6 xl:grid-cols-12">
         <div className="min-w-0 space-y-6 xl:col-span-7 2xl:col-span-8">
+          <NightPlan data={data} present={present} onPlay={playPlanned} />
           <LayoutGroup>
             {/* Step 1 — squad */}
             <Panel
@@ -632,61 +661,73 @@ function MatchCenterInner({ data }: { data: Analytics }) {
           </LayoutGroup>
 
           {/* Step 2 — clubs */}
-          <Panel
-            title={
-              <span className="flex items-center gap-2">
-                <StepDot n={2} done={!!(clubAName && clubBName)} /> {t("clubs")}
-              </span>
-            }
-            subtitle={t("clubsSub")}
-            action={
-              data.season && (
-                <span title={t("seasonTip", { season: data.season.name })}>
-                  <Pill tone="accent" className="font-display text-xs tracking-wide">
-                    {data.season.name}
-                  </Pill>
+          <div id="mc-clubs" className="scroll-mt-24">
+            <Panel
+              title={
+                <span className="flex items-center gap-2">
+                  <StepDot n={2} done={!!(clubAName && clubBName)} /> {t("clubs")}
                 </span>
-              )
-            }
-          >
-            <div className="grid gap-3 md:grid-cols-2">
-              <ClubPicker clubs={data.clubs} value={clubA} onChange={setClubA} side="A" placeholder={t("sideClub", { side: "A" })} />
-              <ClubPicker clubs={data.clubs} value={clubB} onChange={setClubB} side="B" placeholder={t("sideClub", { side: "B" })} />
-            </div>
-            <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-line bg-surface-2/50 p-4 sm:flex-row sm:items-center">
-              <div className="flex-1">
-                <div className="mb-2 flex items-center justify-between text-xs">
-                  <span className="text-muted">{t("margin")}</span>
-                  <span className="tabular font-semibold">±{margin}</span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={300}
-                  step={5}
-                  value={margin}
-                  onChange={(e) => setMargin(Number(e.target.value))}
-                  className="range"
-                  style={{ ["--fill" as string]: `${(margin / 300) * 100}%` }}
-                />
+              }
+              subtitle={t("clubsSub")}
+              action={
+                data.season && (
+                  <span className="flex items-center gap-1.5">
+                    {data.season.game && seasonClubs && (
+                      <Button size="sm" variant="ghost" onClick={() => setSquads(true)} title={t("squadsTip")}>
+                        <Shirt className="size-3.5" /> {t("squads")}
+                      </Button>
+                    )}
+                    <span title={t("seasonTip", { season: data.season.name })}>
+                      <Pill tone="accent" className="font-display text-xs tracking-wide">
+                        {data.season.name}
+                      </Pill>
+                    </span>
+                  </span>
+                )
+              }
+            >
+              <div className="grid gap-3 md:grid-cols-2">
+                <ClubPicker clubs={data.clubs} value={clubA} onChange={setClubA} side="A" placeholder={t("sideClub", { side: "A" })} />
+                <ClubPicker clubs={data.clubs} value={clubB} onChange={setClubB} side="B" placeholder={t("sideClub", { side: "B" })} />
               </div>
-              <Button variant="secondary" onClick={pickClubs}>
-                <Sparkles className="size-4 text-accent-text" /> {t("randomClubs")}
-              </Button>
-            </div>
-            <AnimatePresence>
-              {clubHint && (
-                <motion.p
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mt-3 text-xs text-muted"
-                >
-                  {clubHint}
-                </motion.p>
-              )}
-            </AnimatePresence>
-          </Panel>
+              <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-line bg-surface-2/50 p-4 sm:flex-row sm:items-center">
+                <div className="flex-1">
+                  <div className="mb-2 flex items-center justify-between text-xs">
+                    <span className="text-muted">{t("margin")}</span>
+                    <span className="tabular font-semibold">±{margin}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={300}
+                    step={5}
+                    value={margin}
+                    onChange={(e) => setMargin(Number(e.target.value))}
+                    className="range"
+                    style={{ ["--fill" as string]: `${(margin / 300) * 100}%` }}
+                  />
+                </div>
+                <Button variant="secondary" onClick={pickClubs}>
+                  <Sparkles className="size-4 text-accent-text" /> {t("randomClubs")}
+                </Button>
+              </div>
+              <AnimatePresence>
+                {clubHint && (
+                  <motion.p
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="mt-3 text-xs text-muted"
+                  >
+                    {clubHint}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </Panel>
+          </div>
+          {data.season && seasonClubs && (
+            <SquadsPreview open={squads} onClose={() => setSquads(false)} season={data.season} seasons={data.seasons} clubs={seasonClubs} />
+          )}
         </div>
 
         {/* Step 3 — scoreboard */}

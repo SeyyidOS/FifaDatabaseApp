@@ -71,7 +71,8 @@ def test_legacy_database_becomes_the_main_board(scratch_database, monkeypatch):
         }
         assert "team_a" not in columns and "board_id" in columns
         assert rows(cur, "SELECT to_regclass('elo_settings') AS t")[0]["t"] is None
-        assert [r["version"] for r in rows(cur, "SELECT version FROM schema_version ORDER BY version")] == [1, 2, 3, 4]
+        versions = rows(cur, "SELECT version FROM schema_version ORDER BY version")
+        assert [r["version"] for r in versions] == [1, 2, 3, 4, 5]
 
         # the shared club list becomes the board's first season, and every match keeps its club ratings
         [season] = rows(cur, "SELECT s.*, b.active_season_id FROM seasons s JOIN boards b ON b.id = s.board_id")

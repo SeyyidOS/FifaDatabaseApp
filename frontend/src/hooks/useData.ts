@@ -36,6 +36,27 @@ export function useCards(game: string | null | undefined) {
   });
 }
 
+/** The night's plan is shared by everyone on the board, so keep it fresh. */
+export function usePlan() {
+  const { slug, api } = useBoard();
+  return useQuery({ queryKey: boardKey(slug, "plan"), queryFn: api.plan, refetchInterval: 20_000 });
+}
+
+export function useSavePlan() {
+  const { api } = useBoard();
+  return useBoardMutation((body: { rules: object; matches: { teamA: string[]; teamB: string[] }[] }) => api.savePlan(body), ["plan"]);
+}
+
+export function useClosePlan() {
+  const { api } = useBoard();
+  return useBoardMutation(() => api.closePlan(), ["plan"]);
+}
+
+export function useSkipPlanned() {
+  const { api } = useBoard();
+  return useBoardMutation(({ slot, skipped }: { slot: number; skipped: boolean }) => api.skipPlanned(slot, skipped), ["plan"]);
+}
+
 export function useMatches() {
   const { slug, api } = useBoard();
   return useQuery({ queryKey: boardKey(slug, "matches"), queryFn: api.matches });
@@ -99,12 +120,12 @@ export function useDeletePlayer() {
 
 export function useAddMatch() {
   const { api } = useBoard();
-  return useBoardMutation((m: NewMatch) => api.addMatch(m), ["matches", "leaderboard", "seasons"]);
+  return useBoardMutation((m: NewMatch) => api.addMatch(m), ["matches", "leaderboard", "seasons", "plan"]);
 }
 
 export function useDeleteMatch() {
   const { api } = useBoard();
-  return useBoardMutation((id: number) => api.deleteMatch(id), ["matches", "leaderboard", "seasons"]);
+  return useBoardMutation((id: number) => api.deleteMatch(id), ["matches", "leaderboard", "seasons", "plan"]);
 }
 
 export function useCreateSeason() {

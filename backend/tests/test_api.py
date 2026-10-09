@@ -397,3 +397,70 @@ def test_seasons_are_admin_only_and_stay_inside_their_board(api, board):
     assert api.post(other.url("/seasons"), json=copy, headers=other.admin).status_code == 404
     mine = board.url(f"/seasons/{first['id']}/clubs/{club(theirs, 'Arsenal')['id']}")
     assert api.patch(mine, json={"elo": 1}, headers=board.admin).status_code == 404  # their club, my season
+
+
+# ----------- The night's plan -----------
+def plan(board, *matches, headers=None):
+    body = {"rules": {"minPer": 3}, "matches": [{"teamA": a, "teamB": b} for a, b in matches]}
+    return board.api.put(board.url("/fixture"), json=body, headers=headers or board.member)
+
+
+def planned(board):
+    return board.api.get(board.url("/fixture"), headers=board.member).json()
+
+
+def test_recorded_matches_tick_off_the_plan(board):
+    api = board.api
+    board.add_players("a", "b", "c", "d", "e")
+    made = plan(board, (["a", "b"], ["c", "d"]), (["a", "e"], ["b", "c"]), (["a", "b"], ["c", "d"]))
+    assert made.status_code == 200, made.text
+    assert planned(board) == made.json()
+    assert [(m["slot"], m["teamA"], m["teamB"], m["matchId"]) for m in made.json()["matches"]] == [
+        (0, ["a", "b"], ["c", "d"], None),
+        (1, ["a", "e"], ["b", "c"], None),
+        (2, ["a", "b"], ["c", "d"], None),
+    ]
+
+    # same sides in any order tick off the first open slot; other line-ups touch nothing
+    first = board.add_match(["d", "c"], ["b", "a"], 2, 1).json()["id"]
+    board.add_match(["a", "c"], ["b", "d"], 0, 0)
+    assert [m["matchId"] for m in planned(board)["matches"]] == [first, None, None]
+
+    # a skipped match isn't ticked off; the next one with the same sides is
+    skipped = api.patch(board.url("/fixture/matches/1"), json={"skipped": True}, headers=board.member)
+    assert skipped.json()["matches"][1]["skipped"] is True
+    board.add_match(["a", "e"], ["b", "c"], 1, 0)
+    again = board.add_match(["a", "b"], ["c", "d"], 3, 3).json()["id"]
+    assert [m["matchId"] for m in planned(board)["matches"]] == [first, None, again]
+
+    # deleting a match makes its planned match open again
+    assert api.delete(board.url(f"/matches/{first}"), headers=board.admin).status_code == 200
+    assert planned(board)["matches"][0]["matchId"] is None
+
+
+def test_one_plan_at_a_time(board):
+    board.add_players("a", "b", "c", "d")
+    assert planned(board) is None
+    plan(board, (["a", "b"], ["c", "d"]))
+    newer = plan(board, (["a", "c"], ["b", "d"])).json()
+    assert planned(board) == newer and len(newer["matches"]) == 1
+    assert board.api.delete(board.url("/fixture"), headers=board.member).status_code == 200
+    assert planned(board) is None
+    assert board.api.delete(board.url("/fixture"), headers=board.member).status_code == 404
+    skip = board.api.patch(board.url("/fixture/matches/0"), json={"skipped": True}, headers=board.member)
+    assert skip.status_code == 404
+
+
+def test_plans_only_hold_the_boards_active_players(api, board):
+    board.add_players("a", "b", "c", "d", "gone")
+    api.patch(board.url("/players/5"), json={"archived": True}, headers=board.admin)
+    assert plan(board, (["a", "b"], ["c", "x"])).status_code == 422  # unknown
+    assert plan(board, (["a", "b"], ["c", "gone"])).status_code == 422  # archived
+    assert plan(board, (["a", "b"], ["b", "c"])).status_code == 422  # twice in one match
+    empty = {"rules": {}, "matches": []}
+    assert board.api.put(board.url("/fixture"), json=empty, headers=board.member).status_code == 422
+    assert api.get(board.url("/fixture")).status_code == 401
+
+    plan(board, (["a", "b"], ["c", "d"]))
+    other = Board(api, "Other Crew")
+    assert api.get(other.url("/fixture"), headers=other.member).json() is None

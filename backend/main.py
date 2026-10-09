@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 
 import board_data
 import boards
+import fixtures
 import migrations
 import seasons
 from db import CONNECTION_ERRORS, Database
@@ -58,3 +59,4 @@ def health(request: Request):
 app.include_router(boards.router)
 app.include_router(board_data.router)
 app.include_router(seasons.router)
+app.include_router(fixtures.router)

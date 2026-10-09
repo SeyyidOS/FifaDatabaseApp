@@ -28,6 +28,15 @@ server {
         add_header Cache-Control "public, max-age=604800";
         try_files $uri =404;
     }
+    # Card faces rarely change; a game's card list is revalidated so a new import shows up at once.
+    location /games/ {
+        add_header Cache-Control "public, max-age=604800";
+        try_files $uri =404;
+    }
+    location ~ ^/games/.+\.json$ {
+        add_header Cache-Control "no-cache";
+        try_files $uri =404;
+    }
 
     location / {
         add_header Cache-Control "no-cache";

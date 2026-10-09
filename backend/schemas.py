@@ -110,6 +110,34 @@ class ModelApply(BaseModel):
         return self
 
 
+class PlannedMatch(BaseModel):
+    teamA: list[PlayerName] = Field(min_length=1, max_length=3)
+    teamB: list[PlayerName] = Field(min_length=1, max_length=3)
+
+    @model_validator(mode="after")
+    def distinct_players(self) -> "PlannedMatch":
+        if len(set(self.teamA + self.teamB)) != len(self.teamA) + len(self.teamB):
+            raise ValueError("a player is listed twice in a planned match")
+        return self
+
+
+class FixtureIn(BaseModel):
+    """A night's plan: the rules it was made with (kept for display) and the matches in order."""
+
+    rules: dict
+    matches: list[PlannedMatch] = Field(min_length=1, max_length=80)
+
+    @model_validator(mode="after")
+    def small_rules(self) -> "FixtureIn":
+        if len(json.dumps(self.rules)) > 2000:
+            raise ValueError("the rules are too large")
+        return self
+
+
+class FixtureMatchUpdate(BaseModel):
+    skipped: bool
+
+
 class MatchIn(BaseModel):
     clubA: ClubName
     clubB: ClubName

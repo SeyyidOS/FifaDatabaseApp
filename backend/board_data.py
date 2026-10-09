@@ -6,6 +6,7 @@ import psycopg2.errors
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 import elo
+import fixtures
 import leaderboard
 from auth import BoardAccess, board_access, board_admin
 from schemas import MatchIn, PlayerIn, PlayerUpdate
@@ -165,6 +166,8 @@ def add_match(match: MatchIn, request: Request, access: BoardAccess = Depends(bo
                 for slot, n in enumerate(team)
             ],
         )
+        ids = [[found[n]["id"] for n in team] for team in (match.teamA, match.teamB)]
+        fixtures.tick_off(cur, access.id, match_id, *ids)
     return {"message": "Match added successfully.", "id": match_id}
 
 

@@ -237,11 +237,38 @@ def v4_club_model(cur: RealDictCursor) -> None:
     cur.execute(V4_CLUB_MODEL)
 
 
+# The night's plan (fixtures.py): one open plan per board; a recorded match ticks off its planned match.
+V5_FIXTURES = """
+CREATE TABLE fixtures (
+    id SERIAL PRIMARY KEY,
+    board_id INT NOT NULL REFERENCES boards (id) ON DELETE CASCADE,
+    rules JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    closed_at TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX fixtures_open_key ON fixtures (board_id) WHERE closed_at IS NULL;
+CREATE TABLE fixture_matches (
+    fixture_id INT NOT NULL REFERENCES fixtures (id) ON DELETE CASCADE,
+    slot SMALLINT NOT NULL,
+    team_a INT[] NOT NULL,
+    team_b INT[] NOT NULL,
+    match_id INT REFERENCES matches (id) ON DELETE SET NULL,
+    skipped BOOLEAN NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (fixture_id, slot)
+);
+"""
+
+
+def v5_fixtures(cur: RealDictCursor) -> None:
+    cur.execute(V5_FIXTURES)
+
+
 MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (1, v1_legacy),
     (2, v2_boards),
     (3, v3_seasons),
     (4, v4_club_model),
+    (5, v5_fixtures),
 ]
 
 

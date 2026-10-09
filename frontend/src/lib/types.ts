@@ -92,5 +92,22 @@ export interface SignIn extends BoardInfo {
   token: string;
 }
 
+/** One match of the night's plan; matchId is set once it has been played. */
+export interface PlannedMatch {
+  slot: number;
+  teamA: string[];
+  teamB: string[];
+  matchId: number | null;
+  skipped: boolean;
+}
+
+/** The board's open plan for the night. */
+export interface NightPlan {
+  id: number;
+  createdAt: string;
+  rules: Record<string, unknown>;
+  matches: PlannedMatch[];
+}
+
 export type Outcome = "W" | "D" | "L";
 export type Side = "A" | "B";
