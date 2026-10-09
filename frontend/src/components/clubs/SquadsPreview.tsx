@@ -1,10 +1,10 @@
-import { motion } from "motion/react";
-import { useMemo, useState } from "react";
-import { Check, Shirt, Shuffle, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useMemo, useRef, useState } from "react";
+import { Check, ChevronDown, Shirt, Shuffle, X } from "lucide-react";
 import { useCards } from "../../hooks/useData";
 import { useT } from "../../hooks/useI18n";
 import { cn } from "../../lib/cn";
-import { STATS, type ClubEvaluation, type SlotKey } from "../../lib/clubModel";
+import { STATS, type Card, type ClubEvaluation, type SlotKey } from "../../lib/clubModel";
 import { referenceSeason, runModel } from "../../lib/clubs";
 import { expectedScore } from "../../lib/elo";
 import { displayName } from "../../lib/format";
@@ -13,7 +13,7 @@ import { Modal } from "../ui/Dialog";
 import { Avatar, ClubCrest } from "../ui/Identity";
 import { Button, Segmented, Skeleton } from "../ui/primitives";
 import { clubMessages } from "./messages";
-import { Bench, Pitch } from "./Pitch";
+import { Bench, CardFace, Pitch } from "./Pitch";
 
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
@@ -107,6 +107,33 @@ function SideHead({ side, club, elo, players }: { side: Side; club: string; elo?
   );
 }
 
+/** Cards outside a club's matchday squad, best first. */
+function OtherCards({ game, side, cards, className }: { game: string; side: Side; cards: Card[]; className?: string }) {
+  const t = useT(clubMessages);
+  return (
+    <div
+      className={cn(
+        "min-w-0 rounded-2xl border border-line bg-surface-2/40 p-2",
+        side === "A" ? "shadow-[inset_3px_0_0_var(--team-a)]" : "shadow-[inset_3px_0_0_var(--team-b)]",
+        className,
+      )}
+    >
+      <p className="label px-2 pt-1 pb-2">{t("others", { n: cards.length })}</p>
+      <ul className="space-y-0.5">
+        {cards.map((c) => (
+          <li key={c.id} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-surface-2" title={c.fullName}>
+            <CardFace game={game} card={c} size={30} />
+            <span className="min-w-0 flex-1 truncate text-sm font-medium">{c.name}</span>
+            <span className="text-[11px] font-semibold whitespace-nowrap text-muted">{[c.pos, ...c.alt].join(" · ")}</span>
+            <span className="tabular w-7 text-right font-display text-base font-bold">{c.ovr}</span>
+          </li>
+        ))}
+        {!cards.length && <li className="px-2 py-3 text-center text-xs text-faint">—</li>}
+      </ul>
+    </div>
+  );
+}
+
 /**
  * The two clubs of the Match Center side by side: who plays them, the win chance, the eleven line
  * by line and both pitches. Closing changes nothing; a new balanced pairing can be drawn from here.
@@ -137,6 +164,8 @@ export function SquadsPreview({
 }) {
   const t = useT(clubMessages);
   const [phoneSide, setPhoneSide] = useState<Side>("A");
+  const [others, setOthers] = useState(false);
+  const othersRef = useRef<HTMLDivElement>(null);
   const cards = useCards(open ? season.game : null);
   const rated = useMemo(() => {
     if (!cards.data) return null;
@@ -255,6 +284,51 @@ export function SquadsPreview({
             );
           })}
         </div>
+
+        {/* the rest of each squad, on request */}
+        {ra && rb && (ra.outside.length > 0 || rb.outside.length > 0) && (
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() => {
+                setOthers((o) => !o);
+                if (!others) setTimeout(() => othersRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 220);
+              }}
+              aria-expanded={others}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface-2/50 px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:border-line-strong hover:text-fg"
+            >
+              {others ? t("mcOthersHide") : t("mcOthersShow")}
+              <span className="tabular text-xs text-faint max-sm:hidden">
+                {ra.outside.length} · {rb.outside.length}
+              </span>
+              <ChevronDown className={cn("size-4 transition-transform", others && "rotate-180")} />
+            </button>
+            <AnimatePresence initial={false}>
+              {others && (
+                <motion.div
+                  ref={othersRef}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="grid gap-4 pt-3 sm:grid-cols-2">
+                    {[ra, rb].map((r, i) => (
+                      <OtherCards
+                        key={r.club.eaId}
+                        game={season.game!}
+                        side={i === 0 ? "A" : "B"}
+                        cards={r.outside}
+                        className={cn((i === 0 ? "B" : "A") === phoneSide && "max-sm:hidden")}
+                      />
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
       </motion.div>
 
       {/* stays in reach while the pitches scroll */}
