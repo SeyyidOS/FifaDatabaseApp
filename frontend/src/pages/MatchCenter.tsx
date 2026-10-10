@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { AddPlayer } from "../components/AddPlayer";
+import { ClubForm } from "../components/clubs/ClubForm";
 import { SquadsPreview } from "../components/clubs/SquadsPreview";
 import { NightPlan } from "../components/fixture/NightPlan";
 import { planMessages } from "../components/fixture/messages";
@@ -32,6 +33,7 @@ import { useAddMatch } from "../hooks/useData";
 import { useBoard } from "../hooks/useBoard";
 import { useSessionState } from "../hooks/useSessionState";
 import { choiceName, type ClubChoice } from "../lib/clubChoice";
+import { clubRecord } from "../lib/clubs";
 import { cn } from "../lib/cn";
 import { INITIAL_ELO, previewMatch } from "../lib/elo";
 import { cleanName, displayName, matchdayKey } from "../lib/format";
@@ -460,6 +462,8 @@ function MatchCenterInner({ data }: { data: Analytics }) {
   // both picked from the season's list: their squads can be shown
   const seasonClubs: [string, string] | null =
     clubA?.kind === "club" && clubB?.kind === "club" && clubAName && clubBName ? [clubAName, clubBName] : null;
+  const recordA = useMemo(() => (clubAName ? clubRecord(data.parsed, clubAName) : null), [data.parsed, clubAName]);
+  const recordB = useMemo(() => (clubBName ? clubRecord(data.parsed, clubBName) : null), [data.parsed, clubBName]);
   const preview = previewMatch(data.engine, {
     teamA,
     teamB,
@@ -687,8 +691,15 @@ function MatchCenterInner({ data }: { data: Analytics }) {
               }
             >
               <div className="grid gap-3 md:grid-cols-2">
-                <ClubPicker clubs={data.clubs} value={clubA} onChange={setClubA} side="A" placeholder={t("sideClub", { side: "A" })} />
-                <ClubPicker clubs={data.clubs} value={clubB} onChange={setClubB} side="B" placeholder={t("sideClub", { side: "B" })} />
+                {([
+                  ["A", clubA, setClubA, recordA],
+                  ["B", clubB, setClubB, recordB],
+                ] as const).map(([side, value, onChange, record]) => (
+                  <div key={side} className="min-w-0 space-y-2">
+                    <ClubPicker clubs={data.clubs} value={value} onChange={onChange} side={side} placeholder={t("sideClub", { side })} />
+                    {record && <ClubForm record={record} className="px-1" />}
+                  </div>
+                ))}
               </div>
               <AnimatePresence initial={false}>
                 {data.season?.game && seasonClubs && (
@@ -758,6 +769,7 @@ function MatchCenterInner({ data }: { data: Analytics }) {
               seasons={data.seasons}
               clubs={seasonClubs}
               teams={[teamA, teamB]}
+              records={recordA && recordB ? [recordA, recordB] : undefined}
               chance={teamA.length && teamB.length ? preview.expectedA : null}
               note={clubHint}
               onReroll={pickClubs}

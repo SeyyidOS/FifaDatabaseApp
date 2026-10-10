@@ -268,10 +268,13 @@ export function FormPills({
   outcomes,
   max = 5,
   size = "md",
+  titles,
 }: {
   outcomes: Outcome[];
   max?: number;
   size?: "sm" | "md";
+  /** a hover text per outcome, in the same order */
+  titles?: string[];
 }) {
   const t = useT(m);
   const shown = outcomes.slice(0, max);
@@ -280,6 +283,7 @@ export function FormPills({
       {shown.map((o, i) => (
         <span
           key={i}
+          title={titles?.[i]}
           className={cn(
             "grid place-items-center rounded-[5px] font-display font-bold ring-1 ring-inset",
             size === "sm" ? "size-[18px] text-[10px]" : "size-6 text-xs",

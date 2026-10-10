@@ -5,13 +5,14 @@ import { useCards } from "../../hooks/useData";
 import { useT } from "../../hooks/useI18n";
 import { cn } from "../../lib/cn";
 import { STATS, type Card, type ClubEvaluation, type SlotKey } from "../../lib/clubModel";
-import { referenceSeason, runModel } from "../../lib/clubs";
+import { referenceSeason, runModel, type ClubRecord } from "../../lib/clubs";
 import { expectedScore } from "../../lib/elo";
 import { displayName } from "../../lib/format";
 import type { Season, Side } from "../../lib/types";
 import { Modal } from "../ui/Dialog";
 import { Avatar, ClubCrest } from "../ui/Identity";
 import { Button, Segmented, Skeleton } from "../ui/primitives";
+import { ClubForm } from "./ClubForm";
 import { clubMessages } from "./messages";
 import { Bench, CardFace, Pitch } from "./Pitch";
 
@@ -75,7 +76,7 @@ function CompareGroup({ title, rows, loaded }: { title: string; rows: CompareRow
   );
 }
 
-function SideHead({ side, club, elo, players }: { side: Side; club: string; elo?: number; players: string[] }) {
+function SideHead({ side, club, elo, players, record }: { side: Side; club: string; elo?: number; players: string[]; record?: ClubRecord }) {
   const t = useT(clubMessages);
   return (
     // phones stack each side under its crest, so names get the whole width
@@ -93,6 +94,9 @@ function SideHead({ side, club, elo, players }: { side: Side; club: string; elo?
           {elo != null && <p className="tabular mt-0.5 text-xs text-muted">{t("elo")} {elo}</p>}
         </div>
       </div>
+      {record && (
+        <ClubForm record={record} align={side === "B" ? "end" : "start"} className="mt-2.5 max-sm:justify-center" />
+      )}
       {players.length > 0 && (
         <div className={cn("mt-2.5 flex min-w-0 items-center gap-2 max-sm:flex-col max-sm:gap-1", side === "B" && "sm:flex-row-reverse")}>
           <span className={cn("flex shrink-0 -space-x-1.5", side === "B" && "sm:flex-row-reverse sm:space-x-reverse")}>
@@ -145,6 +149,7 @@ export function SquadsPreview({
   seasons,
   clubs,
   teams,
+  records,
   chance,
   note,
   onReroll,
@@ -156,6 +161,8 @@ export function SquadsPreview({
   clubs: [string, string];
   /** who plays each club, in the same order */
   teams: [string[], string[]];
+  /** how the group has done with each club, in the same order */
+  records?: [ClubRecord, ClubRecord];
   /** side A's win chance with these players and clubs; null when a side has no players yet */
   chance: number | null;
   /** how fair the last balanced pick was */
@@ -198,9 +205,9 @@ export function SquadsPreview({
       {/* a new pairing fades in where the old one was */}
       <motion.div key={clubs.join("|")} initial={{ opacity: 0.4 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
         <div className="mt-5 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3">
-          <SideHead side="A" club={clubs[0]} elo={elos[0]} players={teams[0]} />
+          <SideHead side="A" club={clubs[0]} elo={elos[0]} players={teams[0]} record={records?.[0]} />
           <span className="font-display text-xs font-bold text-faint">VS</span>
-          <SideHead side="B" club={clubs[1]} elo={elos[1]} players={teams[1]} />
+          <SideHead side="B" club={clubs[1]} elo={elos[1]} players={teams[1]} record={records?.[1]} />
         </div>
 
         <div className="mt-3 rounded-2xl border border-line bg-surface-2/40 p-4">
