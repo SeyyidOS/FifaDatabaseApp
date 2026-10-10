@@ -59,7 +59,7 @@ const msg = defineMessages({
     tapSide: "Tap {side} on a player",
     orShuffle: "or shuffle teams",
     probClubs: "Win probability · incl. clubs",
-    probSquads: "Win probability · squads only",
+    probSquads: "Win probability · players only",
     decrease: "Decrease",
     increase: "Increase",
     sideScore: "Side {side} score",
@@ -117,7 +117,7 @@ const msg = defineMessages({
     tapSide: "Bir oyuncuda {side}'ya dokun",
     orShuffle: "ya da takımları karıştır",
     probClubs: "Kazanma ihtimali · kulüpler dahil",
-    probSquads: "Kazanma ihtimali · sadece kadrolar",
+    probSquads: "Kazanma ihtimali · sadece oyuncular",
     decrease: "Azalt",
     increase: "Artır",
     sideScore: "{side} tarafının skoru",
@@ -309,17 +309,27 @@ function TeamPanel({
   );
 }
 
-function WinProbability({ pA, withClubs }: { pA: number; withClubs: boolean }) {
+/** Side A's win chance from the players alone and, once both clubs are picked, with the clubs. */
+function WinProbability({ squads, clubs }: { squads: number; clubs: number | null }) {
+  return (
+    <div className="space-y-4">
+      {clubs !== null && <ChanceBar pA={clubs} withClubs />}
+      <ChanceBar pA={squads} withClubs={false} />
+    </div>
+  );
+}
+
+function ChanceBar({ pA, withClubs }: { pA: number; withClubs: boolean }) {
   const t = useT(msg);
   const a = Math.round(pA * 100);
   const b = 100 - a;
   return (
     <div>
-      <div className="mb-2 flex items-end justify-between">
+      <div className="mb-2 flex items-end justify-between gap-2">
         <span className="display tabular text-2xl" style={{ color: sideColor("A") }}>
           {a}%
         </span>
-        <span className="label">{withClubs ? t("probClubs") : t("probSquads")}</span>
+        <span className="label text-center text-balance">{withClubs ? t("probClubs") : t("probSquads")}</span>
         <span className="display tabular text-2xl" style={{ color: sideColor("B") }}>
           {b}%
         </span>
@@ -472,6 +482,8 @@ function MatchCenterInner({ data }: { data: Analytics }) {
     scoreA,
     scoreB,
   });
+  // the same match without clubs: how the players alone compare
+  const squadsOnly = previewMatch(data.engine, { teamA, teamB }).expectedA;
   const recent = useMemo(() => lastTeammates(data.parsed), [data.parsed]);
   const tonightKey = matchdayKey(new Date());
   const tonight = data.parsed.filter((m) => m.matchday === tonightKey);
@@ -665,7 +677,7 @@ function MatchCenterInner({ data }: { data: Analytics }) {
               </div>
               {teamA.length > 0 && teamB.length > 0 && (
                 <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-5">
-                  <WinProbability pA={preview.expectedA} withClubs={!!(clubAName && clubBName)} />
+                  <WinProbability squads={squadsOnly} clubs={clubAName && clubBName ? preview.expectedA : null} />
                 </motion.div>
               )}
             </Panel>
@@ -771,6 +783,7 @@ function MatchCenterInner({ data }: { data: Analytics }) {
               teams={[teamA, teamB]}
               records={recordA && recordB ? [recordA, recordB] : undefined}
               chance={teamA.length && teamB.length ? preview.expectedA : null}
+              squadsChance={teamA.length && teamB.length ? squadsOnly : null}
               note={clubHint}
               onReroll={pickClubs}
             />

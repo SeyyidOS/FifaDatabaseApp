@@ -14,7 +14,7 @@ import { useCards } from "../hooks/useData";
 import { useT } from "../hooks/useI18n";
 import { cn } from "../lib/cn";
 import { SLOTS, STATS, type RatedClub } from "../lib/clubModel";
-import { clubFinder, clubRecord, distinctGameName, referenceSeason, runModel } from "../lib/clubs";
+import { cardLine, clubFinder, clubRecord, distinctGameName, referenceSeason, runModel } from "../lib/clubs";
 import { clubStars, expectedScore } from "../lib/elo";
 import type { ParsedMatch } from "../lib/stats";
 import type { Club } from "../lib/types";
@@ -82,8 +82,10 @@ function OtherCards({ rated, game }: { rated: RatedClub; game: string }) {
           {rated.outside.map((c) => (
             <li key={c.id} className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-surface-2/60" title={c.fullName}>
               <CardFace game={game} card={c} size={32} />
-              <span className="min-w-0 flex-1 truncate text-sm font-medium">{c.name}</span>
-              <span className="text-xs font-semibold text-muted">{[c.pos, ...c.alt].join(" · ")}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{c.name}</span>
+                <span className="tabular block truncate text-xs font-semibold text-muted">{cardLine(c)}</span>
+              </span>
               <span className="tabular w-7 text-right font-display text-base font-bold">{c.ovr}</span>
             </li>
           ))}

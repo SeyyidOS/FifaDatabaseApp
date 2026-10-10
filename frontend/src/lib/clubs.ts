@@ -1,4 +1,4 @@
-import { rateClubs, sanitizeModel, type CardClub, type CardSet, type ModelResult } from "./clubModel";
+import { rateClubs, sanitizeModel, type Card, type CardClub, type CardSet, type ModelResult } from "./clubModel";
 import { addResult, emptyTally, outcomeForSide, type ParsedMatch, type Tally } from "./stats";
 import type { Club, Outcome, Season } from "./types";
 
@@ -80,3 +80,9 @@ export const clubPath = (name: string) => `/clubs/${encodeURIComponent(name)}`;
 /** Card face, served next to the app. */
 export const faceUrl = (game: string, id: number) =>
   `${import.meta.env.BASE_URL}games/${game.toLowerCase()}/faces/${id}.webp`;
+
+/** A card's pace; goalkeepers have no outfield stats. */
+export const pace = (card: Card): number | null => card.stats?.[0] ?? null;
+
+/** "PAC 86 · LB · CB · LM": a card's pace (first, so a long list of positions never hides it) and positions. */
+export const cardLine = (card: Card) => [...(pace(card) != null ? [`PAC ${pace(card)}`] : []), card.pos, ...card.alt].join(" · ");
