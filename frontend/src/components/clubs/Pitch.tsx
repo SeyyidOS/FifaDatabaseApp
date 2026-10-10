@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { cn } from "../../lib/cn";
 import type { BenchPlace, Card, ClubEvaluation, SlotKey } from "../../lib/clubModel";
-import { faceUrl } from "../../lib/clubs";
+import { faceUrl, pace } from "../../lib/clubs";
 import { defineMessages } from "../../lib/i18n";
 import { initials } from "../../lib/identity";
 import { useT } from "../../hooks/useI18n";
@@ -70,10 +70,9 @@ function PitchCard({ game, card, label, alt, slot, compact }: { game: string; ca
       <span className={cn("text-[9px] font-bold tracking-wide", alt ? "text-amber-300" : "text-white/60")}>
         {alt ? `${card.pos}→${label}` : label}
       </span>
-      {/* goalkeepers have no outfield stats */}
-      {card.stats?.[0] != null && (
+      {pace(card) != null && (
         <span className="tabular text-[9px] font-semibold text-white/85 sm:text-[10px]" title={t("pace")}>
-          PAC {card.stats[0]}
+          PAC {pace(card)}
         </span>
       )}
     </div>

@@ -5,7 +5,7 @@ import { useCards } from "../../hooks/useData";
 import { useT } from "../../hooks/useI18n";
 import { cn } from "../../lib/cn";
 import type { Card } from "../../lib/clubModel";
-import { referenceSeason, runModel, type ClubRecord } from "../../lib/clubs";
+import { cardLine, referenceSeason, runModel, type ClubRecord } from "../../lib/clubs";
 import { expectedScore } from "../../lib/elo";
 import { displayName } from "../../lib/format";
 import type { Season, Side } from "../../lib/types";
@@ -69,13 +69,32 @@ function OtherCards({ game, side, cards, className }: { game: string; side: Side
         {cards.map((c) => (
           <li key={c.id} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-surface-2" title={c.fullName}>
             <CardFace game={game} card={c} size={30} />
-            <span className="min-w-0 flex-1 truncate text-sm font-medium">{c.name}</span>
-            <span className="text-[11px] font-semibold whitespace-nowrap text-muted">{[c.pos, ...c.alt].join(" · ")}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium">{c.name}</span>
+              <span className="tabular block truncate text-[11px] font-semibold text-muted">{cardLine(c)}</span>
+            </span>
             <span className="tabular w-7 text-right font-display text-base font-bold">{c.ovr}</span>
           </li>
         ))}
         {!cards.length && <li className="px-2 py-3 text-center text-xs text-faint">—</li>}
       </ul>
+    </div>
+  );
+}
+
+/** Side A's chance as a split bar, with what it is based on above it. */
+function ChanceBar({ label, pA }: { label: string; pA: number }) {
+  return (
+    <div>
+      <p className="label mb-2 text-center text-balance">{label}</p>
+      <div className="grid grid-cols-[2.75rem_1fr_2.75rem] items-center gap-3">
+        <span className="display tabular text-xl text-team-a">{Math.round(pA * 100)}%</span>
+        <span className="flex h-2 gap-1 overflow-hidden rounded-full">
+          <span className="rounded-l-full bg-team-a" style={{ width: `${pA * 100}%` }} />
+          <span className="flex-1 rounded-r-full bg-team-b" />
+        </span>
+        <span className="display tabular text-right text-xl text-team-b">{100 - Math.round(pA * 100)}%</span>
+      </div>
     </div>
   );
 }
@@ -93,6 +112,7 @@ export function SquadsPreview({
   teams,
   records,
   chance,
+  squadsChance,
   note,
   onReroll,
 }: {
@@ -107,6 +127,8 @@ export function SquadsPreview({
   records?: [ClubRecord, ClubRecord];
   /** side A's win chance with these players and clubs; null when a side has no players yet */
   chance: number | null;
+  /** the same without the clubs: the players alone */
+  squadsChance?: number | null;
   /** how fair the last balanced pick was */
   note?: string | null;
   onReroll?: () => void;
@@ -154,14 +176,9 @@ export function SquadsPreview({
 
         {pA != null && (
           <div className="mt-3 rounded-2xl border border-line bg-surface-2/40 p-4">
-            <p className="label mb-2 text-center text-balance">{chance != null ? t("mcChance") : t("winChance")}</p>
-            <div className="grid grid-cols-[2.75rem_1fr_2.75rem] items-center gap-3">
-              <span className="display tabular text-xl text-team-a">{Math.round(pA * 100)}%</span>
-              <span className="flex h-2 gap-1 overflow-hidden rounded-full">
-                <span className="rounded-l-full bg-team-a" style={{ width: `${pA * 100}%` }} />
-                <span className="flex-1 rounded-r-full bg-team-b" />
-              </span>
-              <span className="display tabular text-right text-xl text-team-b">{100 - Math.round(pA * 100)}%</span>
+            <div className="grid gap-4 sm:grid-cols-2 sm:gap-8">
+              <ChanceBar label={chance != null ? t("mcChance") : t("winChance")} pA={pA} />
+              {squadsChance != null && <ChanceBar label={t("mcChanceSquads")} pA={squadsChance} />}
             </div>
             {note && <p className="mt-2 text-center text-[11px] text-faint">{note}</p>}
           </div>
