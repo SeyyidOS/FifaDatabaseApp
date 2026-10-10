@@ -459,6 +459,8 @@ def test_plans_only_hold_the_boards_active_players(api, board):
     assert plan(board, (["a", "b"], ["b", "c"])).status_code == 422  # twice in one match
     empty = {"rules": {}, "matches": []}
     assert board.api.put(board.url("/fixture"), json=empty, headers=board.member).status_code == 422
+    assert plan(board, *[(["a", "b"], ["c", "d"])] * 200).status_code == 200  # a long night
+    assert plan(board, *[(["a", "b"], ["c", "d"])] * 201).status_code == 422
     assert api.get(board.url("/fixture")).status_code == 401
 
     plan(board, (["a", "b"], ["c", "d"]))

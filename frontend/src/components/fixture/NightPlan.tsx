@@ -33,6 +33,9 @@ function Names({ names, align = "left" }: { names: string[]; align?: "left" | "r
   );
 }
 
+/** Highest value of each rule, as in the fc27-elo fixture tool. */
+const RULE_MAX = 20;
+
 function Counter({ label, value, min, max, onChange, format }: { label: string; value: number; min: number; max: number; onChange: (v: number) => void; format?: (v: number) => string }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface-2/60 py-1.5 pr-1.5 pl-3">
@@ -297,14 +300,14 @@ function Builder({ data, present, replacing, onDone }: { data: Analytics; presen
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2">
-        <Counter label={t("minPer")} value={rules.minPer} min={1} max={8} onChange={(v) => set("minPer", v)} />
-        <Counter label={t("maxStreak")} value={rules.maxStreak} min={1} max={6} onChange={(v) => set("maxStreak", v)} />
-        <Counter label={t("maxPartner")} value={rules.maxPartner} min={1} max={4} onChange={(v) => set("maxPartner", v)} />
+        <Counter label={t("minPer")} value={rules.minPer} min={1} max={RULE_MAX} onChange={(v) => set("minPer", v)} />
+        <Counter label={t("maxStreak")} value={rules.maxStreak} min={1} max={RULE_MAX} onChange={(v) => set("maxStreak", v)} />
+        <Counter label={t("maxPartner")} value={rules.maxPartner} min={1} max={RULE_MAX} onChange={(v) => set("maxPartner", v)} />
         <Counter
           label={t("partnerCap")}
           value={rules.partnerCap}
           min={0}
-          max={8}
+          max={RULE_MAX}
           onChange={(v) => set("partnerCap", v)}
           format={(v) => (v ? String(v) : "∞")}
         />
