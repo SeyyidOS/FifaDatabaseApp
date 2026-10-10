@@ -44,6 +44,8 @@ export interface Match {
   club_b: string;
   club_a_elo: number;
   club_b_elo: number;
+  /** the board's club weight when the match was entered */
+  club_weight: number;
   team_a: string[] | null;
   team_b: string[] | null;
   score_a: number;
@@ -84,6 +86,8 @@ export interface BoardInfo {
 export interface BoardMe extends BoardInfo {
   role: Role;
   kFactor: number;
+  /** how much a club's rating counts in a side's strength, for matches entered from now on */
+  clubWeight: number;
 }
 
 /** What sign-in and board creation return. */

@@ -103,7 +103,8 @@ def delete_player(player_id: int, request: Request, access: BoardAccess = Depend
 def list_matches(request: Request, access: BoardAccess = Depends(board_access)):
     return _db(request).fetch_all(
         """
-        SELECT m.id, m.time, m.season_id, m.club_a, m.club_b, m.club_a_elo, m.club_b_elo, m.score_a, m.score_b,
+        SELECT m.id, m.time, m.season_id, m.club_a, m.club_b, m.club_a_elo, m.club_b_elo, m.club_weight,
+               m.score_a, m.score_b,
                ARRAY_AGG(p.name ORDER BY mp.slot) FILTER (WHERE mp.side = 'A') AS team_a,
                ARRAY_AGG(p.name ORDER BY mp.slot) FILTER (WHERE mp.side = 'B') AS team_b
         FROM matches m
@@ -148,11 +149,13 @@ def add_match(match: MatchIn, request: Request, access: BoardAccess = Depends(bo
             return (row["name"], row["elo"]) if row else (name, elo.DEFAULT_CLUB_ELO)
 
         (club_a, club_a_elo), (club_b, club_b_elo) = club(match.clubA), club(match.clubB)
-        # the club ratings are kept with the match; time is stored as UTC whatever the server's time zone
+        # the club ratings and the board's club weight are kept with the match; time is stored as UTC
+        # whatever the server's time zone
         cur.execute(
             """
-            INSERT INTO matches (board_id, season_id, time, club_a, club_b, club_a_elo, club_b_elo, score_a, score_b)
-            SELECT id, active_season_id, NOW() AT TIME ZONE 'UTC', %s, %s, %s, %s, %s, %s
+            INSERT INTO matches
+                (board_id, season_id, time, club_a, club_b, club_a_elo, club_b_elo, score_a, score_b, club_weight)
+            SELECT id, active_season_id, NOW() AT TIME ZONE 'UTC', %s, %s, %s, %s, %s, %s, club_weight
             FROM boards WHERE id = %s RETURNING id
             """,
             (club_a, club_b, club_a_elo, club_b_elo, match.scoreA, match.scoreB, access.id),

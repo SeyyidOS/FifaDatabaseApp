@@ -1,7 +1,8 @@
 """Elo ratings, replayed from a board's full match history on every request.
 
-Each side's strength is its players' average rating plus half the rating its club had when the match
-was played (stored on the match, see seasons.py). The rating change
+Each side's strength is its players' average rating plus the rating its club had when the match was
+played times the board's club weight at the time (both stored on the match, see seasons.py; the
+weight defaults to 0.5, half the club). The rating change
 is K × (result − expected) × a multiplier that rewards wide margins and upsets; every player on a
 side gets the same change. The frontend mirrors this in frontend/src/lib/elo.ts: keep them in sync.
 """
@@ -37,8 +38,8 @@ def compute_ratings(player_ids: list[int], matches: list[dict], k_factor: int) -
     """{player_id: elo} after replaying `matches` (oldest first; teams are lists of player ids)."""
     ratings: dict[int, float] = {pid: float(INITIAL_ELO) for pid in player_ids}
 
-    def side_strength(ids: list[int], club_elo: int) -> float:
-        return sum(ratings[i] for i in ids) / len(ids) + club_elo / 2
+    def side_strength(ids: list[int], club_elo: int, club_weight: float) -> float:
+        return sum(ratings[i] for i in ids) / len(ids) + club_elo * club_weight
 
     for m in matches:
         team_a = [pid for pid in m["team_a"] or [] if pid in ratings]
@@ -46,8 +47,8 @@ def compute_ratings(player_ids: list[int], matches: list[dict], k_factor: int) -
         if not team_a or not team_b:
             continue
 
-        strength_a = side_strength(team_a, m["club_a_elo"])
-        strength_b = side_strength(team_b, m["club_b_elo"])
+        strength_a = side_strength(team_a, m["club_a_elo"], m["club_weight"])
+        strength_b = side_strength(team_b, m["club_b_elo"], m["club_weight"])
         exp_a = expected_score(strength_a, strength_b)
 
         score_a, score_b = int(m["score_a"] or 0), int(m["score_b"] or 0)
@@ -73,7 +74,7 @@ def board_ratings(db: Database, board_id: int, k_factor: int) -> dict[int, int]:
     players = db.fetch_all("SELECT id FROM players WHERE board_id = %s ORDER BY id", (board_id,))
     matches = db.fetch_all(
         """
-        SELECT m.club_a_elo, m.club_b_elo, m.score_a, m.score_b,
+        SELECT m.club_a_elo, m.club_b_elo, m.club_weight, m.score_a, m.score_b,
                ARRAY_AGG(mp.player_id ORDER BY mp.slot) FILTER (WHERE mp.side = 'A') AS team_a,
                ARRAY_AGG(mp.player_id ORDER BY mp.slot) FILTER (WHERE mp.side = 'B') AS team_b
         FROM matches m

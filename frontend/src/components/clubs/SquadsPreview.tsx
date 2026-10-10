@@ -113,6 +113,7 @@ export function SquadsPreview({
   records,
   chance,
   squadsChance,
+  clubWeight,
   note,
   onReroll,
 }: {
@@ -129,6 +130,8 @@ export function SquadsPreview({
   chance: number | null;
   /** the same without the clubs: the players alone */
   squadsChance?: number | null;
+  /** how much a club's rating counts here (the board's setting) */
+  clubWeight: number;
   /** how fair the last balanced pick was */
   note?: string | null;
   onReroll?: () => void;
@@ -144,7 +147,7 @@ export function SquadsPreview({
     return clubs.map((name) => result.rows.find((r) => same(r.club.name, name)) ?? null);
   }, [cards.data, season, seasons, clubs]);
   const elos = clubs.map((name) => season.clubs.find((c) => same(c.name, name))?.elo);
-  const pA = chance ?? (elos[0] != null && elos[1] != null ? expectedScore(elos[0] / 2, elos[1] / 2) : null);
+  const pA = chance ?? (elos[0] != null && elos[1] != null ? expectedScore(elos[0] * clubWeight, elos[1] * clubWeight) : null);
   const [ra, rb] = rated ?? [null, null];
 
   return (

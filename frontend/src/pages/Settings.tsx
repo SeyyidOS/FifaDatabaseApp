@@ -15,6 +15,7 @@ import {
   LogOut,
   PartyPopper,
   Pencil,
+  Scale,
   Search,
   ShieldCheck,
   Trash2,
@@ -39,7 +40,7 @@ import { getSession, removeSession, saveSession } from "../lib/session";
 import type { ParsedMatch } from "../lib/stats";
 import type { Player } from "../lib/types";
 import { useT } from "../hooks/useI18n";
-import { defineMessages } from "../lib/i18n";
+import { defineMessages, locale } from "../lib/i18n";
 import { common } from "../lib/messages";
 
 const msg = defineMessages({
@@ -129,6 +130,16 @@ const msg = defineMessages({
     memberDesc: "You're signed in as a member on this device.",
     ratings: "Ratings",
     ratingsSub: "The K-factor sets how far ratings move per match",
+    clubWeight: "Club weight",
+    clubWeightSub: "How much a club's rating adds to a side's strength",
+    clubWeightLabel: "Club weight",
+    clubWeightHow: "A side's strength is its players' average Elo + club rating × {w}. The win chance, balanced club picks and the Elo change of every match entered from now on use it. Matches already played keep the weight they were entered with, so nobody's rating changes.",
+    clubWeightExample: "{club} ({elo}) adds {add} to its side.",
+    clubWeightSet: "Club weight set to ×{w}",
+    clubWeightSetHint: "New matches use it; ratings so far stay as they are.",
+    clubWeightFailed: "Couldn't save the club weight",
+    playersOnly: "0 · no clubs",
+    clubsHeavy: "2 · clubs heavy",
     board: "Board",
     boardSub: "Name and passwords",
     version: "Live version {version}",
@@ -220,6 +231,16 @@ const msg = defineMessages({
     memberDesc: "Bu cihazda üye olarak girişlisin.",
     ratings: "Puanlama",
     ratingsSub: "K-faktörü, puanların maç başına ne kadar değişeceğini belirler",
+    clubWeight: "Kulüp ağırlığı",
+    clubWeightSub: "Kulüp puanının taraf gücüne ne kadar katılacağı",
+    clubWeightLabel: "Kulüp ağırlığı",
+    clubWeightHow: "Taraf gücü = oyuncuların Elo ortalaması + kulüp puanı × {w}. Kazanma ihtimali, dengeli kulüp seçimi ve bundan sonra girilen her maçın Elo değişimi buna göre hesaplanır. Önceden girilen maçlar girildikleri ağırlığı korur, kimsenin puanı değişmez.",
+    clubWeightExample: "{club} ({elo}) tarafına {add} katar.",
+    clubWeightSet: "Kulüp ağırlığı ×{w} oldu",
+    clubWeightSetHint: "Yeni maçlar bunu kullanır; şimdiye kadarki puanlar aynen kalır.",
+    clubWeightFailed: "Kulüp ağırlığı kaydedilemedi",
+    playersOnly: "0 · kulüpsüz",
+    clubsHeavy: "2 · kulüp ağır",
     board: "Board",
     boardSub: "Ad ve şifreler",
     version: "Canlıdaki sürüm {version}",
@@ -389,7 +410,7 @@ function KFactor({ data }: { data: Analytics }) {
 
   // what the table would look like at this K (all matches replayed, archived players included)
   const preview = useMemo(() => {
-    const engine = runElo(data.players, data.clubs, data.matches, k);
+    const engine = runElo(data.players, data.clubs, data.matches, k, data.clubWeight);
     const elo = (id: number) => Math.round(engine.ratings.get(id) ?? 1000);
     return [...data.ranking]
       .sort((a, b) => elo(b.id) - elo(a.id))
@@ -435,6 +456,68 @@ function KFactor({ data }: { data: Analytics }) {
         ))}
         {!preview.length && <p className="text-sm text-muted">{t("noPlayers")}</p>}
       </div>
+    </div>
+  );
+}
+
+/** The club weight for matches entered from now on, 0 to 2 in tenths like the fc27-elo tool; saved after a pause. */
+function ClubWeight({ data }: { data: Analytics }) {
+  const t = useT(msg);
+  const [w, setW] = useState(data.clubWeight);
+  const update = useUpdateBoard();
+  const dirty = w !== data.clubWeight;
+  const shown = (v: number) => v.toLocaleString(locale(), { minimumFractionDigits: 1 });
+
+  useEffect(() => {
+    if (!dirty) return;
+    const timer = setTimeout(() => {
+      update.mutate(
+        { clubWeight: w },
+        {
+          onSuccess: () => toast.success(t("clubWeightSet", { w: shown(w) }), { description: t("clubWeightSetHint") }),
+          onError: fail(t("clubWeightFailed")),
+        },
+      );
+    }, 700);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [w]);
+
+  // what that means for the strongest club of the season
+  const top = [...data.clubs].sort((a, b) => b.elo - a.elo)[0];
+  return (
+    <div>
+      <div className="flex items-center gap-5">
+        <span className="display tabular shrink-0 text-5xl text-accent-text">×{shown(w)}</span>
+        <div className="flex-1">
+          <input
+            type="range"
+            min={0}
+            max={2}
+            step={0.1}
+            value={w}
+            onChange={(e) => setW(Math.round(Number(e.target.value) * 10) / 10)}
+            className="range"
+            style={{ ["--fill" as string]: `${(w / 2) * 100}%` }}
+            aria-label={t("clubWeightLabel")}
+          />
+          <div className="mt-2 flex justify-between text-[11px] text-faint">
+            <span>{t("playersOnly")}</span>
+            <Pill tone={update.isPending ? "draw" : dirty ? "neutral" : "win"}>
+              {update.isPending ? t("saving") : dirty ? t("pending") : t("saved")}
+            </Pill>
+            <span>{t("clubsHeavy")}</span>
+          </div>
+        </div>
+      </div>
+      <div className="hairline my-5" />
+      <p className="text-sm text-muted">{t("clubWeightHow", { w: shown(w) })}</p>
+      {top && (
+        <p className="mt-2 flex items-center gap-2 text-sm">
+          <ClubCrest name={top.name} size="sm" />
+          {t("clubWeightExample", { club: top.name, elo: top.elo, add: Math.round(top.elo * w) })}
+        </p>
+      )}
     </div>
   );
 }
@@ -783,9 +866,14 @@ export default function Settings() {
                   </Section>
                 ) : (
                   <Section key="board" delay={0.05}>
-                    <Panel title={t("ratings")} subtitle={t("ratingsSub")} icon={<Gauge className="size-4" />}>
-                      <KFactor data={data} />
-                    </Panel>
+                    <div className="space-y-6">
+                      <Panel title={t("ratings")} subtitle={t("ratingsSub")} icon={<Gauge className="size-4" />}>
+                        <KFactor data={data} />
+                      </Panel>
+                      <Panel title={t("clubWeight")} subtitle={t("clubWeightSub")} icon={<Scale className="size-4" />}>
+                        <ClubWeight data={data} />
+                      </Panel>
+                    </div>
                   </Section>
                 )}
               </AnimatePresence>

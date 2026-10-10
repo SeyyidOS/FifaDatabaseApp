@@ -263,12 +263,26 @@ def v5_fixtures(cur: RealDictCursor) -> None:
     cur.execute(V5_FIXTURES)
 
 
+# How much a club's rating counts in a side's strength. A match keeps the board's weight from when it
+# was entered, like its club ratings, so changing the weight never rewrites history; the matches
+# played so far counted half the club.
+V6_CLUB_WEIGHT = """
+ALTER TABLE boards ADD COLUMN club_weight DOUBLE PRECISION NOT NULL DEFAULT 0.5;
+ALTER TABLE matches ADD COLUMN club_weight DOUBLE PRECISION NOT NULL DEFAULT 0.5;
+"""
+
+
+def v6_club_weight(cur: RealDictCursor) -> None:
+    cur.execute(V6_CLUB_WEIGHT)
+
+
 MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (1, v1_legacy),
     (2, v2_boards),
     (3, v3_seasons),
     (4, v4_club_model),
     (5, v5_fixtures),
+    (6, v6_club_weight),
 ]
 
 

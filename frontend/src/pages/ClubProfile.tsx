@@ -112,7 +112,8 @@ function Compare({
 }) {
   const t = useT(clubMessages);
   const ts = useT(slotMessages);
-  const pA = expectedScore(a.elo / 2, b.elo / 2);
+  // equal players: only the clubs differ, counted at the board's club weight
+  const pA = expectedScore(a.elo * data.clubWeight, b.elo * data.clubWeight);
   const meetings = data.parsed.filter(
     (m) => (same(m.clubA, a.name) && same(m.clubB, b.name)) || (same(m.clubA, b.name) && same(m.clubB, a.name)),
   );

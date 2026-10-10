@@ -46,7 +46,7 @@ import {
 } from "../lib/matchmaking";
 import type { Side } from "../lib/types";
 import { useT } from "../hooks/useI18n";
-import { defineMessages } from "../lib/i18n";
+import { defineMessages, locale } from "../lib/i18n";
 
 const msg = defineMessages({
   en: {
@@ -89,7 +89,7 @@ const msg = defineMessages({
     balance: "Balance by Elo",
     shuffle: "Shuffle teams",
     clubs: "Clubs",
-    clubsSub: "Balanced picks weigh squad Elo + half the club's rating",
+    clubsSub: "Balanced picks weigh squad Elo + club rating × {w}",
     seasonTip: "Club ratings of {season}, the active season",
     squadsCta: "Compare the squads",
     squadsCtaSub: "Best elevens, substitutes and the win chance · nothing changes",
@@ -147,7 +147,7 @@ const msg = defineMessages({
     balance: "Elo'ya göre dengele",
     shuffle: "Takımları karıştır",
     clubs: "Kulüpler",
-    clubsSub: "Dengeli seçim, kadro Elo'su + kulüp puanının yarısına bakar",
+    clubsSub: "Dengeli seçim, kadro Elo'su + kulüp puanı × {w} toplamına bakar",
     seasonTip: "Aktif sezon {season} kulüp puanları",
     squadsCta: "Kadroları karşılaştır",
     squadsCtaSub: "En iyi 11'ler, yedekler ve kazanma ihtimali · seçimin değişmez",
@@ -521,6 +521,7 @@ function MatchCenterInner({ data }: { data: Analytics }) {
       teamAverage(teamA, data.eloByName),
       teamAverage(teamB, data.eloByName),
       margin,
+      data.clubWeight,
       clubA?.kind === "club" && clubB?.kind === "club" ? { a: clubA.id, b: clubB.id } : undefined,
     );
     if (!pick) return;
@@ -691,7 +692,7 @@ function MatchCenterInner({ data }: { data: Analytics }) {
                   <StepDot n={2} done={!!(clubAName && clubBName)} /> {t("clubs")}
                 </span>
               }
-              subtitle={t("clubsSub")}
+              subtitle={t("clubsSub", { w: data.clubWeight.toLocaleString(locale(), { minimumFractionDigits: 1 }) })}
               action={
                 data.season && (
                   <span title={t("seasonTip", { season: data.season.name })}>
@@ -784,6 +785,7 @@ function MatchCenterInner({ data }: { data: Analytics }) {
               records={recordA && recordB ? [recordA, recordB] : undefined}
               chance={teamA.length && teamB.length ? preview.expectedA : null}
               squadsChance={teamA.length && teamB.length ? squadsOnly : null}
+              clubWeight={data.clubWeight}
               note={clubHint}
               onReroll={pickClubs}
             />

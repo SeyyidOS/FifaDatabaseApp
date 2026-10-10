@@ -15,7 +15,13 @@ def test_creating_a_board_signs_the_creator_in_as_admin(api):
     body = created.json()
     assert (body["slug"], body["name"], body["role"]) == ("kerem-in-cocuklari", "Kerem'in Çocukları", "admin")
     me = api.get("/boards/kerem-in-cocuklari/me", headers={"Authorization": f"Bearer {body['token']}"})
-    assert me.json() == {"slug": "kerem-in-cocuklari", "name": "Kerem'in Çocukları", "role": "admin", "kFactor": 24}
+    assert me.json() == {
+        "slug": "kerem-in-cocuklari",
+        "name": "Kerem'in Çocukları",
+        "role": "admin",
+        "kFactor": 24,
+        "clubWeight": 0.5,
+    }
     assert api.get("/boards/kerem-in-cocuklari").json() == {"slug": "kerem-in-cocuklari", "name": "Kerem'in Çocukları"}
 
 
@@ -80,6 +86,7 @@ def test_members_cannot_use_admin_actions(board):
     assert board.api.delete(board.url("/matches/1"), headers=board.member).status_code == 403
     assert board.api.patch(board.url("/players/1"), json={"archived": True}, headers=board.member).status_code == 403
     assert board.api.patch(board.url(""), json={"kFactor": 30}, headers=board.member).status_code == 403
+    assert board.api.patch(board.url(""), json={"clubWeight": 1}, headers=board.member).status_code == 403
 
 
 def test_settings_and_password_changes(board):
@@ -87,6 +94,13 @@ def test_settings_and_password_changes(board):
     renamed = api.patch(board.url(""), json={"name": "New Name", "kFactor": 30}, headers=board.admin)
     assert renamed.json()["kFactor"] == 30
     assert api.get(board.url("/me"), headers=board.member).json()["name"] == "New Name"
+
+    # the club weight: 0 to 2 in tenths
+    assert api.patch(board.url(""), json={"clubWeight": 0.3}, headers=board.admin).json()["clubWeight"] == 0.3
+    assert api.get(board.url("/me"), headers=board.member).json()["clubWeight"] == 0.3
+    assert api.patch(board.url(""), json={"clubWeight": 1.26}, headers=board.admin).json()["clubWeight"] == 1.3
+    assert api.patch(board.url(""), json={"clubWeight": 2.5}, headers=board.admin).status_code == 422
+    assert api.patch(board.url(""), json={"clubWeight": -0.1}, headers=board.admin).status_code == 422
 
     # a new board password signs members out; admins stay signed in
     assert api.patch(board.url(""), json={"password": ADMIN_PW}, headers=board.admin).status_code == 422
@@ -208,6 +222,26 @@ def test_elo_survives_custom_and_repeated_clubs(board):
     ratings = {r["playerId"]: r["elo"] for r in response.json()["ratings"]}
     assert ratings[1] > 1000 > ratings[2]
     assert ratings[1] + ratings[2] in (1999, 2000, 2001)  # zero-sum up to rounding
+
+
+def test_matches_keep_the_club_weight_they_were_entered_with(board):
+    api = board.api
+    board.add_players("a", "b")
+    board.add_match(["a"], ["b"], 2, 1, "Arsenal", "Chelsea")
+
+    def elo():
+        return {r["playerId"]: r["elo"] for r in api.get(board.url("/elo"), headers=board.member).json()["ratings"]}
+
+    before = elo()
+
+    # a new weight leaves the matches already played alone ...
+    assert api.patch(board.url(""), json={"clubWeight": 1.5}, headers=board.admin).status_code == 200
+    assert elo() == before
+    # ... and goes with the next one
+    board.add_match(["b"], ["a"], 1, 1, "Arsenal", "Chelsea")
+    played = api.get(board.url("/matches"), headers=board.member).json()
+    assert [m["club_weight"] for m in played] == [1.5, 0.5]  # newest first
+    assert elo() != before
 
 
 # ----------- Seasons & clubs -----------

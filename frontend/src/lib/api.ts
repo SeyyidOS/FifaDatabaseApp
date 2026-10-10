@@ -88,7 +88,7 @@ export function boardApi(slug: string, token: string) {
   };
   return {
     me: () => call<BoardMe>("/me"),
-    update: (changes: { name?: string; kFactor?: number; password?: string; adminPassword?: string }) =>
+    update: (changes: { name?: string; kFactor?: number; clubWeight?: number; password?: string; adminPassword?: string }) =>
       call<BoardMe & { token?: string }>("", json("PATCH", changes)),
 
     players: () => call<Player[]>("/players"),
