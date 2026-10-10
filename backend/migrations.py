@@ -276,6 +276,24 @@ def v6_club_weight(cur: RealDictCursor) -> None:
     cur.execute(V6_CLUB_WEIGHT)
 
 
+# Photos of a match (photos.py); the images themselves are files in PHOTO_DIR, named by `file`.
+V7_MATCH_PHOTOS = """
+CREATE TABLE match_photos (
+    id SERIAL PRIMARY KEY,
+    match_id INT NOT NULL REFERENCES matches (id) ON DELETE CASCADE,
+    file VARCHAR(40) UNIQUE NOT NULL,
+    width INT NOT NULL,
+    height INT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX match_photos_match_idx ON match_photos (match_id);
+"""
+
+
+def v7_match_photos(cur: RealDictCursor) -> None:
+    cur.execute(V7_MATCH_PHOTOS)
+
+
 MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (1, v1_legacy),
     (2, v2_boards),
@@ -283,6 +301,7 @@ MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (4, v4_club_model),
     (5, v5_fixtures),
     (6, v6_club_weight),
+    (7, v7_match_photos),
 ]
 
 

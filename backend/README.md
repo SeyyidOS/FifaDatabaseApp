@@ -11,8 +11,9 @@ standings, K-factor and club ratings. On startup the API applies pending schema 
 | `board_data.py`  | a board's players, matches, ratings and standings                           |
 | `seasons.py`     | a board's seasons and their club ratings (by hand or from a card model)     |
 | `fixtures.py`    | the night's plan: who plays with and against whom, in order                 |
+| `photos.py`      | photos of a match (the stats screens), stored as files in `PHOTO_DIR`       |
 | `auth.py`        | password hashing, signed device tokens, rate limits, access checks          |
-| `migrations.py`  | versioned schema changes (v2 boards … v5 plans, v6 club weight)             |
+| `migrations.py`  | versioned schema changes (v2 boards … v6 club weight, v7 match photos)      |
 | `db.py`          | connection pool (recovers after database restarts) and transactions         |
 | `schemas.py`     | request validation                                                          |
 | `elo.py`         | Elo replay (mirrored in `frontend/src/lib/elo.ts`)                          |
@@ -58,6 +59,17 @@ season: every club keeps its EA id, the model's rating and an admin's correction
 match is recorded, the first unplayed, unskipped planned match with the same two sides is ticked off;
 deleting the match opens it again.
 
+## Match photos
+
+`POST /boards/{slug}/matches/{id}/photos` takes one image as the request body (JPEG, PNG or WebP, up
+to 12 MB, at most 10 per match; the app shrinks phone photos first). It is turned upright, stripped of
+its metadata (camera, location) and stored twice as WebP in `PHOTO_DIR`: up to 2560 px on the long
+side, so the stats stay readable for people and for OCR later, and a 480 px thumbnail.
+`GET /boards/{slug}/photos/{id}?size=full|thumb` returns the image (it needs the board token like
+everything else), `GET …/matches/{id}/photos` lists a match's photos and `DELETE /boards/{slug}/photos/{id}`
+removes one; anyone on the board may add or remove photos, since they change no result. `GET /matches`
+lists each match's photo IDs, and deleting a match deletes its photos.
+
 ## Configuration
 
 | Variable                      | Default           | Meaning                                                           |
@@ -69,6 +81,7 @@ deleting the match opens it again.
 | `LEGACY_BOARD_PASSWORD`, `LEGACY_BOARD_ADMIN_PASSWORD` | random, logged | first passwords of `main` when upgrading an old database |
 | `APP_TIMEZONE`                | `Europe/Istanbul` | which midnight the leaderboard `start_time` refers to             |
 | `CORS_ORIGINS`                | `*`               | comma-separated origins allowed to call the API from a browser    |
+| `PHOTO_DIR`                   | `photos`          | folder for match photos (must be writable by the API)             |
 
 A `.env` file next to `main.py` is read too.
 

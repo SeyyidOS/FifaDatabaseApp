@@ -6,6 +6,7 @@ import type {
   ClubStanding,
   DuoStanding,
   Match,
+  MatchPhoto,
   NewMatch,
   NightPlan,
   Player,
@@ -30,9 +31,15 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init: RequestInit = {}, token?: string): Promise<T> {
+async function request<T>(
+  path: string,
+  init: RequestInit = {},
+  token?: string,
+  read: (res: Response) => Promise<T> = (res) => res.json(),
+): Promise<T> {
   const headers: Record<string, string> = {};
-  if (init.body) headers["Content-Type"] = "application/json";
+  // a Blob (a photo) is sent as itself, with its own type
+  if (init.body && !(init.body instanceof Blob)) headers["Content-Type"] = "application/json";
   if (token) headers.Authorization = `Bearer ${token}`;
   let res: Response;
   try {
@@ -53,7 +60,7 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string):
     }
     throw new ApiError(res.status, detail || `Request failed (${res.status})`);
   }
-  return res.json() as Promise<T>;
+  return read(res);
 }
 
 const json = (method: string, body?: unknown): RequestInit => ({
@@ -77,9 +84,9 @@ export type BoardApi = ReturnType<typeof boardApi>;
 /** Endpoints of one board, called with this device's token for it. */
 export function boardApi(slug: string, token: string) {
   const base = `/boards/${encodeURIComponent(slug)}`;
-  const call = async <T>(path: string, init?: RequestInit): Promise<T> => {
+  const call = async <T>(path: string, init?: RequestInit, read?: (res: Response) => Promise<T>): Promise<T> => {
     try {
-      return await request<T>(`${base}${path}`, init, token);
+      return await request<T>(`${base}${path}`, init, token, read);
     } catch (e) {
       // a rejected token (password changed, board gone) means signing in again
       if (e instanceof ApiError && e.status === 401) removeSession(slug, token);
@@ -100,6 +107,11 @@ export function boardApi(slug: string, token: string) {
     matches: () => call<Match[]>("/matches"),
     addMatch: (match: NewMatch) => call<{ message: string; id: number }>("/matches", json("POST", match)),
     deleteMatch: (id: number) => call<{ message: string }>(`/matches/${id}`, json("DELETE")),
+    addPhoto: (matchId: number, image: Blob) =>
+      call<MatchPhoto>(`/matches/${matchId}/photos`, { method: "POST", body: image }),
+    /** the image itself; it needs this device's token, so it can't be a plain <img src> */
+    photo: (id: number, size: "full" | "thumb") => call<Blob>(`/photos/${id}?size=${size}`, {}, (res) => res.blob()),
+    deletePhoto: (id: number) => call<{ message: string }>(`/photos/${id}`, json("DELETE")),
 
     seasons: () => call<Season[]>("/seasons"),
     createSeason: (body: { name: string; copyFrom?: number }) => call<Season>("/seasons", json("POST", body)),

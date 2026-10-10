@@ -16,6 +16,8 @@ export interface ParsedMatch {
   scoreB: number;
   /** Winning side, or "D" for a draw. */
   result: Side | "D";
+  /** IDs of the match's photos, oldest first */
+  photos: number[];
 }
 
 /** Newest first. */
@@ -38,6 +40,7 @@ export function parseMatches(matches: Match[]): ParsedMatch[] {
         scoreA,
         scoreB,
         result: scoreA > scoreB ? "A" : scoreB > scoreA ? "B" : "D",
+        photos: m.photos ?? [],
       } satisfies ParsedMatch;
     })
     .sort((a, b) => b.date.getTime() - a.date.getTime() || b.id - a.id);

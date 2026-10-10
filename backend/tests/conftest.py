@@ -1,4 +1,5 @@
 import os
+import tempfile
 from urllib.parse import urlsplit, urlunsplit
 
 import psycopg2
@@ -24,7 +25,7 @@ def _require_test_database() -> str:
 @pytest.fixture(scope="session")
 def client():
     _require_test_database()
-    os.environ.update(ADMIN_KEY=ADMIN_KEY, SECRET_KEY="test-secret")
+    os.environ.update(ADMIN_KEY=ADMIN_KEY, SECRET_KEY="test-secret", PHOTO_DIR=tempfile.mkdtemp(prefix="fifa-photos-"))
     from main import app
 
     with TestClient(app) as c:
