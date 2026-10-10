@@ -125,7 +125,8 @@ class FixtureIn(BaseModel):
     """A night's plan: the rules it was made with (kept for display) and the matches in order."""
 
     rules: dict
-    matches: list[PlannedMatch] = Field(min_length=1, max_length=80)
+    # 20 matches each, the most the planner asks for, fits 40 players
+    matches: list[PlannedMatch] = Field(min_length=1, max_length=200)
 
     @model_validator(mode="after")
     def small_rules(self) -> "FixtureIn":
