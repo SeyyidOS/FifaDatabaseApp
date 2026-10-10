@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import type { CardSet } from "../lib/clubModel";
+import { shrinkPhoto } from "../lib/photos";
 import { updateSession } from "../lib/session";
 import type { NewMatch } from "../lib/types";
 import { useBoard } from "./useBoard";
@@ -126,6 +128,54 @@ export function useAddMatch() {
 export function useDeleteMatch() {
   const { api } = useBoard();
   return useBoardMutation((id: number) => api.deleteMatch(id), ["matches", "leaderboard", "seasons", "plan"]);
+}
+
+/**
+ * Shrinks and sends photos to a match one at a time (phones on a slow link), then refreshes the matches
+ * once. Resolves with how many were stored and the first error, if any.
+ */
+export function useUploadPhotos() {
+  const { slug, api } = useBoard();
+  const qc = useQueryClient();
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const upload = async (matchId: number, files: File[]) => {
+    let stored = 0;
+    let error: Error | null = null;
+    setProgress({ done: 0, total: files.length });
+    try {
+      for (const [i, file] of files.entries()) {
+        try {
+          await api.addPhoto(matchId, await shrinkPhoto(file));
+          stored++;
+        } catch (e) {
+          error ??= e as Error;
+        }
+        setProgress({ done: i + 1, total: files.length });
+      }
+    } finally {
+      setProgress(null);
+      if (stored) await qc.invalidateQueries({ queryKey: boardKey(slug, "matches") });
+    }
+    return { stored, error };
+  };
+  return { upload, progress };
+}
+
+export function useDeletePhoto() {
+  const { api } = useBoard();
+  return useBoardMutation((id: number) => api.deletePhoto(id), ["matches"]);
+}
+
+/** A photo's image; it never changes under its ID, so it is kept for the whole visit. */
+export function usePhotoBlob(id: number, size: "full" | "thumb") {
+  const { slug, api } = useBoard();
+  return useQuery({
+    queryKey: boardKey(slug, "photo", id, size),
+    queryFn: () => api.photo(id, size),
+    staleTime: Infinity,
+    gcTime: 30 * 60_000,
+    retry: 1,
+  });
 }
 
 export function useCreateSeason() {

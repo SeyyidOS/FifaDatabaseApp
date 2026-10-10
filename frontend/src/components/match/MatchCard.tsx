@@ -8,6 +8,7 @@ import type { Side } from "../../lib/types";
 import { Avatar, ClubCrest } from "../ui/Identity";
 import { Delta, OutcomeBadge, Pill } from "../ui/primitives";
 import { BoardLink } from "../board/BoardLink";
+import { MatchPhotosButton } from "./MatchPhotos";
 import { useT } from "../../hooks/useI18n";
 import { defineMessages } from "../../lib/i18n";
 
@@ -61,6 +62,7 @@ export function MatchCard({
   elo,
   perspective,
   showTime = true,
+  canAddPhotos,
   className,
 }: {
   match: ParsedMatch;
@@ -68,6 +70,8 @@ export function MatchCard({
   /** Player whose result (W/D/L) should be highlighted. */
   perspective?: string;
   showTime?: boolean;
+  /** offer adding photos to a match that has none (its photos show either way) */
+  canAddPhotos?: boolean;
   className?: string;
 }) {
   const t = useT(m);
@@ -107,6 +111,7 @@ export function MatchCard({
             </Pill>
           )}
         </div>
+        <MatchPhotosButton match={match} canAdd={canAddPhotos} />
       </div>
       <SideBlock side="B" match={match} elo={elo} align="right" />
     </div>

@@ -50,6 +50,17 @@ export interface Match {
   team_b: string[] | null;
   score_a: number;
   score_b: number;
+  /** IDs of the match's photos (e.g. the stats screens), oldest first */
+  photos?: number[];
+}
+
+/** A photo stored with a match; the image itself comes from `BoardApi.photo`. */
+export interface MatchPhoto {
+  id: number;
+  matchId: number;
+  width: number;
+  height: number;
+  createdAt: string;
 }
 
 export interface NewMatch {

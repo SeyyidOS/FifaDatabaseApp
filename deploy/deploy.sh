@@ -153,6 +153,11 @@ if [ "$(docker inspect --format '{{.State.Running}}' fifa_db 2>/dev/null)" = tru
     echo "==> backing up the database before anything changes: $(backup)"
 fi
 
+# match photos are files (backend/photos.py), written by the API's user on an otherwise read-only container
+mkdir -p "$BASE/photos"
+chown 10001:10001 "$BASE/photos"
+chmod 700 "$BASE/photos"
+
 echo "==> building images and (re)starting fifa_db, fifa_api, fifa_web"
 "${COMPOSE[@]}" up -d --build
 wait_healthy fifa_api

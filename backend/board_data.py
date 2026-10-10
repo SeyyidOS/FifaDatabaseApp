@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 import elo
 import fixtures
 import leaderboard
+import photos
 from auth import BoardAccess, board_access, board_admin
 from schemas import MatchIn, PlayerIn, PlayerUpdate
 
@@ -106,7 +107,8 @@ def list_matches(request: Request, access: BoardAccess = Depends(board_access)):
         SELECT m.id, m.time, m.season_id, m.club_a, m.club_b, m.club_a_elo, m.club_b_elo, m.club_weight,
                m.score_a, m.score_b,
                ARRAY_AGG(p.name ORDER BY mp.slot) FILTER (WHERE mp.side = 'A') AS team_a,
-               ARRAY_AGG(p.name ORDER BY mp.slot) FILTER (WHERE mp.side = 'B') AS team_b
+               ARRAY_AGG(p.name ORDER BY mp.slot) FILTER (WHERE mp.side = 'B') AS team_b,
+               ARRAY(SELECT ph.id FROM match_photos ph WHERE ph.match_id = m.id ORDER BY ph.id) AS photos
         FROM matches m
         LEFT JOIN match_players mp ON mp.match_id = m.id
         LEFT JOIN players p ON p.id = mp.player_id
@@ -176,8 +178,14 @@ def add_match(match: MatchIn, request: Request, access: BoardAccess = Depends(bo
 
 @router.delete("/matches/{match_id}")
 def delete_match(match_id: int, request: Request, access: BoardAccess = Depends(board_admin)):
-    if _db(request).execute("DELETE FROM matches WHERE id = %s AND board_id = %s", (match_id, access.id)) == 0:
-        raise HTTPException(status_code=404, detail=f"No match with ID {match_id}")
+    with _db(request).transaction() as cur:
+        cur.execute("SELECT file FROM match_photos WHERE match_id = %s", (match_id,))
+        files = [r["file"] for r in cur.fetchall()]
+        cur.execute("DELETE FROM matches WHERE id = %s AND board_id = %s", (match_id, access.id))
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail=f"No match with ID {match_id}")
+    # its photos went with it
+    photos.remove_files(files)
     return {"message": f"Match {match_id} deleted."}
 
 

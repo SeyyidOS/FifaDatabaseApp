@@ -25,11 +25,13 @@ import { planMessages } from "../components/fixture/messages";
 import { DataGate } from "../components/DataGate";
 import { PageHeader } from "../components/layout/AppShell";
 import { MatchCard } from "../components/match/MatchCard";
+import { PhotoPicker } from "../components/match/MatchPhotos";
+import { photoMessages } from "../components/match/messages";
 import { ClubPicker } from "../components/ui/ClubPicker";
 import { Avatar, ClubCrest } from "../components/ui/Identity";
 import { Button, Delta, EmptyState, Panel, Pill, Segmented, Switch } from "../components/ui/primitives";
 import type { Analytics } from "../hooks/analytics-context";
-import { useAddMatch } from "../hooks/useData";
+import { useAddMatch, useUploadPhotos } from "../hooks/useData";
 import { useBoard } from "../hooks/useBoard";
 import { useSessionState } from "../hooks/useSessionState";
 import { choiceName, type ClubChoice } from "../lib/clubChoice";
@@ -459,8 +461,12 @@ function MatchCenterInner({ data }: { data: Analytics }) {
   const [scoreB, setScoreB] = useSessionState(`${slug}:mc-score-b`, 0);
   const [clubHint, setClubHint] = useState<string | null>(null);
   const [squads, setSquads] = useState(false);
+  // photos picked for the result being entered; sent once the match is saved
+  const [photos, setPhotos] = useState<File[]>([]);
   const tp = useT(planMessages);
+  const tph = useT(photoMessages);
   const addMatch = useAddMatch();
+  const { upload: uploadPhotos, progress: photoProgress } = useUploadPhotos();
 
   const teamA = teamARaw.filter((n) => allNames.includes(n));
   const teamB = teamBRaw.filter((n) => allNames.includes(n));
@@ -566,6 +572,7 @@ function MatchCenterInner({ data }: { data: Analytics }) {
     setScoreA(0);
     setScoreB(0);
     setClubHint(null);
+    setPhotos([]);
   };
 
   const problem = !teamA.length || !teamB.length
@@ -577,8 +584,9 @@ function MatchCenterInner({ data }: { data: Analytics }) {
   const submit = async () => {
     if (problem) return;
     const result: Side | "D" = scoreA > scoreB ? "A" : scoreB > scoreA ? "B" : "D";
+    let saved: { id: number };
     try {
-      await addMatch.mutateAsync({ clubA: clubAName, clubB: clubBName, teamA, teamB, scoreA, scoreB });
+      saved = await addMatch.mutateAsync({ clubA: clubAName, clubB: clubBName, teamA, teamB, scoreA, scoreB });
       burst(result);
       const winners = result === "A" ? teamA : result === "B" ? teamB : null;
       const d = result === "A" ? preview.deltaA : result === "B" ? preview.deltaB : preview.deltaA;
@@ -592,7 +600,15 @@ function MatchCenterInner({ data }: { data: Analytics }) {
       setScoreB(0);
     } catch (e) {
       toast.error(t("saveFailed"), { description: (e as Error).message });
+      return;
     }
+    if (!photos.length) return;
+    // the result is in; a photo that fails can be added again from the match
+    const picked = photos;
+    setPhotos([]);
+    const { stored, error } = await uploadPhotos(saved.id, picked);
+    if (stored) toast.success(tph("stored", { n: stored }));
+    if (error) toast.error(tph("failed"), { description: error.message });
   };
 
   const filledSteps = [teamA.length && teamB.length, clubAName && clubBName].filter(Boolean).length;
@@ -831,11 +847,16 @@ function MatchCenterInner({ data }: { data: Analytics }) {
                     {t("multiplier", { x: preview.multiplier.toFixed(2) })}
                   </p>
                 )}
+                <PhotoPicker
+                  files={photos}
+                  onChange={setPhotos}
+                  busy={photoProgress ? tph("uploading", photoProgress) : null}
+                />
                 <Button
                   variant="primary"
                   size="lg"
                   className="mt-2 w-full"
-                  disabled={!!problem}
+                  disabled={!!problem || !!photoProgress}
                   loading={addMatch.isPending}
                   onClick={submit}
                 >
@@ -854,7 +875,7 @@ function MatchCenterInner({ data }: { data: Analytics }) {
               {tonight.length ? (
                 <div className="space-y-2">
                   {tonight.map((m) => (
-                    <MatchCard key={m.id} match={m} elo={data.engine.perMatch.get(m.id)} className="shadow-none" />
+                    <MatchCard key={m.id} match={m} elo={data.engine.perMatch.get(m.id)} className="shadow-none" canAddPhotos />
                   ))}
                 </div>
               ) : (

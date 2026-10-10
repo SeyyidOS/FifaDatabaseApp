@@ -6,7 +6,7 @@ Runs FIFA Manager on this server behind the shared Caddy proxy (the one that ser
 | Container  | What it is                                                     | Networks                      |
 |------------|-----------------------------------------------------------------|-------------------------------|
 | `fifa_web` | nginx: the built React app and the `/api` proxy                 | `mlflow_net`, `fifa_internal` |
-| `fifa_api` | the FastAPI backend (`backend/`)                                | `fifa_internal` (no internet) |
+| `fifa_api` | the FastAPI backend (`backend/`); match photos in `/root/programs/fifa-app/photos` | `fifa_internal` (no internet) |
 | `fifa_db`  | Postgres 16, data in `/root/programs/fifa-app/pgdata`           | `fifa_internal` (no internet) |
 
 ```bash
@@ -72,3 +72,8 @@ To stop publishing for a while: `systemctl stop fifa-auto-deploy.timer` (`start`
 back to an older commit, revert it on `main` through a pull request; restoring the database from
 `backups/` is manual (`gunzip -c FILE | docker exec -i fifa_db psql -U fifa -d fifa_db` into an
 empty database).
+
+Match photos are files in `photos/` (owned by the API's user, uid 10001), not in the database, so the
+dumps in `backups/` stay small and don't include them. Deploys never touch that folder. Only uploads to
+`/api/boards/*/matches/*/photos` may be larger than 64 KB (up to 12 MB), in `Caddyfile.fifa` and in the
+web container's nginx.

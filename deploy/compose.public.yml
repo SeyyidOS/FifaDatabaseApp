@@ -48,13 +48,18 @@ services:
       # the commit being published (deploy/auto-deploy.sh), shown by /health and in Settings
       APP_VERSION: ${APP_VERSION:-manual}
       CORS_ORIGINS: https://fifa.173.249.40.69.sslip.io
+      PHOTO_DIR: /data/photos
+    volumes:
+      # match photos; not part of the database backups
+      - ${FIFA_BASE:-/root/programs/fifa-app}/photos:/data/photos
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)"]
       interval: 30s
       timeout: 5s
       start_period: 10s
       retries: 3
-    mem_limit: 256m
+    # photos are decoded in memory while they are shrunk
+    mem_limit: 384m
     cpus: 1.0
     pids_limit: 128
     read_only: true
