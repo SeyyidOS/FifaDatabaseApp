@@ -8,8 +8,8 @@ import { useT } from "../../hooks/useI18n";
 import { slotMessages } from "./messages";
 
 const m = defineMessages({
-  en: { altPos: "{name} plays out of position: {pos} → {slot}", empty: "No {slot} in the squad", bench: "Substitutes" },
-  tr: { altPos: "{name} yan mevkide: {pos} → {slot}", empty: "Kadroda {slot} yok", bench: "Yedekler" },
+  en: { altPos: "{name} plays out of position: {pos} → {slot}", empty: "No {slot} in the squad", bench: "Substitutes", pace: "Pace" },
+  tr: { altPos: "{name} yan mevkide: {pos} → {slot}", empty: "Kadroda {slot} yok", bench: "Yedekler", pace: "Hız" },
 });
 
 const QUALITY: Record<string, string> = {
@@ -70,6 +70,12 @@ function PitchCard({ game, card, label, alt, slot, compact }: { game: string; ca
       <span className={cn("text-[9px] font-bold tracking-wide", alt ? "text-amber-300" : "text-white/60")}>
         {alt ? `${card.pos}→${label}` : label}
       </span>
+      {/* goalkeepers have no outfield stats */}
+      {card.stats?.[0] != null && (
+        <span className="tabular text-[9px] font-semibold text-white/85 sm:text-[10px]" title={t("pace")}>
+          PAC {card.stats[0]}
+        </span>
+      )}
     </div>
   );
 }
