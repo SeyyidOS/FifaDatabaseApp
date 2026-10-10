@@ -25,23 +25,36 @@ export function runModel(cards: CardSet, model: unknown, reference: Season | nul
   return rateClubs(cards, sanitizeModel(model, !!reference), (c) => find?.(c)?.elo ?? null);
 }
 
+/** One match played with a club, seen from that club's side. */
+export interface ClubGame {
+  date: Date;
+  opponent: string;
+  gf: number;
+  ga: number;
+}
+
 export interface ClubRecord extends Tally {
   /** most recent first */
   outcomes: Outcome[];
+  /** the matches behind `outcomes`, in the same order */
+  games: ClubGame[];
 }
 
 /** How the group has done with a club (a club on both sides of a match counts for neither). */
 export function clubRecord(parsed: ParsedMatch[], name: string): ClubRecord {
   const key = name.toLowerCase();
-  const rec: ClubRecord = { ...emptyTally(), outcomes: [] };
+  const rec: ClubRecord = { ...emptyTally(), outcomes: [], games: [] };
   for (const m of parsed) {
     const a = m.clubA.toLowerCase() === key;
     const b = m.clubB.toLowerCase() === key;
     if (a === b) continue;
     const side = a ? "A" : "B";
     const o = outcomeForSide(m, side);
-    addResult(rec, o, side === "A" ? m.scoreA : m.scoreB, side === "A" ? m.scoreB : m.scoreA);
+    const gf = side === "A" ? m.scoreA : m.scoreB;
+    const ga = side === "A" ? m.scoreB : m.scoreA;
+    addResult(rec, o, gf, ga);
     rec.outcomes.push(o);
+    rec.games.push({ date: m.date, opponent: side === "A" ? m.clubB : m.clubA, gf, ga });
   }
   return rec;
 }
