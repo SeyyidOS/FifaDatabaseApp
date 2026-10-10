@@ -27,6 +27,8 @@ BoardName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2
 Password = Annotated[str, StringConstraints(min_length=6, max_length=128)]
 Score = Annotated[int, Field(ge=0, le=99)]
 KFactor = Annotated[int, Field(ge=8, le=64)]
+# in steps of 0.1, like the fc27-elo tool
+ClubWeight = Annotated[float, Field(ge=0, le=2), AfterValidator(lambda w: round(w, 1))]
 
 
 class BoardCreate(BaseModel):
@@ -48,6 +50,7 @@ class Login(BaseModel):
 class BoardUpdate(BaseModel):
     name: BoardName | None = None
     kFactor: KFactor | None = None
+    clubWeight: ClubWeight | None = None
     password: Password | None = None
     adminPassword: Password | None = None
 

@@ -39,6 +39,7 @@ def test_legacy_database_becomes_the_main_board(scratch_database, monkeypatch):
     with psycopg2.connect(scratch_database, cursor_factory=RealDictCursor) as conn, conn.cursor() as cur:
         [board] = rows(cur, "SELECT * FROM boards")
         assert (board["slug"], board["name"], board["k_factor"]) == ("main", "Main Board", 36)
+        assert board["club_weight"] == 0.5
         assert verify_password("legacy-member", board["password_hash"])
         assert verify_password("legacy-admin", board["admin_password_hash"])
 
@@ -72,7 +73,7 @@ def test_legacy_database_becomes_the_main_board(scratch_database, monkeypatch):
         assert "team_a" not in columns and "board_id" in columns
         assert rows(cur, "SELECT to_regclass('elo_settings') AS t")[0]["t"] is None
         versions = rows(cur, "SELECT version FROM schema_version ORDER BY version")
-        assert [r["version"] for r in versions] == [1, 2, 3, 4, 5]
+        assert [r["version"] for r in versions] == [1, 2, 3, 4, 5, 6]
 
         # the shared club list becomes the board's first season, and every match keeps its club ratings
         [season] = rows(cur, "SELECT s.*, b.active_season_id FROM seasons s JOIN boards b ON b.id = s.board_id")

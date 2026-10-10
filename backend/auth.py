@@ -148,10 +148,11 @@ class BoardAccess:
     slug: str
     name: str
     k_factor: int
+    club_weight: float
     role: Role
 
 
-BOARD_COLUMNS = "id, slug, name, k_factor, member_version, admin_version"
+BOARD_COLUMNS = "id, slug, name, k_factor, club_weight, member_version, admin_version"
 
 
 def board_access(
@@ -165,7 +166,7 @@ def board_access(
         raise HTTPException(status_code=404, detail="Board not found")
 
     def access(role: Role) -> BoardAccess:
-        return BoardAccess(board["id"], board["slug"], board["name"], board["k_factor"], role)
+        return BoardAccess(board["id"], board["slug"], board["name"], board["k_factor"], board["club_weight"], role)
 
     if server_admin_key_matches(x_admin_key):
         return access("admin")

@@ -101,7 +101,7 @@ export interface ClubPick {
 }
 
 /**
- * Pick a club pairing so that (team avg + club Elo / 2) is as even as possible.
+ * Pick a club pairing so that (team avg + club Elo × weight) is as even as possible.
  * Picks randomly among pairs within `margin`, else the closest pair.
  */
 export function pickBalancedClubs(
@@ -109,6 +109,7 @@ export function pickBalancedClubs(
   avgA: number,
   avgB: number,
   margin: number,
+  weight: number,
   exclude?: { a?: number; b?: number },
 ): ClubPick | null {
   if (clubs.length < 2) return null;
@@ -118,8 +119,8 @@ export function pickBalancedClubs(
     for (let j = i + 1; j < clubs.length; j++) {
       const c1 = clubs[i];
       const c2 = clubs[j];
-      const d1 = Math.abs(avgA + c1.elo / 2 - (avgB + c2.elo / 2));
-      const d2 = Math.abs(avgA + c2.elo / 2 - (avgB + c1.elo / 2));
+      const d1 = Math.abs(avgA + c1.elo * weight - (avgB + c2.elo * weight));
+      const d2 = Math.abs(avgA + c2.elo * weight - (avgB + c1.elo * weight));
       const swap = d2 < d1;
       const cand: ClubPick = {
         a: swap ? c2 : c1,

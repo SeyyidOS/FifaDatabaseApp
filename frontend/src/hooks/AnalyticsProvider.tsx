@@ -22,10 +22,11 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
   const data = useMemo<Analytics | null>(() => {
     if (!players.data || !seasons.data || !matches.data || !settings.data) return null;
     const k = settings.data.kFactor ?? 24;
+    const clubWeight = settings.data.clubWeight ?? 0.5;
     const season = seasons.data.find((s) => s.active) ?? null;
     const clubs = season?.clubs ?? [];
     const parsed = parseMatches(matches.data);
-    const engine = runElo(players.data, clubs, matches.data, k);
+    const engine = runElo(players.data, clubs, matches.data, k, clubWeight);
     const stats = computePlayerStats(parsed);
     const matchdays = groupMatchdays(parsed);
 
@@ -37,6 +38,7 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
           clubs,
           matches.data.filter((m) => !matchdays[0].matches.some((x) => x.id === m.id)),
           k,
+          clubWeight,
         )
       : engine;
 
@@ -90,6 +92,7 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
       dna: new Map([...appearances].map(([name, apps]) => [name, eloDna(apps)])),
       duos: duoProfiles(appearances),
       k,
+      clubWeight,
     };
   }, [players.data, seasons.data, matches.data, settings.data]);
 

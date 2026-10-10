@@ -69,6 +69,8 @@ export interface EloEngine {
   nameToId: Map<string, number>;
   /** the active season's club ratings, for matches not played yet */
   clubElo: Map<string, number>;
+  /** the board's club weight now, for matches not played yet */
+  clubWeight: number;
 }
 
 interface StepInput {
@@ -76,6 +78,8 @@ interface StepInput {
   teamBIds: number[];
   clubARating: number;
   clubBRating: number;
+  /** how much the club ratings count (the board's weight when the match was entered) */
+  clubWeight: number;
   scoreA: number;
   scoreB: number;
 }
@@ -95,8 +99,8 @@ function teamAvg(ratings: Map<number, number>, ids: number[]): number {
 }
 
 function step(ratings: Map<number, number>, k: number, input: StepInput): StepResult {
-  const strengthA = teamAvg(ratings, input.teamAIds) + input.clubARating / 2;
-  const strengthB = teamAvg(ratings, input.teamBIds) + input.clubBRating / 2;
+  const strengthA = teamAvg(ratings, input.teamAIds) + input.clubARating * input.clubWeight;
+  const strengthB = teamAvg(ratings, input.teamBIds) + input.clubBRating * input.clubWeight;
   const expA = expectedScore(strengthA, strengthB);
   const expB = 1 - expA;
 
@@ -122,10 +126,11 @@ function step(ratings: Map<number, number>, k: number, input: StepInput): StepRe
 const clubRating = (clubElo: Map<string, number>, club: string) => clubElo.get(club) ?? DEFAULT_CLUB_ELO;
 
 /**
- * Replays every match with the club ratings it was played with (stored on the match). `clubs` is
- * the active season's list, which only previews of new matches use.
+ * Replays every match with the club ratings and club weight it was played with (stored on the
+ * match). `clubs` and `clubWeight` are the active season's list and the board's weight now, which
+ * only previews of new matches use.
  */
-export function runElo(players: Player[], clubs: Club[], matches: Match[], k: number): EloEngine {
+export function runElo(players: Player[], clubs: Club[], matches: Match[], k: number, clubWeight: number): EloEngine {
   const nameToId = new Map<string, number>();
   [...players].sort((a, b) => a.id - b.id).forEach((p) => nameToId.set(cleanName(p.name), p.id));
 
@@ -159,6 +164,7 @@ export function runElo(players: Player[], clubs: Club[], matches: Match[], k: nu
       teamBIds,
       clubARating: m.club_a_elo,
       clubBRating: m.club_b_elo,
+      clubWeight: m.club_weight,
       scoreA: Number(m.score_a) || 0,
       scoreB: Number(m.score_b) || 0,
     });
@@ -190,7 +196,7 @@ export function runElo(players: Player[], clubs: Club[], matches: Match[], k: nu
     );
   }
 
-  return { k, ratings, history, perMatch, nameToId, clubElo };
+  return { k, ratings, history, perMatch, nameToId, clubElo, clubWeight };
 }
 
 export interface MatchPreview {
@@ -234,6 +240,7 @@ export function previewMatch(
     teamBIds,
     clubARating,
     clubBRating,
+    clubWeight: engine.clubWeight,
     scoreA: opts.scoreA ?? 0,
     scoreB: opts.scoreB ?? 0,
   });

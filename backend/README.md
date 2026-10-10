@@ -12,7 +12,7 @@ standings, K-factor and club ratings. On startup the API applies pending schema 
 | `seasons.py`     | a board's seasons and their club ratings (by hand or from a card model)     |
 | `fixtures.py`    | the night's plan: who plays with and against whom, in order                 |
 | `auth.py`        | password hashing, signed device tokens, rate limits, access checks          |
-| `migrations.py`  | versioned schema changes (v2 boards, v3 seasons, v4 card model, v5 plans)   |
+| `migrations.py`  | versioned schema changes (v2 boards … v5 plans, v6 club weight)             |
 | `db.py`          | connection pool (recovers after database restarts) and transactions         |
 | `schemas.py`     | request validation                                                          |
 | `elo.py`         | Elo replay (mirrored in `frontend/src/lib/elo.ts`)                          |
@@ -36,6 +36,11 @@ reads the stored ratings, so editing a club, removing it or switching seasons ne
 results or anyone's rating. Admins prepare a new season aside (empty or copied from another), edit
 it, then make it active. New boards start from the newest list in `data/seasons/` (`name,elo[,ea_id]`
 CSV); add e.g. `FC28.csv` there to make it the default for boards created afterwards.
+
+A side's strength is its players' average rating plus its club's rating times the board's **club
+weight** (0 to 2 in steps of 0.1, default 0.5), which admins set. A new match stores the weight along
+with its club ratings (`matches.club_weight`), so changing it only affects matches entered afterwards;
+the Match Center's win chance and balanced club picks use the current one.
 
 From FC27 on, ratings can come from the game's cards. The card model runs in the frontend
 (`frontend/src/lib/clubModel.ts`, a port of the fc27-elo study, checked against it in

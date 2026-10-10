@@ -101,12 +101,18 @@ def login(slug: str, body: Login, request: Request):
 
 @router.get("/{slug}/me")
 def me(access: BoardAccess = Depends(board_access)):
-    return {"slug": access.slug, "name": access.name, "role": access.role, "kFactor": access.k_factor}
+    return {
+        "slug": access.slug,
+        "name": access.name,
+        "role": access.role,
+        "kFactor": access.k_factor,
+        "clubWeight": access.club_weight,
+    }
 
 
 @router.patch("/{slug}")
 def update_board(body: BoardUpdate, request: Request, access: BoardAccess = Depends(board_admin)):
-    """Rename, change the K-factor or the passwords. A new password signs out that role's devices;
+    """Rename, change the K-factor, the club weight or the passwords. A new password signs out that role's devices;
     when the admin password changes, the caller gets a fresh token so they stay signed in."""
     with request.app.state.db.transaction() as cur:
         cur.execute("SELECT * FROM boards WHERE id = %s FOR UPDATE", (access.id,))
@@ -122,6 +128,8 @@ def update_board(body: BoardUpdate, request: Request, access: BoardAccess = Depe
             updates["name"] = body.name
         if body.kFactor is not None:
             updates["k_factor"] = body.kFactor
+        if body.clubWeight is not None:
+            updates["club_weight"] = body.clubWeight
         if body.password:
             updates["password_hash"] = hash_password(body.password)
             updates["member_version"] = board["member_version"] + 1
@@ -136,7 +144,13 @@ def update_board(body: BoardUpdate, request: Request, access: BoardAccess = Depe
             )
             board = cur.fetchone()
 
-    result = {"slug": board["slug"], "name": board["name"], "role": "admin", "kFactor": board["k_factor"]}
+    result = {
+        "slug": board["slug"],
+        "name": board["name"],
+        "role": "admin",
+        "kFactor": board["k_factor"],
+        "clubWeight": board["club_weight"],
+    }
     if body.adminPassword:
         result["token"] = issue_token(board["id"], "admin", board["admin_version"])
     return result

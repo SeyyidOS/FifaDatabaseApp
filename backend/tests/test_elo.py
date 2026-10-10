@@ -5,8 +5,16 @@ from elo import compute_ratings, expected_score, margin_multiplier
 PLAYERS = [1, 2]
 
 
-def match(a, b, score_a, score_b, club_a_elo=500, club_b_elo=500):
-    return dict(team_a=a, team_b=b, club_a_elo=club_a_elo, club_b_elo=club_b_elo, score_a=score_a, score_b=score_b)
+def match(a, b, score_a, score_b, club_a_elo=500, club_b_elo=500, club_weight=0.5):
+    return dict(
+        team_a=a,
+        team_b=b,
+        club_a_elo=club_a_elo,
+        club_b_elo=club_b_elo,
+        club_weight=club_weight,
+        score_a=score_a,
+        score_b=score_b,
+    )
 
 
 def test_expected_score_is_symmetric():
@@ -34,6 +42,15 @@ def test_beating_a_stronger_club_is_worth_more():
 def test_only_the_gap_between_club_ratings_matters():
     shifted = compute_ratings(PLAYERS, [match([1], [2], 4, 1, 900, 700)], 24)
     assert shifted == compute_ratings(PLAYERS, [match([1], [2], 4, 1, 700, 500)], 24)
+
+
+def test_the_club_weight_scales_the_club_gap():
+    # 200 club Elo apart at ×0.5 counts like 100 apart at ×1, and nothing at ×0
+    half = compute_ratings(PLAYERS, [match([1], [2], 2, 1, 700, 500)], 24)
+    assert half == compute_ratings(PLAYERS, [match([1], [2], 2, 1, 600, 500, club_weight=1)], 24)
+    assert compute_ratings(PLAYERS, [match([1], [2], 2, 1, 700, 500, club_weight=0)], 24) == compute_ratings(
+        PLAYERS, [match([1], [2], 2, 1)], 24
+    )
 
 
 def test_sides_without_known_players_are_skipped():

@@ -47,6 +47,8 @@ export interface Analytics {
   dna: Map<string, EloDna>;
   duos: DuoProfile[];
   k: number;
+  /** how much a club's rating counts in a side's strength, for matches entered from now on */
+  clubWeight: number;
 }
 
 export interface AnalyticsState {
