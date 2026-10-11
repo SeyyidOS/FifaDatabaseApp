@@ -22,6 +22,8 @@ const Settings = lazy(() => import("../../pages/Settings"));
 const Clubs = lazy(() => import("../../pages/Clubs"));
 const ClubProfile = lazy(() => import("../../pages/ClubProfile"));
 const Insights = lazy(() => import("../../pages/Insights"));
+// temporary: the 10 October 2026 night report
+const NightRecap = lazy(() => import("../../pages/NightRecap"));
 
 /** Keeps this device's label for the board in step when an admin renames it elsewhere. */
 function SessionSync({ slug, name }: { slug: string; name: string }) {
@@ -76,6 +78,7 @@ export default function BoardGate() {
               <Route path="clubs" element={<Clubs />} />
               <Route path="clubs/:club" element={<ClubProfile />} />
               <Route path="insights" element={<Insights />} />
+              <Route path="night" element={<NightRecap />} />
               <Route path="settings" element={<Settings />} />
               <Route path="*" element={<Navigate to={board.path()} replace />} />
             </Routes>

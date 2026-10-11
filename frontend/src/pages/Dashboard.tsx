@@ -23,6 +23,7 @@ import { EloRaceChart } from "../components/charts/EloCharts";
 import { PageHeader } from "../components/layout/AppShell";
 import { MatchCard } from "../components/match/MatchCard";
 import { AwardCard } from "../components/insights/AwardCard";
+import { NightRecapBanner } from "../components/insights/NightRecapBanner";
 import { PlayerCard } from "../components/PlayerCard";
 import { Avatar, ClubCrest } from "../components/ui/Identity";
 import {
@@ -659,6 +660,8 @@ export default function Dashboard() {
               title={t("title")}
               description={t("description")}
             />
+
+            <NightRecapBanner data={data} />
 
             <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
               <Kpi i={1} label={t("matches")} value={matches} icon={<Trophy className="size-4" />} hint={t("matchdays", { n: data.matchdays.length })} />
