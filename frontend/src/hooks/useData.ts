@@ -3,7 +3,7 @@ import { useState } from "react";
 import type { CardSet } from "../lib/clubModel";
 import { shrinkPhoto } from "../lib/photos";
 import { updateSession } from "../lib/session";
-import type { NewMatch } from "../lib/types";
+import type { NewMatch, SideStats } from "../lib/types";
 import { useBoard } from "./useBoard";
 
 /** Every query of a board starts with ["board", slug], so a board can be refreshed or dropped at once. */
@@ -164,6 +164,20 @@ export function useUploadPhotos() {
 export function useDeletePhoto() {
   const { api } = useBoard();
   return useBoardMutation((id: number) => api.deletePhoto(id), ["matches"]);
+}
+
+export function useSaveStats() {
+  const { api } = useBoard();
+  return useBoardMutation(
+    ({ matchId, A, B, photoId }: { matchId: number; A: SideStats; B: SideStats; photoId?: number | null }) =>
+      api.saveStats(matchId, { A, B, photoId, source: "manual" }),
+    ["matches"],
+  );
+}
+
+export function useDeleteStats() {
+  const { api } = useBoard();
+  return useBoardMutation((matchId: number) => api.deleteStats(matchId), ["matches"]);
 }
 
 /** A photo's image; it never changes under its ID, so it is kept for the whole visit. */

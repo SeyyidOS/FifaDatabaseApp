@@ -4,6 +4,7 @@ import { Navigate, useParams } from "react-router-dom";
 import { ArrowLeft, Crosshair, Flame, HeartHandshake, Shield, Skull, Swords, Target, TrendingUp, Trophy } from "lucide-react";
 import { MatchMapChart } from "../components/charts/InsightCharts";
 import { DataGate } from "../components/DataGate";
+import { PlayerStatsPanel } from "../components/insights/StatsLab";
 import { EloDnaPanel } from "../components/insights/EloDnaPanel";
 import { RecordStrip } from "../components/insights/RecordStrip";
 import { PlayerEloChart } from "../components/charts/EloCharts";
@@ -311,6 +312,8 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
           />
         </Panel>
       </div>
+
+      <PlayerStatsPanel data={data} name={player.name} />
 
       {dna && apps.length > 0 && (
         <div className="grid gap-6 lg:grid-cols-12">

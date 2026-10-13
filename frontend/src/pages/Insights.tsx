@@ -8,6 +8,7 @@ import { AwardCard } from "../components/insights/AwardCard";
 import { DuoExplorer } from "../components/insights/DuoExplorer";
 import { DuoMatrix } from "../components/insights/DuoMatrix";
 import { BoardLink } from "../components/board/BoardLink";
+import { StatsLab } from "../components/insights/StatsLab";
 import { PageHeader } from "../components/layout/AppShell";
 import { Avatar } from "../components/ui/Identity";
 import { EmptyState, Panel } from "../components/ui/primitives";
@@ -138,6 +139,8 @@ function InsightsInner({ data }: { data: Analytics }) {
           ))}
         </div>
       </section>
+
+      <StatsLab data={data} />
 
       <div className="grid gap-6 lg:grid-cols-12">
         <Panel

@@ -4,13 +4,14 @@ from datetime import date
 
 import psycopg2.errors
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from psycopg2.extras import Json
 
 import elo
 import fixtures
 import leaderboard
 import photos
 from auth import BoardAccess, board_access, board_admin
-from schemas import MatchIn, PlayerIn, PlayerUpdate
+from schemas import MatchIn, MatchStatsIn, PlayerIn, PlayerUpdate
 
 router = APIRouter(prefix="/boards/{slug}", tags=["board data"])
 
@@ -108,7 +109,10 @@ def list_matches(request: Request, access: BoardAccess = Depends(board_access)):
                m.score_a, m.score_b,
                ARRAY_AGG(p.name ORDER BY mp.slot) FILTER (WHERE mp.side = 'A') AS team_a,
                ARRAY_AGG(p.name ORDER BY mp.slot) FILTER (WHERE mp.side = 'B') AS team_b,
-               ARRAY(SELECT ph.id FROM match_photos ph WHERE ph.match_id = m.id ORDER BY ph.id) AS photos
+               ARRAY(SELECT ph.id FROM match_photos ph WHERE ph.match_id = m.id ORDER BY ph.id) AS photos,
+               (SELECT json_build_object('A', s.stats -> 'A', 'B', s.stats -> 'B', 'source', s.source,
+                                         'photoId', s.photo_id)
+                FROM match_stats s WHERE s.match_id = m.id) AS stats
         FROM matches m
         LEFT JOIN match_players mp ON mp.match_id = m.id
         LEFT JOIN players p ON p.id = mp.player_id
@@ -187,6 +191,40 @@ def delete_match(match_id: int, request: Request, access: BoardAccess = Depends(
     # its photos went with it
     photos.remove_files(files)
     return {"message": f"Match {match_id} deleted."}
+
+
+# ----------- Match stats -----------
+@router.put("/matches/{match_id}/stats")
+def save_match_stats(match_id: int, body: MatchStatsIn, request: Request, access: BoardAccess = Depends(board_access)):
+    """Typed in or read from a photo (the game's summary screen); anyone on the board may set them."""
+    db = _db(request)
+    if db.fetch_one("SELECT 1 FROM matches WHERE id = %s AND board_id = %s", (match_id, access.id)) is None:
+        raise HTTPException(status_code=404, detail=f"No match with ID {match_id}")
+    if body.photoId is not None and not db.fetch_one(
+        "SELECT 1 FROM match_photos WHERE id = %s AND match_id = %s", (body.photoId, match_id)
+    ):
+        raise HTTPException(status_code=422, detail=f"Photo {body.photoId} is not a photo of this match")
+    stats = {side: getattr(body, side).model_dump(exclude_none=True) for side in ("A", "B")}
+    db.execute(
+        """
+        INSERT INTO match_stats (match_id, stats, source, photo_id) VALUES (%s, %s, %s, %s)
+        ON CONFLICT (match_id) DO UPDATE
+        SET stats = EXCLUDED.stats, source = EXCLUDED.source, photo_id = EXCLUDED.photo_id, updated_at = NOW()
+        """,
+        (match_id, Json(stats), body.source, body.photoId),
+    )
+    return {**stats, "source": body.source, "photoId": body.photoId}
+
+
+@router.delete("/matches/{match_id}/stats")
+def delete_match_stats(match_id: int, request: Request, access: BoardAccess = Depends(board_access)):
+    removed = _db(request).execute(
+        "DELETE FROM match_stats s USING matches m WHERE s.match_id = %s AND m.id = s.match_id AND m.board_id = %s",
+        (match_id, access.id),
+    )
+    if not removed:
+        raise HTTPException(status_code=404, detail=f"Match {match_id} has no stats")
+    return {"message": f"Stats of match {match_id} deleted."}
 
 
 # ----------- Ratings & standings -----------

@@ -13,7 +13,7 @@ standings, K-factor and club ratings. On startup the API applies pending schema 
 | `fixtures.py`    | the night's plan: who plays with and against whom, in order                 |
 | `photos.py`      | photos of a match (the stats screens), stored as files in `PHOTO_DIR`       |
 | `auth.py`        | password hashing, signed device tokens, rate limits, access checks          |
-| `migrations.py`  | versioned schema changes (v2 boards … v6 club weight, v7 match photos)      |
+| `migrations.py`  | versioned schema changes (v2 boards … v7 match photos, v8 match stats)      |
 | `db.py`          | connection pool (recovers after database restarts) and transactions         |
 | `schemas.py`     | request validation                                                          |
 | `elo.py`         | Elo replay (mirrored in `frontend/src/lib/elo.ts`)                          |
@@ -69,6 +69,15 @@ side, so the stats stay readable for people and for OCR later, and a 480 px thum
 everything else), `GET …/matches/{id}/photos` lists a match's photos and `DELETE /boards/{slug}/photos/{id}`
 removes one; anyone on the board may add or remove photos, since they change no result. `GET /matches`
 lists each match's photo IDs, and deleting a match deletes its photos.
+
+## Match stats
+
+`PUT /boards/{slug}/matches/{id}/stats` stores a match's numbers from the game's summary screen
+("Özet": possession, shots, xG, passes, tackles, … and the three rates) by the app's sides `A` and `B`,
+whichever side the game showed as home; any number may be missing (`SideStats` in `schemas.py`).
+`source` is `manual` (typed in the app) or `ocr` (read from `photoId`, one of the match's photos), and
+`DELETE` removes them. Anyone on the board may set them; `GET /matches` returns them as `stats`. The
+photos are read on the server by Claude Code with `deploy/match-stats.py` (see `deploy/README.md`).
 
 ## Configuration
 

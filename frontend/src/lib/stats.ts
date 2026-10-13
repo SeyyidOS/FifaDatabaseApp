@@ -1,5 +1,5 @@
 import { duoKey, matchdayKey, parseApiTime, parseTeam } from "./format";
-import type { Match, Outcome, Side } from "./types";
+import type { Match, MatchStats, Outcome, Side } from "./types";
 
 export interface ParsedMatch {
   id: number;
@@ -18,6 +18,8 @@ export interface ParsedMatch {
   result: Side | "D";
   /** IDs of the match's photos, oldest first */
   photos: number[];
+  /** numbers from the game's summary screen */
+  stats: MatchStats | null;
 }
 
 /** Newest first. */
@@ -41,6 +43,7 @@ export function parseMatches(matches: Match[]): ParsedMatch[] {
         scoreB,
         result: scoreA > scoreB ? "A" : scoreB > scoreA ? "B" : "D",
         photos: m.photos ?? [],
+        stats: m.stats ?? null,
       } satisfies ParsedMatch;
     })
     .sort((a, b) => b.date.getTime() - a.date.getTime() || b.id - a.id);

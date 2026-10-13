@@ -1,4 +1,4 @@
-import { Camera, ChevronLeft, ChevronRight, ExternalLink, ImagePlus, Trash2, X } from "lucide-react";
+import { BarChart3, Camera, ChevronLeft, ChevronRight, ExternalLink, ImagePlus, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useDeletePhoto, usePhotoBlob, useUploadPhotos } from "../../hooks/useData";
@@ -7,7 +7,8 @@ import { cn } from "../../lib/cn";
 import { MAX_PHOTOS } from "../../lib/photos";
 import type { ParsedMatch } from "../../lib/stats";
 import { Modal } from "../ui/Dialog";
-import { Button, Skeleton } from "../ui/primitives";
+import { Button, Segmented, Skeleton } from "../ui/primitives";
+import { MatchStatsPanel } from "./MatchStats";
 import { photoMessages } from "./messages";
 
 const m = photoMessages;
@@ -169,7 +170,10 @@ function Viewer({
 }
 
 /** Everything about a match's photos: the grid, one at full size, adding and deleting. */
-function PhotosDialog({ match, open, onClose }: { match: ParsedMatch; open: boolean; onClose: () => void }) {
+type Tab = "stats" | "photos";
+
+/** A match's stats and photos: the stats side by side, the photo grid, one photo at full size. */
+function MatchDialog({ match, open, onClose, tab, onTab }: { match: ParsedMatch; open: boolean; onClose: () => void; tab: Tab; onTab: (t: Tab) => void }) {
   const t = useT(m);
   const [index, setIndex] = useState<number | null>(null);
   const { upload, progress } = useUploadPhotos();
@@ -185,12 +189,18 @@ function PhotosDialog({ match, open, onClose }: { match: ParsedMatch; open: bool
     if (error) toast.error(t("failed"), { description: error.message });
   };
 
+  const showPhoto = (photoId: number) => {
+    const i = ids.indexOf(photoId);
+    setIndex(i >= 0 ? i : null);
+    onTab("photos");
+  };
+
   return (
-    <Modal open={open} onClose={onClose} labelledBy="photos-title" wide>
+    <Modal open={open} onClose={onClose} labelledBy="match-dialog-title" wide>
       <div className="mb-4 flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <h3 id="photos-title" className="font-semibold">
-            {t("title")}
+          <h3 id="match-dialog-title" className="font-semibold">
+            {t("detail")}
           </h3>
           <p className="truncate text-sm text-muted">
             {match.clubA} <span className="tabular font-semibold text-fg">{match.scoreA}–{match.scoreB}</span> {match.clubB}
@@ -200,61 +210,106 @@ function PhotosDialog({ match, open, onClose }: { match: ParsedMatch; open: bool
           <X className="size-4" />
         </Button>
       </div>
+      <Segmented<Tab>
+        value={tab}
+        onChange={onTab}
+        size="sm"
+        className="mb-4"
+        options={[
+          {
+            value: "stats",
+            label: (
+              <span className="inline-flex items-center gap-1.5">
+                <BarChart3 className="size-3.5" /> {t("tabStats")}
+              </span>
+            ),
+          },
+          {
+            value: "photos",
+            label: (
+              <span className="inline-flex items-center gap-1.5">
+                <Camera className="size-3.5" /> {t("tabPhotos")}
+                {ids.length > 0 && <span className="tabular text-faint">{ids.length}</span>}
+              </span>
+            ),
+          },
+        ]}
+      />
 
-      {index !== null && ids[index] !== undefined ? (
+      {tab === "stats" ? (
+        <MatchStatsPanel match={match} onShowPhoto={showPhoto} />
+      ) : index !== null && ids[index] !== undefined ? (
         <Viewer ids={ids} index={index} onIndex={setIndex} onBack={() => setIndex(null)} />
       ) : (
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {ids.map((id, i) => (
-            <Thumb key={id} id={id} onClick={() => setIndex(i)} />
-          ))}
-          {room > 0 && (
-            <PickButton
-              onPick={add}
-              disabled={!!progress}
-              className="grid aspect-[4/3] place-items-center rounded-xl border border-dashed border-line-strong text-muted transition hover:border-accent/60 hover:text-fg disabled:opacity-60"
-            >
-              <span className="flex flex-col items-center gap-1 px-2 text-center text-xs font-medium">
-                <ImagePlus className="size-5" />
-                {progress ? t("uploading", progress) : t("add")}
-              </span>
-            </PickButton>
-          )}
-        </div>
+        <>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {ids.map((id, i) => (
+              <Thumb key={id} id={id} onClick={() => setIndex(i)} />
+            ))}
+            {room > 0 && (
+              <PickButton
+                onPick={add}
+                disabled={!!progress}
+                className="grid aspect-[4/3] place-items-center rounded-xl border border-dashed border-line-strong text-muted transition hover:border-accent/60 hover:text-fg disabled:opacity-60"
+              >
+                <span className="flex flex-col items-center gap-1 px-2 text-center text-xs font-medium">
+                  <ImagePlus className="size-5" />
+                  {progress ? t("uploading", progress) : t("add")}
+                </span>
+              </PickButton>
+            )}
+          </div>
+          {!ids.length && <p className="mt-3 text-center text-xs text-muted">{t("noneHint")}</p>}
+        </>
       )}
-      {!ids.length && index === null && <p className="mt-3 text-center text-xs text-muted">{t("noneHint")}</p>}
     </Modal>
   );
 }
 
 /**
- * The camera button on a match: shows how many photos it has and opens them. Without photos it only
- * shows where photos can be added (`canAdd`).
+ * The button on a match card for its stats and photos: shows how many photos it has and whether it
+ * has stats. Without either it only shows where `canAdd` asks for it.
  */
 export function MatchPhotosButton({ match, canAdd }: { match: ParsedMatch; canAdd?: boolean }) {
   const t = useT(m);
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<Tab>("stats");
   const n = match.photos.length;
-  if (!n && !canAdd) return null;
+  const hasStats = !!match.stats;
+  if (!n && !hasStats && !canAdd) return null;
+  const label = [hasStats && t("tabStats"), n && t("count", { n })].filter(Boolean).join(" · ") || t("add");
   return (
     <>
       <button
         type="button"
         onClick={(e) => {
           e.stopPropagation();
+          // open on what there is: the stats, else the photos
+          setTab(hasStats || !n ? "stats" : "photos");
           setOpen(true);
         }}
-        title={n ? t("count", { n }) : t("add")}
-        aria-label={n ? `${t("open")} (${t("count", { n })})` : t("add")}
+        title={label}
+        aria-label={`${t("detail")} (${label})`}
         className={cn(
           "inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-[11px] font-semibold transition-colors",
-          n ? "bg-surface-2 text-muted ring-1 ring-line hover:text-fg" : "text-faint hover:bg-surface-2 hover:text-muted",
+          n || hasStats ? "bg-surface-2 text-muted ring-1 ring-line hover:text-fg" : "text-faint hover:bg-surface-2 hover:text-muted",
         )}
       >
-        {n ? <Camera className="size-3.5" /> : <ImagePlus className="size-3.5" />}
-        {n ? <span className="tabular">{n}</span> : <span className="max-sm:hidden">{t("addShort")}</span>}
+        {hasStats && <BarChart3 className={cn("size-3.5", "text-accent-text")} />}
+        {n > 0 && (
+          <>
+            <Camera className="size-3.5" />
+            <span className="tabular">{n}</span>
+          </>
+        )}
+        {!n && !hasStats && (
+          <>
+            <ImagePlus className="size-3.5" />
+            <span className="max-sm:hidden">{t("addShort")}</span>
+          </>
+        )}
       </button>
-      <PhotosDialog match={match} open={open} onClose={() => setOpen(false)} />
+      <MatchDialog match={match} open={open} onClose={() => setOpen(false)} tab={tab} onTab={setTab} />
     </>
   );
 }

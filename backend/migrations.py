@@ -294,6 +294,23 @@ def v7_match_photos(cur: RealDictCursor) -> None:
     cur.execute(V7_MATCH_PHOTOS)
 
 
+# A match's numbers from the game's summary screen (board_data.py), keyed by the app's sides A and B,
+# typed in or read from one of its photos.
+V8_MATCH_STATS = """
+CREATE TABLE match_stats (
+    match_id INT PRIMARY KEY REFERENCES matches (id) ON DELETE CASCADE,
+    stats JSONB NOT NULL,
+    source VARCHAR(10) NOT NULL,
+    photo_id INT REFERENCES match_photos (id) ON DELETE SET NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+"""
+
+
+def v8_match_stats(cur: RealDictCursor) -> None:
+    cur.execute(V8_MATCH_STATS)
+
+
 MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (1, v1_legacy),
     (2, v2_boards),
@@ -302,6 +319,7 @@ MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (5, v5_fixtures),
     (6, v6_club_weight),
     (7, v7_match_photos),
+    (8, v8_match_stats),
 ]
 
 
