@@ -7,11 +7,13 @@ import type {
   DuoStanding,
   Match,
   MatchPhoto,
+  MatchStats,
   NewMatch,
   NightPlan,
   Player,
   PlayerStanding,
   Season,
+  SideStats,
   SignIn,
 } from "./types";
 import { defineMessages, translator } from "./i18n";
@@ -112,6 +114,9 @@ export function boardApi(slug: string, token: string) {
     /** the image itself; it needs this device's token, so it can't be a plain <img src> */
     photo: (id: number, size: "full" | "thumb") => call<Blob>(`/photos/${id}?size=${size}`, {}, (res) => res.blob()),
     deletePhoto: (id: number) => call<{ message: string }>(`/photos/${id}`, json("DELETE")),
+    saveStats: (matchId: number, stats: { A: SideStats; B: SideStats; photoId?: number | null; source?: "ocr" | "manual" }) =>
+      call<MatchStats>(`/matches/${matchId}/stats`, json("PUT", stats)),
+    deleteStats: (matchId: number) => call<{ message: string }>(`/matches/${matchId}/stats`, json("DELETE")),
 
     seasons: () => call<Season[]>("/seasons"),
     createSeason: (body: { name: string; copyFrom?: number }) => call<Season>("/seasons", json("POST", body)),

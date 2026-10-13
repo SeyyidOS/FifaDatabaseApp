@@ -1,6 +1,8 @@
 import { motion } from "motion/react";
 import {
   BrickWall,
+  CircleDot,
+  CloudRain,
   Clock,
   Crown,
   Droplets,
@@ -16,6 +18,7 @@ import {
   Skull,
   Sunrise,
   Swords,
+  Target,
   TrendingUp,
   Users,
   Zap,
@@ -128,6 +131,18 @@ const msg = defineMessages({
     tomorrowCap: "Most Elo lost",
     tomorrowVal: "−{v} Elo",
     tomorrowLine: "Elo comes and goes; the group stays.",
+    clinical: "Clinical",
+    clinicalCap: "Goals above the chances' worth (xG)",
+    clinicalVal: "+{v} over xG",
+    clinicalLine: "{gf} goals from {xg} xG. Half chances, full goals.",
+    possessor: "Owner of the Ball",
+    possessorCap: "Highest average possession",
+    possessorVal: "{v}% possession",
+    possessorLine: "Kept the ball like it was theirs to keep.",
+    wasteful: "Spray and Pray",
+    wastefulCap: "Goals below the chances' worth (xG)",
+    wastefulVal: "−{v} under xG",
+    wastefulLine: "{xg} xG, {gf} goals. The posts send their regards.",
     chinUp: "Chin Up",
     chinUpCap: "Fewest points per match",
     chinUpVal: "{w}W {d}D {l}L",
@@ -214,6 +229,18 @@ const msg = defineMessages({
     tomorrowCap: "En çok Elo kaybeden",
     tomorrowVal: "−{v} Elo",
     tomorrowLine: "Elo gelir geçer, ekip baki kalır.",
+    clinical: "Bitirici",
+    clinicalCap: "Pozisyonların değerinden (xG) fazla gol",
+    clinicalVal: "xG'nin {v} üstünde",
+    clinicalLine: "{xg} xG'den {gf} gol. Yarım pozisyon, tam gol.",
+    possessor: "Topun Sahibi",
+    possessorCap: "En yüksek ortalama topa sahip olma",
+    possessorVal: "%{v} topla oynama",
+    possessorLine: "Topu sanki kendi malıymış gibi sakladı.",
+    wasteful: "Savurgan",
+    wastefulCap: "Pozisyonların değerinden (xG) az gol",
+    wastefulVal: "xG'nin {v} altında",
+    wastefulLine: "{xg} xG, {gf} gol. Direkler selam söylüyor.",
     chinUp: "Moral Ödülü",
     chinUpCap: "Maç başına en az puan",
     chinUpVal: "{w}G {d}B {l}M",
@@ -237,6 +264,9 @@ const ICONS: Record<NightAwardKey, LucideIcon> = {
   sieve: Droplets,
   tomorrow: Sunrise,
   chinUp: HeartHandshake,
+  clinical: Target,
+  possessor: CircleDot,
+  wasteful: CloudRain,
 };
 
 const pct = (p: number) => Math.max(1, Math.round(p * 100));
@@ -246,7 +276,10 @@ const decimal = (v: number) => Math.abs(v).toFixed(1);
 function awardValue(t: T, a: NightAward, value = a.value) {
   const p = a.winner;
   if (a.key === "chinUp") return t("chinUpVal", { w: p.wins, d: p.draws, l: p.losses });
-  const v = a.key === "machine" || a.key === "wall" || a.key === "sieve" ? decimal(value) : Math.abs(value);
+  const v =
+    a.key === "machine" || a.key === "wall" || a.key === "sieve" || a.key === "clinical" || a.key === "wasteful"
+      ? decimal(value)
+      : Math.abs(value);
   return t(`${a.key}Val`, { v });
 }
 
@@ -258,8 +291,9 @@ function awardLine(t: T, a: NightAward, total: number) {
     w: p.wins,
     d: p.draws,
     l: p.losses,
-    gf: p.gf,
+    gf: a.key === "clinical" || a.key === "wasteful" ? p.xgGoals : p.gf,
     ga: p.ga,
+    xg: p.xgFor.toFixed(1),
     total,
   });
 }

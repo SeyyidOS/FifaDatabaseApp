@@ -4,7 +4,7 @@ import json
 import re
 from typing import Annotated, Literal
 
-from pydantic import AfterValidator, BaseModel, Field, StringConstraints, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 # Letters (any language), digits, spaces, dots, dashes, underscores and apostrophes. "&" is excluded
 # because it joins the names of a duo.
@@ -159,3 +159,44 @@ class MatchIn(BaseModel):
         if both:
             raise ValueError(f"players on both sides: {', '.join(sorted(both))}")
         return self
+
+
+# ----------- Match stats -----------
+Count = Annotated[int, Field(ge=0, le=999)]
+Percent = Annotated[int, Field(ge=0, le=100)]
+
+
+class SideStats(BaseModel):
+    """One side's numbers from the game's match summary ("Özet") screen; any of them may be missing."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    possession: Percent | None = None
+    recoveryTime: Count | None = None  # seconds to win the ball back
+    shots: Count | None = None
+    xg: Annotated[float, Field(ge=0, le=99)] | None = None
+    passes: Annotated[int, Field(ge=0, le=9999)] | None = None
+    tackles: Count | None = None
+    tacklesWon: Count | None = None
+    interceptions: Count | None = None
+    saves: Count | None = None
+    fouls: Count | None = None
+    offsides: Count | None = None
+    corners: Count | None = None
+    freeKicks: Count | None = None
+    penalties: Count | None = None
+    yellowCards: Count | None = None
+    redCards: Count | None = None
+    dribbleSuccess: Percent | None = None
+    shotAccuracy: Percent | None = None
+    passAccuracy: Percent | None = None
+
+
+class MatchStatsIn(BaseModel):
+    """A match's stats by the app's sides (A and B), whichever side the game showed as home."""
+
+    A: SideStats
+    B: SideStats
+    # the photo they were read from, if any
+    photoId: int | None = None
+    source: Literal["ocr", "manual"] = "manual"

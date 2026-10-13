@@ -52,6 +52,41 @@ export interface Match {
   score_b: number;
   /** IDs of the match's photos (e.g. the stats screens), oldest first */
   photos?: number[];
+  /** numbers from the game's summary screen, if anyone entered or read them */
+  stats?: MatchStats | null;
+}
+
+/** One side's numbers from the game's match summary ("Özet") screen; any of them may be missing. */
+export interface SideStats {
+  possession?: number;
+  /** seconds to win the ball back */
+  recoveryTime?: number;
+  shots?: number;
+  xg?: number;
+  passes?: number;
+  tackles?: number;
+  tacklesWon?: number;
+  interceptions?: number;
+  saves?: number;
+  fouls?: number;
+  offsides?: number;
+  corners?: number;
+  freeKicks?: number;
+  penalties?: number;
+  yellowCards?: number;
+  redCards?: number;
+  dribbleSuccess?: number;
+  shotAccuracy?: number;
+  passAccuracy?: number;
+}
+
+/** A match's stats by the app's sides, whichever side the game showed as home. */
+export interface MatchStats {
+  A: SideStats;
+  B: SideStats;
+  source: "ocr" | "manual";
+  /** the photo they were read from */
+  photoId: number | null;
 }
 
 /** A photo stored with a match; the image itself comes from `BoardApi.photo`. */

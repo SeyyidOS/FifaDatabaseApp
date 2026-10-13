@@ -35,6 +35,12 @@ export interface PlayerNight {
   /** matches after midnight and the points from them (3 a win, 1 a draw) */
   lateGames: number;
   latePoints: number;
+  /** from the matches with stats: goals and xG where xG is known, possession */
+  xgMatches: number;
+  xgFor: number;
+  xgGoals: number;
+  possession: number;
+  possessionMatches: number;
 }
 
 export interface DuoNight {
@@ -79,7 +85,10 @@ export type NightAwardKey =
   | "cursed"
   | "sieve"
   | "tomorrow"
-  | "chinUp";
+  | "chinUp"
+  | "clinical"
+  | "possessor"
+  | "wasteful";
 
 export interface NightAward {
   key: NightAwardKey;
@@ -137,6 +146,11 @@ function playerNight(name: string, apps: Appearance[]): PlayerNight {
     favouriteLosses: 0,
     lateGames: 0,
     latePoints: 0,
+    xgMatches: 0,
+    xgFor: 0,
+    xgGoals: 0,
+    possession: 0,
+    possessionMatches: 0,
   };
   let run = 0;
   for (const a of apps) {
@@ -151,6 +165,16 @@ function playerNight(name: string, apps: Appearance[]): PlayerNight {
     p.unbeaten = Math.max(p.unbeaten, run);
     if (a.outcome === "W" && a.expected < UNDERDOG_AT) p.underdogWins++;
     if (a.outcome === "L" && a.expected > 1 - UNDERDOG_AT) p.favouriteLosses++;
+    const own = a.match.stats?.[a.side];
+    if (own?.xg !== undefined) {
+      p.xgMatches++;
+      p.xgFor += own.xg;
+      p.xgGoals += a.gf;
+    }
+    if (own?.possession !== undefined) {
+      p.possessionMatches++;
+      p.possession += own.possession;
+    }
     if (a.afterMidnight) {
       p.lateGames++;
       p.latePoints += a.outcome === "W" ? 3 : a.outcome === "D" ? 1 : 0;
@@ -281,6 +305,19 @@ export function nightRecap(day: Matchday, engine: EloEngine, appearances: Map<st
   add("cursed", best(players, (p) => (p.favouriteLosses >= 2 ? p.favouriteLosses : null)), true);
   add("sieve", best(regulars, (p) => p.ga / p.played), true);
   add("tomorrow", best(players, (p) => (p.delta < 0 ? -Math.round(p.delta) : null)), true);
+  // from the stats, when at least three of a player's matches have them
+  const finishing = (p: PlayerNight) => (p.xgMatches >= 3 ? Math.round((p.xgGoals - p.xgFor) * 10) / 10 : null);
+  const above = (p: PlayerNight) => {
+    const f = finishing(p);
+    return f !== null && f > 0 ? f : null;
+  };
+  const below = (p: PlayerNight) => {
+    const f = finishing(p);
+    return f !== null && f < 0 ? -f : null;
+  };
+  add("clinical", best(players, above));
+  add("possessor", best(players, (p) => (p.possessionMatches >= 3 ? Math.round(p.possession / p.possessionMatches) : null)));
+  add("wasteful", best(players, below), true);
   // the fewest points a match, for whoever no roast above went to
   add("chinUp", best(regulars.filter((p) => !roasted.has(p.name)), (p) => -points(p) / p.played), true);
 

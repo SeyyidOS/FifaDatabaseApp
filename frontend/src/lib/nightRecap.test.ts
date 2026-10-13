@@ -93,5 +93,32 @@ describe("night recap", () => {
     const roasted = r.awards.filter((a) => a.roast).map((a) => a.winner.name);
     expect(new Set(roasted).size).toBe(roasted.length);
     expect(award("king")?.winner.name).toBe(r.players[0].name);
+    // no stats this night: no stat awards
+    expect(r.awards.some((a) => ["clinical", "possessor", "wasteful"].includes(a.key))).toBe(false);
+  });
+
+  it("adds the stat awards when the matches have stats", () => {
+    // every side gets 1.0 xG and 50% possession, except PAOK's sides, which keep the ball
+    for (const m of matches) {
+      const paok = (club: string) => club === "PAOK";
+      m.stats = {
+        A: { xg: 1, possession: paok(m.club_a) ? 70 : 50 },
+        B: { xg: 1, possession: paok(m.club_b) ? 70 : 50 },
+        source: "ocr",
+        photoId: null,
+      };
+    }
+    try {
+      const r = recap();
+      const award = (key: string) => r.awards.find((a) => a.key === key);
+      // ece: 41 goals from 9.0 xG in 9 matches
+      expect(award("clinical")).toMatchObject({ winner: { name: "ece", xgGoals: 41 }, value: 32 });
+      // cem played three of PAOK's matches (56% on average), ferit two (54%)
+      expect(award("possessor")).toMatchObject({ winner: { name: "cem" }, value: 56, runnerUp: { name: "ferit", value: 54 } });
+      // everyone scored above 1 xG a match, so nobody wasted chances
+      expect(award("wasteful")).toBeUndefined();
+    } finally {
+      for (const m of matches) m.stats = null;
+    }
   });
 });

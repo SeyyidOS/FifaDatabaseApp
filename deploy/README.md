@@ -77,3 +77,13 @@ Match photos are files in `photos/` (owned by the API's user, uid 10001), not in
 dumps in `backups/` stay small and don't include them. Deploys never touch that folder. Only uploads to
 `/api/boards/*/matches/*/photos` may be larger than 64 KB (up to 12 MB), in `Caddyfile.fifa` and in the
 web container's nginx.
+
+## Match stats from photos
+
+The stats of a match (possession, shots, xG, …) are read from photos of the game's summary screen by
+Claude Code on this server, with the server owner's Claude subscription (no API key, no cost per
+photo). `deploy/match-stats.py pending` lists the photos of recent matches without stats, each with
+the match (clubs, score, players by side) and a JPEG copy to read; `deploy/match-stats.py submit FILE`
+saves what was read through the API with the server admin key (the key never leaves the script). A
+scheduled Claude Code routine runs this every morning; it can also be asked for at any time.
+
