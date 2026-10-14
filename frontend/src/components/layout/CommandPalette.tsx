@@ -1,6 +1,6 @@
 import { Command } from "cmdk";
 import { useNavigate } from "react-router-dom";
-import { CornerDownLeft, Languages, LayoutGrid, Moon, Plus, Search, Sun } from "lucide-react";
+import { CornerDownLeft, Languages, LayoutGrid, Moon, Newspaper, Plus, Search, Sun } from "lucide-react";
 import { useAnalytics } from "../../hooks/useAnalytics";
 import { useBoard, useSessions } from "../../hooks/useBoard";
 import { useLang, useT } from "../../hooks/useI18n";
@@ -18,6 +18,7 @@ const m = defineMessages({
     empty: "Nothing found.",
     quick: "Quick actions",
     newMatch: "Start a new match",
+    nightPost: "Night Post · the latest night",
     lightMode: "Switch to light mode",
     darkMode: "Switch to dark mode",
     language: "Switch to {language}",
@@ -33,6 +34,7 @@ const m = defineMessages({
     empty: "Sonuç yok.",
     quick: "Hızlı işlemler",
     newMatch: "Yeni maç başlat",
+    nightPost: "Gece Postası · son gece",
     lightMode: "Açık temaya geç",
     darkMode: "Koyu temaya geç",
     language: "{language} diline geç",
@@ -91,6 +93,12 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
             </span>
             {t("newMatch")}
             <CornerDownLeft className="ml-auto size-3.5 text-faint" />
+          </Command.Item>
+          <Command.Item className={itemCls} onSelect={() => go("/night")} value="night post gece postası report awards ödüller">
+            <span className="grid size-7 place-items-center rounded-lg bg-surface-2 text-muted ring-1 ring-line">
+              <Newspaper className="size-4" />
+            </span>
+            {t("nightPost")}
           </Command.Item>
           <Command.Item
             className={itemCls}
