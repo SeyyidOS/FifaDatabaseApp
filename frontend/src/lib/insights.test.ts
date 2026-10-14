@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { EloPoint } from "./elo";
 import { nameLang } from "./format";
-import { nightlyElo, scoreOfTheNight } from "./insights";
+import { nightlyElo, playerNights, scoreOfTheNight } from "./insights";
 import type { Matchday, ParsedMatch } from "./stats";
 
 const match = (id: number, scoreA: number, scoreB: number): ParsedMatch => ({
@@ -58,5 +58,37 @@ describe("name casing", () => {
   it("upper-cases names the way they were typed", () => {
     expect(["Seyyid", "Friday Night League", "Ozgun"].map(nameLang)).toEqual(["en", "en", "en"]);
     expect(["Çağatay", "İlker", "Cuma Gecesi Ligi Ş"].map(nameLang)).toEqual(["tr", "tr", "tr"]);
+  });
+});
+
+describe("player nights", () => {
+  const at = (id: number, iso: string, a: number, b: number, teamA = ["ayla"]): ParsedMatch => ({
+    ...match(id, a, b),
+    date: new Date(iso),
+    teamA,
+    teamB: teamA[0] === "ayla" ? ["bora"] : ["ayla"],
+  });
+  const matches = [
+    at(1, "2026-10-02T18:00:00Z", 3, 1),
+    at(2, "2026-10-02T23:30:00Z", 2, 2),
+    at(3, "2026-10-10T17:00:00Z", 0, 1),
+    at(4, "2026-10-10T18:00:00Z", 4, 0, ["bora"]), // ayla on side B: a loss
+  ];
+  const history: EloPoint[] = [
+    { matchId: 1, time: matches[0].date, elo: 1012.4 },
+    { matchId: 2, time: matches[1].date, elo: 1010.9 },
+    { matchId: 3, time: matches[2].date, elo: 996.2 },
+    { matchId: 4, time: matches[3].date, elo: 983.6 },
+  ];
+
+  it("sums each night's rating change and results", () => {
+    expect(playerNights(history, matches, "ayla")).toEqual([
+      { key: "2026-10-02", elo: 1011, delta: 11, wins: 1, draws: 1, losses: 0 },
+      { key: "2026-10-10", elo: 984, delta: -27, wins: 0, draws: 0, losses: 2 },
+    ]);
+  });
+
+  it("has no nights for a player without matches", () => {
+    expect(playerNights([], matches, "ayla")).toEqual([]);
   });
 });

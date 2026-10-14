@@ -59,5 +59,39 @@ export function nightlyElo(history: EloPoint[], start = 1000): number[] {
   return out;
 }
 
+export interface PlayerNightPoint {
+  /** the matchday, YYYY-MM-DD */
+  key: string;
+  /** rating after the night */
+  elo: number;
+  /** rating won or lost over the night */
+  delta: number;
+  wins: number;
+  draws: number;
+  losses: number;
+}
+
+/** A player's nights, oldest first: their rating after each one, how much it moved and their results. */
+export function playerNights(history: EloPoint[], matches: ParsedMatch[], player: string, start = 1000): PlayerNightPoint[] {
+  const byId = new Map(matches.map((m) => [m.id, m]));
+  const nights: PlayerNightPoint[] = [];
+  for (const p of history) {
+    const key = matchdayKey(p.time);
+    let night = nights.at(-1);
+    if (night?.key !== key) {
+      night = { key, elo: night?.elo ?? start, delta: 0, wins: 0, draws: 0, losses: 0 };
+      nights.push(night);
+    }
+    night.delta += p.elo - night.elo;
+    night.elo = p.elo;
+    const m = byId.get(p.matchId);
+    const o = m && outcomeFor(m, player);
+    if (o === "W") night.wins++;
+    else if (o === "D") night.draws++;
+    else if (o === "L") night.losses++;
+  }
+  return nights.map((n) => ({ ...n, elo: Math.round(n.elo), delta: Math.round(n.delta) }));
+}
+
 /** FUT-style overall rating derived from Elo. */
 export const eloToOvr = (elo: number) => Math.max(45, Math.min(99, Math.round(70 + (elo - 1000) / 25)));
