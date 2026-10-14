@@ -1,6 +1,6 @@
 import confetti from "canvas-confetti";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeftRight,
@@ -25,11 +25,12 @@ import { planMessages } from "../components/fixture/messages";
 import { DataGate } from "../components/DataGate";
 import { PageHeader } from "../components/layout/AppShell";
 import { MatchCard } from "../components/match/MatchCard";
+import { EloChip } from "../components/ranking/Ranking";
 import { PhotoPicker } from "../components/match/MatchPhotos";
 import { photoMessages } from "../components/match/messages";
 import { ClubPicker } from "../components/ui/ClubPicker";
 import { Avatar, ClubCrest } from "../components/ui/Identity";
-import { Button, Delta, EmptyState, Panel, Pill, Segmented, Switch } from "../components/ui/primitives";
+import { Button, EmptyState, Panel, Pill, Segmented, Switch } from "../components/ui/primitives";
 import type { Analytics } from "../hooks/analytics-context";
 import { useAddMatch, useUploadPhotos } from "../hooks/useData";
 import { useBoard } from "../hooks/useBoard";
@@ -38,7 +39,8 @@ import { choiceName, type ClubChoice } from "../lib/clubChoice";
 import { clubRecord } from "../lib/clubs";
 import { cn } from "../lib/cn";
 import { INITIAL_ELO, previewMatch } from "../lib/elo";
-import { cleanName, displayName, matchdayKey } from "../lib/format";
+import { cleanName, displayName, matchdayKey, nameLang } from "../lib/format";
+import { clubIdentity } from "../lib/identity";
 import {
   generateTeams,
   lastTeammates,
@@ -99,6 +101,8 @@ const msg = defineMessages({
     margin: "Fairness margin",
     randomClubs: "Balanced random clubs",
     fullTime: "Full time",
+    sideInfo: "Elo avg {elo} · club {club}",
+    sideInfoNoClub: "Elo avg {elo}",
     ready: "{n}/2 ready",
     vs: "vs",
     multiplier: "Margin & upset multiplier ×{x}",
@@ -157,6 +161,8 @@ const msg = defineMessages({
     margin: "Adalet payı",
     randomClubs: "Dengeli rastgele kulüpler",
     fullTime: "Maç sonu",
+    sideInfo: "Elo ort. {elo} · kulüp {club}",
+    sideInfoNoClub: "Elo ort. {elo}",
     ready: "{n}/2 hazır",
     vs: "-",
     multiplier: "Fark & sürpriz çarpanı ×{x}",
@@ -354,90 +360,82 @@ function ChanceBar({ pA, withClubs }: { pA: number; withClubs: boolean }) {
 
 /* -------------------------------- Scoreboard -------------------------------- */
 
-function Stepper({ value, onChange, side }: { value: number; onChange: (v: number) => void; side: Side }) {
+/** One side's goals: type them or step them; the step buttons sit under each side. */
+function ScoreInput({ value, onChange, side }: { value: number; onChange: (v: number) => void; side: Side }) {
   const t = useT(msg);
   return (
-    <div className="flex items-center gap-1.5">
-      <button
-        onClick={() => onChange(Math.max(0, value - 1))}
-        className="grid size-9 place-items-center rounded-xl bg-surface-3 text-muted transition-colors hover:text-fg active:scale-95"
-        aria-label={t("decrease")}
-      >
-        <Minus className="size-4" />
-      </button>
-      <input
-        value={value}
-        inputMode="numeric"
-        onChange={(e) => {
-          const v = parseInt(e.target.value.replace(/\D/g, ""), 10);
-          onChange(Number.isFinite(v) ? Math.min(99, v) : 0);
-        }}
-        onFocus={(e) => e.target.select()}
-        className="display tabular w-14 bg-transparent text-center text-5xl outline-none"
-        style={{ color: sideColor(side) }}
-        aria-label={t("sideScore", { side })}
-      />
-      <button
-        onClick={() => onChange(Math.min(99, value + 1))}
-        className="grid size-9 place-items-center rounded-xl bg-surface-3 text-muted transition-colors hover:text-fg active:scale-95"
-        aria-label={t("increase")}
-      >
-        <Plus className="size-4" />
-      </button>
-    </div>
+    <input
+      value={value}
+      inputMode="numeric"
+      onChange={(e) => {
+        const v = parseInt(e.target.value.replace(/\D/g, ""), 10);
+        onChange(Number.isFinite(v) ? Math.min(99, v) : 0);
+      }}
+      onFocus={(e) => e.target.select()}
+      className="display tabular w-[1.15em] bg-transparent text-center text-7xl outline-none sm:text-8xl"
+      aria-label={t("sideScore", { side })}
+    />
   );
 }
 
-function ScoreRow({
-  side,
-  club,
-  names,
-  score,
-  onScore,
-  delta,
-  eloByName,
-}: {
-  side: Side;
-  club: string;
-  names: string[];
-  score: number;
-  onScore: (v: number) => void;
-  delta: number | null;
-  eloByName: Map<string, number>;
-}) {
+function StepButtons({ value, onChange, side }: { value: number; onChange: (v: number) => void; side: Side }) {
   const t = useT(msg);
+  const minus = (
+    <button
+      key="minus"
+      onClick={() => onChange(Math.max(0, value - 1))}
+      className="grid size-11 place-items-center rounded-2xl border border-line bg-surface-2/70 text-muted transition-colors hover:text-fg active:scale-95"
+      aria-label={`${t("decrease")} · ${t("sideScore", { side })}`}
+    >
+      <Minus className="size-5" />
+    </button>
+  );
+  const plus = (
+    <button
+      key="plus"
+      onClick={() => onChange(Math.min(99, value + 1))}
+      className="grid size-11 place-items-center rounded-2xl bg-fg text-bg transition-transform active:scale-95"
+      aria-label={`${t("increase")} · ${t("sideScore", { side })}`}
+    >
+      <Plus className="size-5" strokeWidth={2.5} />
+    </button>
+  );
+  // plus faces the middle on both sides
+  return <div className="flex gap-2">{side === "A" ? [minus, plus] : [plus, minus]}</div>;
+}
+
+/** A side of the scoreboard: crest, club and players, with their Elo change if this score holds. */
+function ScoreSide({ side, club, names, delta }: { side: Side; club: string; names: string[]; delta: number | null }) {
+  const t = useT(msg);
+  const right = side === "B";
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        {club ? (
-          <ClubCrest name={club} size="lg" />
-        ) : (
-          <span
-            className="grid h-[50px] w-[44px] place-items-center rounded-xl border border-dashed text-xs font-bold"
-            style={{ borderColor: sideColor(side), color: sideColor(side) }}
-          >
-            {side}
+    <div className={cn("flex min-w-0 flex-col gap-2", right ? "items-end text-right" : "items-start")}>
+      {club ? (
+        <ClubCrest name={club} size="xl" />
+      ) : (
+        <span
+          className="grid h-[74px] w-16 place-items-center rounded-2xl border border-dashed text-sm font-bold"
+          style={{ borderColor: sideColor(side), color: sideColor(side) }}
+        >
+          {side}
+        </span>
+      )}
+      <span lang={nameLang(club)} className={cn("display max-w-full truncate text-xl sm:text-2xl", !club && "text-muted")}>
+        {club || t("sideClub", { side })}
+      </span>
+      <span className={cn("flex max-w-full items-center gap-2", right && "flex-row-reverse")}>
+        {names.length > 0 && (
+          <span className="flex shrink-0 -space-x-2">
+            {names.map((n) => (
+              <Avatar key={n} name={n} size="sm" className="ring-2 ring-surface" />
+            ))}
           </span>
         )}
-        <div className="min-w-0">
-          <p className="truncate font-semibold">{club || t("sideClub", { side })}</p>
-          <p className="truncate text-xs text-muted">{names.length ? names.map(displayName).join(" & ") : t("noPlayers")}</p>
-          {delta !== null && names.length > 0 && (
-            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-faint">
-              {names.map((n) => {
-                const before = eloByName.get(cleanName(n)) ?? INITIAL_ELO;
-                return (
-                  <span key={n} className="tabular">
-                    {before}→<span className="text-fg">{Math.round(before + delta)}</span>
-                  </span>
-                );
-              })}
-              <Delta value={delta} />
-            </p>
-          )}
-        </div>
-      </div>
-      <Stepper value={score} onChange={onScore} side={side} />
+        <span className="truncate text-xs font-semibold text-muted">
+          {names.length ? names.map(displayName).join(" · ") : t("noPlayers")}
+        </span>
+      </span>
+      {delta !== null && names.length > 0 && <EloChip value={Math.round(delta)} />}
     </div>
   );
 }
@@ -612,6 +610,22 @@ function MatchCenterInner({ data }: { data: Analytics }) {
   };
 
   const filledSteps = [teamA.length && teamB.length, clubAName && clubBName].filter(Boolean).length;
+
+  // on phones the scoreboard sits below the steps: once the second club is in, go on to it
+  // (after the club panel has finished growing, which would cut a smooth scroll short)
+  const ready = !problem;
+  const wasReady = useRef(ready);
+  useEffect(() => {
+    const go = ready && !wasReady.current && window.matchMedia("(max-width: 1279px)").matches;
+    wasReady.current = ready;
+    if (!go) return;
+    const timer = setTimeout(() => {
+      const el = document.getElementById("mc-score");
+      // below the sticky top bar
+      if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 80, behavior: "smooth" });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [ready]);
 
   return (
     <div>
@@ -811,37 +825,62 @@ function MatchCenterInner({ data }: { data: Analytics }) {
         {/* Step 3 — scoreboard */}
         <div className="min-w-0 xl:col-span-5 2xl:col-span-4">
           <div className="space-y-6 xl:sticky xl:top-24">
-            <section className="card overflow-hidden">
-              <div className="flex items-center justify-between border-b border-line px-5 py-4">
+            <section id="mc-score" className="card scroll-mt-24 overflow-hidden">
+              {clubAName && (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute -top-20 -left-20 size-64 rounded-full opacity-25 blur-3xl"
+                  style={{ background: clubIdentity(clubAName).primary }}
+                />
+              )}
+              {clubBName && (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute -top-20 -right-20 size-64 rounded-full opacity-25 blur-3xl"
+                  style={{ background: clubIdentity(clubBName).primary }}
+                />
+              )}
+              <div className="relative flex items-center justify-between px-5 pt-4">
                 <span className="flex items-center gap-2 text-[15px] font-semibold">
                   <StepDot n={3} done={false} /> {t("fullTime")}
                 </span>
                 <Pill tone={filledSteps === 2 ? "accent" : "neutral"}>{t("ready", { n: filledSteps })}</Pill>
               </div>
-              <div className="space-y-4 p-5">
-                <ScoreRow
-                  side="A"
-                  club={clubAName}
-                  names={teamA}
-                  score={scoreA}
-                  onScore={setScoreA}
-                  delta={preview.deltaA}
-                  eloByName={data.eloByName}
-                />
-                <div className="flex items-center gap-3">
-                  <div className="hairline flex-1" />
-                  <span className="label">{t("vs")}</span>
-                  <div className="hairline flex-1" />
+              <div className="relative grid grid-cols-2 gap-3 px-5 pt-5">
+                <ScoreSide side="A" club={clubAName} names={teamA} delta={preview.deltaA} />
+                <ScoreSide side="B" club={clubBName} names={teamB} delta={preview.deltaB} />
+              </div>
+              <div className="relative flex items-center justify-center gap-2 px-5 pt-2 leading-none">
+                <ScoreInput value={scoreA} onChange={setScoreA} side="A" />
+                <span className="display pb-2 text-4xl text-faint">:</span>
+                <ScoreInput value={scoreB} onChange={setScoreB} side="B" />
+              </div>
+              <div className="relative flex items-center justify-between gap-2 px-5 pt-2">
+                <StepButtons value={scoreA} onChange={setScoreA} side="A" />
+                <StepButtons value={scoreB} onChange={setScoreB} side="B" />
+              </div>
+              {teamA.length > 0 && teamB.length > 0 && (
+                <div className="relative space-y-2 px-5 pt-4">
+                  <ChanceBar pA={clubAName && clubBName ? preview.expectedA : squadsOnly} withClubs={!!(clubAName && clubBName)} />
+                  <div className="tabular flex justify-between gap-3 text-[11px] text-faint">
+                    {([
+                      [teamA, clubAName],
+                      [teamB, clubBName],
+                    ] as const).map(([names, club], i) => {
+                      const elo = Math.round(teamAverage(names, data.eloByName));
+                      const rating = data.clubs.find((c) => c.name === club)?.elo;
+                      return (
+                        <span key={i} className={cn("truncate", i === 1 && "text-right")}>
+                          {rating !== undefined && rating !== null
+                            ? t("sideInfo", { elo, club: rating })
+                            : t("sideInfoNoClub", { elo })}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
-                <ScoreRow
-                  side="B"
-                  club={clubBName}
-                  names={teamB}
-                  score={scoreB}
-                  onScore={setScoreB}
-                  delta={preview.deltaB}
-                  eloByName={data.eloByName}
-                />
+              )}
+              <div className="relative space-y-3 p-5">
                 {preview.deltaA !== null && preview.multiplier > 1.05 && (
                   <p className="text-center text-[11px] text-faint">
                     {t("multiplier", { x: preview.multiplier.toFixed(2) })}
@@ -852,17 +891,19 @@ function MatchCenterInner({ data }: { data: Analytics }) {
                   onChange={setPhotos}
                   busy={photoProgress ? tph("uploading", photoProgress) : null}
                 />
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="mt-2 w-full"
-                  disabled={!!problem || !!photoProgress}
-                  loading={addMatch.isPending}
+                <button
+                  type="button"
+                  disabled={!!problem || !!photoProgress || addMatch.isPending}
                   onClick={submit}
+                  className="accent-gem flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-bold transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
                 >
-                  <Trophy className="size-5" />
+                  {addMatch.isPending ? (
+                    <span className="size-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <Trophy className="size-5" />
+                  )}
                   {t("save", { a: scoreA, b: scoreB })}
-                </Button>
+                </button>
                 {problem && <p className="text-center text-xs text-muted">{problem}</p>}
               </div>
             </section>
