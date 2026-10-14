@@ -412,9 +412,11 @@ function KFactor({ data }: { data: Analytics }) {
   const preview = useMemo(() => {
     const engine = runElo(data.players, data.clubs, data.matches, k, data.clubWeight);
     const elo = (id: number) => Math.round(engine.ratings.get(id) ?? 1000);
+    // positions by plain Elo at the live K and at this K, new players included
+    const now = new Map([...data.ranking].sort((a, b) => b.elo - a.elo).map((p, i) => [p.id, i + 1]));
     return [...data.ranking]
       .sort((a, b) => elo(b.id) - elo(a.id))
-      .map((p, i) => ({ p, elo: elo(p.id), rank: i + 1 }));
+      .map((p, i) => ({ p, elo: elo(p.id), rank: i + 1, was: now.get(p.id) ?? i + 1 }));
   }, [data, k]);
 
   return (
@@ -444,12 +446,12 @@ function KFactor({ data }: { data: Analytics }) {
       <div className="hairline my-5" />
       <p className="label mb-3">{dirty ? t("preview", { k, live: data.k }) : t("live")}</p>
       <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
-        {preview.map(({ p, elo, rank }) => (
+        {preview.map(({ p, elo, rank, was }) => (
           <div key={p.id} className="flex items-center gap-2.5 text-sm">
             <span className="display tabular w-5 text-faint">{rank}</span>
             <Avatar name={p.name} size="xs" />
             <span className="flex-1 truncate">{displayName(p.name)}</span>
-            {dirty && <RankMove value={p.rank - rank} />}
+            {dirty && <RankMove value={was - rank} />}
             <span className="tabular w-12 text-right font-semibold">{elo}</span>
             {dirty && <Delta value={elo - p.elo} className="w-10 justify-end" />}
           </div>

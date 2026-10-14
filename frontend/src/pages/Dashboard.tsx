@@ -25,16 +25,16 @@ import {
   FormPills,
   Panel,
   Pill,
-  Sparkline,
 } from "../components/ui/primitives";
 import type { Analytics } from "../hooks/analytics-context";
 import { cn } from "../lib/cn";
 import { dayFromKey, displayName, formatDayShort, formatWeekday, nameLang } from "../lib/format";
 import { computeAwards } from "../lib/analysis";
-import { nightlyElo, nightSummary, scoreOfTheNight } from "../lib/insights";
+import { nightSummary, scoreOfTheNight } from "../lib/insights";
 import { clubIdentity } from "../lib/identity";
 import { winRate, type ParsedMatch } from "../lib/stats";
 import { BoardLink } from "../components/board/BoardLink";
+import { NewPlayers, RankingRow } from "../components/ranking/Ranking";
 import { useBoard } from "../hooks/useBoard";
 import { useT } from "../hooks/useI18n";
 import { defineMessages, locale } from "../lib/i18n";
@@ -46,12 +46,10 @@ const msg = defineMessages({
     nights: "Nights",
     perMatch: "Goals / match",
     perMatchShort: "Avg",
-    rankSub: "{n} matches · {pct}%",
     scoreOfNight: "Score of the night",
     powerRankings: "Power rankings",
     powerSub: "Elo · movement since last matchday",
     fullTable: "Full table",
-    prov: "PROV",
     allMatches: "All matches",
     hotCold: "Hot & cold",
     hotSub: "Current streaks and form",
@@ -98,12 +96,10 @@ const msg = defineMessages({
     nights: "Gece",
     perMatch: "Maç başı gol",
     perMatchShort: "Gol/maç",
-    rankSub: "{n} maç · %{pct}",
     scoreOfNight: "Gecenin skoru",
     powerRankings: "Güç sıralaması",
     powerSub: "Elo · son maç gecesinden beri değişim",
     fullTable: "Tüm tablo",
-    prov: "GEÇİCİ",
     allMatches: "Tüm maçlar",
     hotCold: "Sıcak & soğuk",
     hotSub: "Güncel seriler ve form",
@@ -273,51 +269,15 @@ function PowerRankings({ data, className }: { data: Analytics; className?: strin
       }
     >
       <ol>
-        {data.ranking.map((p, i) => (
-          <motion.li key={p.id} {...fade(i + 2)}>
-            <BoardLink
-              to={`/players/${encodeURIComponent(p.name)}`}
-              className="group flex items-center gap-2.5 rounded-xl px-3 py-2 transition-colors hover:bg-surface-2"
-            >
-              <span
-                className={cn(
-                  "display tabular w-5 shrink-0 text-center text-lg",
-                  p.rank === 1 ? "text-gold" : p.rank === 2 ? "text-silver" : p.rank === 3 ? "text-bronze" : "text-faint",
-                )}
-              >
-                {p.rank}
-              </span>
-              <Avatar name={p.name} size="sm" />
-              <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-1.5 truncate text-sm font-medium">
-                  {displayName(p.name)}
-                  {p.provisional && <span className="text-[10px] font-semibold text-faint">{t("prov")}</span>}
-                </span>
-                {p.stats && (
-                  <span className="tabular block truncate text-[11px] text-faint">
-                    {t("rankSub", { n: p.stats.played, pct: winRate(p.stats).toFixed(0) })}
-                  </span>
-                )}
-              </span>
-              <Sparkline values={nightlyElo(p.history).slice(-12)} width={56} height={22} className="shrink-0" />
-              <span className="display tabular w-11 shrink-0 text-right text-xl">{p.elo}</span>
-              <span className="w-10 shrink-0 text-right">
-                {p.eloDelta !== 0 && (
-                  <span
-                    className={cn(
-                      "tabular rounded-md px-1.5 py-0.5 text-[11px] font-bold",
-                      p.eloDelta > 0 ? "bg-win/12 text-win" : "bg-loss/12 text-loss",
-                    )}
-                  >
-                    {p.eloDelta > 0 ? "+" : "−"}
-                    {Math.abs(p.eloDelta)}
-                  </span>
-                )}
-              </span>
-            </BoardLink>
-          </motion.li>
-        ))}
+        {data.ranking
+          .filter((p) => !p.provisional)
+          .map((p, i) => (
+            <motion.li key={p.id} {...fade(i + 2)}>
+              <RankingRow player={p} rankedAfter={data.rankedAfter} />
+            </motion.li>
+          ))}
       </ol>
+      <NewPlayers players={data.ranking.filter((p) => p.provisional)} rankedAfter={data.rankedAfter} />
     </Panel>
   );
 }
