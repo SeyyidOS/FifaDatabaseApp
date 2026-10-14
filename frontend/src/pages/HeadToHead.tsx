@@ -11,7 +11,7 @@ import { Button, EmptyState, FormPills, Panel } from "../components/ui/primitive
 import type { Analytics, RankedPlayer } from "../hooks/analytics-context";
 import { cn } from "../lib/cn";
 import { expectedScore } from "../lib/elo";
-import { cleanName, displayName } from "../lib/format";
+import { cleanName, displayName, nameLang } from "../lib/format";
 import { headToHead, winRate } from "../lib/stats";
 import { useT } from "../hooks/useI18n";
 import { defineMessages } from "../lib/i18n";
@@ -186,7 +186,9 @@ function Fighter({ p, side }: { p?: RankedPlayer; side: "A" | "B" }) {
         <Avatar name={p.name} size="2xl" ring={side === "A" ? "a" : "b"} />
       </div>
       <div>
-        <p className="display text-3xl sm:text-4xl">{displayName(p.name)}</p>
+        <p lang={nameLang(p.name)} className="display text-3xl sm:text-4xl">
+          {displayName(p.name)}
+        </p>
         <p className="mt-1 text-xs text-muted">
           {p.rank ? `#${p.rank}` : t("archived")} · <span className="tabular font-semibold text-fg">{p.elo}</span> Elo
         </p>

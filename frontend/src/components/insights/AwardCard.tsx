@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 import { Crown, Flag, HeartPulse, MoonStar, Rocket, Shield, Swords, Wine, type LucideIcon } from "lucide-react";
 import type { Award, AwardKey } from "../../lib/analysis";
-import { displayName } from "../../lib/format";
+import { displayName, nameLang } from "../../lib/format";
 import { BoardLink } from "../board/BoardLink";
 import { Avatar } from "../ui/Identity";
 import { useT } from "../../hooks/useI18n";
@@ -51,7 +51,9 @@ export function AwardCard({ award, index }: { award: Award; index: number }) {
       <BoardLink to={`/players/${encodeURIComponent(award.winner)}`} className="mt-5 flex items-center gap-3 hover:opacity-90">
         <Avatar name={award.winner} size="lg" ring={roast ? undefined : "accent"} />
         <div className="min-w-0">
-          <p className="display truncate text-2xl">{displayName(award.winner)}</p>
+          <p lang={nameLang(award.winner)} className="display truncate text-2xl">
+            {displayName(award.winner)}
+          </p>
           <p className={roast ? "display text-xl text-loss" : "display text-xl text-accent-text"}>{awardValue(t, award)}</p>
         </div>
       </BoardLink>

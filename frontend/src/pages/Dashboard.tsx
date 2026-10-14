@@ -1,8 +1,6 @@
 import { motion } from "motion/react";
 import {
   ArrowRight,
-  CalendarDays,
-  Crown,
   Flame,
   FlaskConical,
   Goal,
@@ -10,67 +8,51 @@ import {
   Medal,
   Snowflake,
   Sparkles,
-  Swords,
   Target,
   TrendingUp,
-  Trophy,
-  Users,
   Zap,
 } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 import { DataGate } from "../components/DataGate";
 import { EloRaceChart } from "../components/charts/EloCharts";
 import { PageHeader } from "../components/layout/AppShell";
-import { MatchCard } from "../components/match/MatchCard";
 import { AwardCard } from "../components/insights/AwardCard";
-import { NightRecapBanner } from "../components/insights/NightRecapBanner";
-import { PlayerCard } from "../components/PlayerCard";
 import { Avatar, ClubCrest } from "../components/ui/Identity";
 import {
   AnimatedNumber,
   Button,
   Delta,
-  EmptyState,
   FormPills,
   Panel,
   Pill,
-  RankMove,
   Sparkline,
 } from "../components/ui/primitives";
 import type { Analytics } from "../hooks/analytics-context";
 import { cn } from "../lib/cn";
-import { dayFromKey, displayName, formatWeekday, relativeTime } from "../lib/format";
+import { dayFromKey, displayName, formatDayShort, formatWeekday, nameLang } from "../lib/format";
 import { computeAwards } from "../lib/analysis";
-import { nightSummary } from "../lib/insights";
+import { nightlyElo, nightSummary, scoreOfTheNight } from "../lib/insights";
+import { clubIdentity } from "../lib/identity";
 import { winRate, type ParsedMatch } from "../lib/stats";
 import { BoardLink } from "../components/board/BoardLink";
 import { useBoard } from "../hooks/useBoard";
-import { useBoardNavigate } from "../hooks/useBoardNavigate";
 import { useT } from "../hooks/useI18n";
-import { defineMessages } from "../lib/i18n";
+import { defineMessages, locale } from "../lib/i18n";
 
 const msg = defineMessages({
   en: {
-    topOfTable: "Top of the table",
-    leadsBefore: "Leads {name} by ",
-    leadsAfter: "",
-    leadsRatings: "Leads the ratings",
-    leaderRecord: " · {w}W {d}D {l}L · {pct}% win rate",
-    elo: "Elo",
-    peak: "Peak",
-    form: "Form",
-    viewProfile: "View profile",
-    versus: "vs {name}",
+    king: "King of the night",
+    lastNight: "Last match night",
+    nights: "Nights",
+    perMatch: "Goals / match",
+    perMatchShort: "Avg",
+    rankSub: "{n} matches · {pct}%",
+    scoreOfNight: "Score of the night",
     powerRankings: "Power rankings",
     powerSub: "Elo · movement since last matchday",
     fullTable: "Full table",
     prov: "PROV",
-    lastMatchday: "Last matchday",
-    noMatches: "No matches yet",
-    lastSub: "Last matchday · {when} · {matches} matches · {goals} goals",
     allMatches: "All matches",
-    potn: "Player of the night",
-    winsOf: "{w}/{n} wins",
     hotCold: "Hot & cold",
     hotSub: "Current streaks and form",
     winStreak: "{n} win|{n} wins",
@@ -105,40 +87,24 @@ const msg = defineMessages({
     fromLab: "From the lab",
     labLink: "All awards, Elo DNA & duo matchups",
     eyebrow: "Season overview",
-    title: "The Pitch",
-    description: "Ratings, streaks and stories from every match night.",
     matches: "Matches",
-    matchdays: "{n} matchday|{n} matchdays",
     goals: "Goals",
-    draws: "{n} draw|{n} draws",
-    perMatch: "Goals / match",
-    bothSides: "Both sides combined",
-    players: "Players",
-    kFactor: "K-factor {k}",
     race: "The race",
     raceSub: "Elo after every matchday · hover a name to focus, click to hide",
   },
   tr: {
-    topOfTable: "Zirvede",
-    leadsBefore: "{name} karşısında ",
-    leadsAfter: " önde",
-    leadsRatings: "Sıralamanın zirvesinde",
-    leaderRecord: " · {w}G {d}B {l}M · %{pct} galibiyet",
-    elo: "Elo",
-    peak: "Zirve",
-    form: "Form",
-    viewProfile: "Profili gör",
-    versus: "{name} ile kıyasla",
+    king: "Gecenin kralı",
+    lastNight: "Son maç gecesi",
+    nights: "Gece",
+    perMatch: "Maç başı gol",
+    perMatchShort: "Gol/maç",
+    rankSub: "{n} maç · %{pct}",
+    scoreOfNight: "Gecenin skoru",
     powerRankings: "Güç sıralaması",
     powerSub: "Elo · son maç gecesinden beri değişim",
     fullTable: "Tüm tablo",
     prov: "GEÇİCİ",
-    lastMatchday: "Son maç gecesi",
-    noMatches: "Henüz maç yok",
-    lastSub: "Son maç gecesi · {when} · {matches} maç · {goals} gol",
     allMatches: "Tüm maçlar",
-    potn: "Gecenin oyuncusu",
-    winsOf: "{n} maçta {w} galibiyet",
     hotCold: "Sıcak & soğuk",
     hotSub: "Güncel seriler ve form",
     winStreak: "{n} galibiyet|{n} galibiyet",
@@ -173,16 +139,8 @@ const msg = defineMessages({
     fromLab: "Laboratuvardan",
     labLink: "Tüm ödüller, Elo DNA'sı ve ikili eşleşmeler",
     eyebrow: "Sezon özeti",
-    title: "Saha",
-    description: "Her maç gecesinden puanlar, seriler ve hikâyeler.",
     matches: "Maçlar",
-    matchdays: "{n} maç gecesi|{n} maç gecesi",
     goals: "Goller",
-    draws: "{n} beraberlik|{n} beraberlik",
-    perMatch: "Maç başı gol",
-    bothSides: "İki tarafın toplamı",
-    players: "Oyuncular",
-    kFactor: "K-faktörü {k}",
     race: "Yarış",
     raceSub: "Her maç gecesinden sonra Elo · odaklanmak için ismin üzerine gel, gizlemek için tıkla",
   },
@@ -194,115 +152,119 @@ const fade = (i: number) => ({
   transition: { delay: 0.05 * i, duration: 0.5, ease: [0.16, 1, 0.3, 1] as const },
 });
 
-function Kpi({
-  label,
-  value,
-  icon,
-  format,
-  hint,
-  i,
-}: {
-  label: string;
-  value: number;
-  icon: ReactNode;
-  format?: (n: number) => string;
-  hint?: ReactNode;
-  i: number;
-}) {
-  return (
-    <motion.div {...fade(i)} className="card p-4 sm:p-5">
-      <div className="flex items-center justify-between">
-        <span className="label">{label}</span>
-        <span className="text-faint">{icon}</span>
-      </div>
-      <AnimatedNumber value={value} format={format} className="display mt-3 block text-4xl sm:text-5xl" />
-      {hint && <p className="mt-1.5 truncate text-xs text-muted">{hint}</p>}
-    </motion.div>
-  );
-}
-
-function LeaderHero({ data }: { data: Analytics }) {
+/** The latest night at a glance: its headline score, how big it was and who won it. */
+function LastNight({ data }: { data: Analytics }) {
   const t = useT(msg);
-  const navigate = useBoardNavigate();
-  const leader = data.ranking.find((p) => !p.provisional) ?? data.ranking[0];
-  if (!leader) return null;
-  const s = leader.stats;
-  const second = data.ranking.find((p) => p.id !== leader.id && !p.provisional);
+  const day = data.matchdays[0];
+  const best = day && scoreOfTheNight(day);
+  if (!day || !best) return null;
+  const king = nightSummary(day, data.engine)[0];
+  const side = (club: string, team: string[], dim: boolean) => (
+    <div className="flex min-w-0 flex-col items-center gap-2 text-center">
+      <ClubCrest name={club} size="xl" />
+      <span lang={nameLang(club)} className={cn("display max-w-full truncate text-lg sm:text-xl", dim && "text-muted")}>
+        {club}
+      </span>
+      <span className="max-w-full truncate text-xs text-muted">{team.map(displayName).join(" & ")}</span>
+    </div>
+  );
+  const glow = (club: string, at: string) => (
+    <span
+      aria-hidden
+      className={cn("pointer-events-none absolute -top-20 size-72 rounded-full opacity-25 blur-3xl", at)}
+      style={{ background: clubIdentity(club).primary }}
+    />
+  );
   return (
-    <motion.section {...fade(0)} className="card sheen overflow-hidden lg:col-span-8">
-      <div className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-accent/10 blur-3xl" />
-      <div className="relative flex flex-col items-center gap-8 p-6 sm:p-8 md:flex-row md:items-center">
-        <div className="shrink-0">
-          <PlayerCard player={leader} size="md" />
+    <motion.section {...fade(0)} className="card overflow-hidden">
+      {glow(best.clubA, "-left-20")}
+      {glow(best.clubB, "-right-20")}
+      <div className="relative flex items-center justify-between gap-3 px-5 pt-5 sm:px-6">
+        <span className="label truncate text-accent-text">
+          {t("lastNight")} · <span className="sm:hidden">{formatDayShort(dayFromKey(day.key))}</span>
+          <span className="hidden sm:inline">{formatWeekday(dayFromKey(day.key))}</span>
+        </span>
+        <BoardLink
+          to="/matches"
+          className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-accent-text hover:underline"
+        >
+          {t("allMatches")} <ArrowRight className="size-3.5" />
+        </BoardLink>
+      </div>
+      <div className="relative grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 pt-5 sm:px-6">
+        {side(best.clubA, best.teamA, best.result === "B")}
+        <div className="display tabular flex items-center gap-3 text-6xl sm:text-7xl">
+          <span className={cn(best.result === "B" && "text-muted")}>{best.scoreA}</span>
+          <span className="h-1 w-3 rounded-full bg-line-strong" />
+          <span className={cn(best.result === "A" && "text-muted")}>{best.scoreB}</span>
         </div>
-        <div className="min-w-0 flex-1 text-center md:text-left">
-          <Pill tone="accent" className="mb-4">
-            <Crown className="size-3" /> {t("topOfTable")}
-          </Pill>
-          <h2 className="display text-5xl sm:text-6xl">{displayName(leader.name)}</h2>
-          <p className="mt-3 text-sm text-muted">
-            {second ? (
-              <>
-                {t("leadsBefore", { name: displayName(second.name) })}
-                <span className="font-semibold text-fg">{leader.elo - second.elo} Elo</span>
-                {t("leadsAfter", { name: displayName(second.name) })}
-              </>
-            ) : (
-              t("leadsRatings")
-            )}
-            {s && (
-              <>
-                {t("leaderRecord", { w: s.wins, d: s.draws, l: s.losses, pct: winRate(s).toFixed(0) })}
-              </>
-            )}
-          </p>
-          <div className="mt-6 grid grid-cols-3 gap-3">
-            <div className="rounded-xl border border-line bg-surface-2/60 p-3">
-              <p className="label">{t("elo")}</p>
-              <p className="display mt-1.5 text-3xl">
-                <AnimatedNumber value={leader.elo} />
-              </p>
-            </div>
-            <div className="rounded-xl border border-line bg-surface-2/60 p-3">
-              <p className="label">{t("peak")}</p>
-              <p className="display mt-1.5 text-3xl text-gold">{leader.peak}</p>
-            </div>
-            <div className="rounded-xl border border-line bg-surface-2/60 p-3">
-              <p className="label">{t("form")}</p>
-              <div className="mt-2.5">
-                <FormPills outcomes={s?.outcomes ?? []} size="sm" />
-              </div>
-            </div>
-          </div>
-          <div className="mt-6 flex flex-wrap justify-center gap-2 md:justify-start">
-            <Button variant="primary" onClick={() => navigate(`/players/${encodeURIComponent(leader.name)}`)}>
-              {t("viewProfile")} <ArrowRight className="size-4" />
-            </Button>
-            {second && (
-              <Button
-                variant="secondary"
-                onClick={() =>
-                  navigate(`/h2h?a=${encodeURIComponent(leader.name)}&b=${encodeURIComponent(second.name)}`)
-                }
-              >
-                <Swords className="size-4" /> {t("versus", { name: displayName(second.name) })}
-              </Button>
-            )}
-          </div>
+        {side(best.clubB, best.teamB, best.result === "A")}
+      </div>
+      <p className="relative pt-3 pb-4 text-center text-xs text-muted">{t("scoreOfNight")}</p>
+      <div className="relative grid grid-cols-[1fr_1fr_2.2fr] border-t border-line">
+        <div className="px-3 py-3 sm:px-5">
+          <p className="display tabular text-2xl">{day.matches.length}</p>
+          <p className="label mt-1 tracking-[0.08em]">{t("matches")}</p>
         </div>
+        <div className="border-l border-line px-3 py-3 sm:px-5">
+          <p className="display tabular text-2xl">{day.goals}</p>
+          <p className="label mt-1 tracking-[0.08em]">{t("goals")}</p>
+        </div>
+        {king && (
+          <BoardLink
+            to={`/players/${encodeURIComponent(king.name)}`}
+            className="flex min-w-0 items-center gap-2.5 border-l border-line px-3 py-3 transition-colors hover:bg-surface-2/60 sm:gap-3 sm:px-5"
+          >
+            <Avatar name={king.name} size="sm" ring="accent" className="sm:size-9 sm:text-sm" />
+            <span className="min-w-0">
+              <span className="flex items-center gap-1.5 truncate text-sm font-semibold">
+                {displayName(king.name)} <Delta value={king.delta} />
+              </span>
+              <span className="label block truncate tracking-[0.08em]">{t("king")}</span>
+            </span>
+          </BoardLink>
+        )}
       </div>
     </motion.section>
   );
 }
 
-function PowerRankings({ data }: { data: Analytics }) {
+function KpiStrip({ data }: { data: Analytics }) {
+  const t = useT(msg);
+  const matches = data.parsed.length;
+  const goals = data.parsed.reduce((a, m) => a + m.scoreA + m.scoreB, 0);
+  const whole = (n: number) => Math.round(n).toLocaleString(locale());
+  const oneDecimal = (n: number) => n.toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  // [label, wider label for wider screens, value, format]
+  const cells: [string, string, number, (n: number) => string][] = [
+    [t("matches"), t("matches"), matches, whole],
+    [t("goals"), t("goals"), goals, whole],
+    [t("nights"), t("nights"), data.matchdays.length, whole],
+    [t("perMatchShort"), t("perMatch"), matches ? goals / matches : 0, oneDecimal],
+  ];
+  return (
+    <motion.div {...fade(1)} className="card grid grid-cols-4 divide-x divide-line">
+      {cells.map(([label, wide, value, format]) => (
+        <div key={label} className="min-w-0 px-3 py-3 sm:px-5 sm:py-4">
+          <AnimatedNumber value={value} format={format} className="display block text-2xl sm:text-3xl" />
+          <p className="label mt-1 truncate tracking-[0.08em]">
+            <span className="sm:hidden">{label}</span>
+            <span className="hidden sm:inline">{wide}</span>
+          </p>
+        </div>
+      ))}
+    </motion.div>
+  );
+}
+
+function PowerRankings({ data, className }: { data: Analytics; className?: string }) {
   const t = useT(msg);
   return (
     <Panel
       title={t("powerRankings")}
       subtitle={t("powerSub")}
       icon={<TrendingUp className="size-4" />}
-      className="lg:col-span-4"
+      className={className}
       bodyClassName="px-2 pb-3 pt-3"
       action={
         <BoardLink to="/leaderboard" className="text-xs font-medium text-muted hover:text-fg">
@@ -315,11 +277,11 @@ function PowerRankings({ data }: { data: Analytics }) {
           <motion.li key={p.id} {...fade(i + 2)}>
             <BoardLink
               to={`/players/${encodeURIComponent(p.name)}`}
-              className="group flex items-center gap-3 rounded-xl px-3 py-2 transition-colors hover:bg-surface-2"
+              className="group flex items-center gap-2.5 rounded-xl px-3 py-2 transition-colors hover:bg-surface-2"
             >
               <span
                 className={cn(
-                  "display tabular w-5 text-center text-lg",
+                  "display tabular w-5 shrink-0 text-center text-lg",
                   p.rank === 1 ? "text-gold" : p.rank === 2 ? "text-silver" : p.rank === 3 ? "text-bronze" : "text-faint",
                 )}
               >
@@ -331,76 +293,31 @@ function PowerRankings({ data }: { data: Analytics }) {
                   {displayName(p.name)}
                   {p.provisional && <span className="text-[10px] font-semibold text-faint">{t("prov")}</span>}
                 </span>
+                {p.stats && (
+                  <span className="tabular block truncate text-[11px] text-faint">
+                    {t("rankSub", { n: p.stats.played, pct: winRate(p.stats).toFixed(0) })}
+                  </span>
+                )}
               </span>
-              <Sparkline values={[1000, ...p.history.slice(-12).map((h) => h.elo)]} width={64} height={22} />
-              <span className="w-10 text-right">
-                <RankMove value={p.rankDelta} />
+              <Sparkline values={nightlyElo(p.history).slice(-12)} width={56} height={22} className="shrink-0" />
+              <span className="display tabular w-11 shrink-0 text-right text-xl">{p.elo}</span>
+              <span className="w-10 shrink-0 text-right">
+                {p.eloDelta !== 0 && (
+                  <span
+                    className={cn(
+                      "tabular rounded-md px-1.5 py-0.5 text-[11px] font-bold",
+                      p.eloDelta > 0 ? "bg-win/12 text-win" : "bg-loss/12 text-loss",
+                    )}
+                  >
+                    {p.eloDelta > 0 ? "+" : "−"}
+                    {Math.abs(p.eloDelta)}
+                  </span>
+                )}
               </span>
-              <span className="display tabular w-12 text-right text-xl">{p.elo}</span>
             </BoardLink>
           </motion.li>
         ))}
       </ol>
-    </Panel>
-  );
-}
-
-function LastMatchday({ data }: { data: Analytics }) {
-  const t = useT(msg);
-  const day = data.matchdays[0];
-  if (!day)
-    return (
-      <Panel title={t("lastMatchday")} className="lg:col-span-7">
-        <EmptyState icon={<CalendarDays className="size-5" />} title={t("noMatches")} />
-      </Panel>
-    );
-  const summary = nightSummary(day, data.engine);
-  const mvp = summary[0];
-  const date = dayFromKey(day.key);
-  return (
-    <Panel
-      title={formatWeekday(date)}
-      subtitle={t("lastSub", { when: relativeTime(day.matches[0].date), matches: day.matches.length, goals: day.goals })}
-      icon={<CalendarDays className="size-4" />}
-      className="lg:col-span-7"
-      action={
-        <BoardLink to="/matches" className="text-xs font-medium text-muted hover:text-fg">
-          {t("allMatches")}
-        </BoardLink>
-      }
-    >
-      {mvp && (
-        <div className="mb-4 flex items-center gap-4 rounded-2xl border border-accent/25 bg-accent/[0.06] p-4">
-          <Avatar name={mvp.name} size="lg" ring="accent" />
-          <div className="min-w-0 flex-1">
-            <p className="label text-accent-text">{t("potn")}</p>
-            <p className="display mt-1 text-2xl">{displayName(mvp.name)}</p>
-            <p className="text-xs text-muted">
-              {t("winsOf", { w: mvp.wins, n: mvp.played })}
-            </p>
-          </div>
-          <div className="text-right">
-            <Delta value={mvp.delta} className="display text-3xl" />
-            <p className="text-[11px] text-faint">{t("elo")}</p>
-          </div>
-        </div>
-      )}
-      <div className="space-y-2">
-        {day.matches.slice(0, 5).map((m) => (
-          <MatchCard key={m.id} match={m} elo={data.engine.perMatch.get(m.id)} className="shadow-none" />
-        ))}
-      </div>
-      {summary.length > 1 && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {summary.map((s) => (
-            <span key={s.name} className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 py-1 pl-1 pr-2.5 text-xs">
-              <Avatar name={s.name} size="xs" />
-              {displayName(s.name)}
-              <Delta value={s.delta} />
-            </span>
-          ))}
-        </div>
-      )}
     </Panel>
   );
 }
@@ -434,7 +351,7 @@ function HotCold({ data }: { data: Analytics }) {
     .sort((a, b) => b.pts - a.pts);
 
   return (
-    <Panel title={t("hotCold")} subtitle={t("hotSub")} icon={<Flame className="size-4" />} className="lg:col-span-5">
+    <Panel title={t("hotCold")} subtitle={t("hotSub")} icon={<Flame className="size-4" />} className="lg:col-span-4">
       <div className="space-y-1">
         {hot.map(({ p, s }) => row(p.name, t("winStreak", { n: s.count }), "win", <Flame className="size-3" />))}
         {cold.map(({ p, s }) => row(p.name, t("lossStreak", { n: s.count }), "loss", <Snowflake className="size-3" />))}
@@ -646,52 +563,38 @@ function FromTheLab({ data }: { data: Analytics }) {
 
 export default function Dashboard() {
   const t = useT(msg);
+  const { name } = useBoard();
   return (
     <DataGate>
       {(data) => {
-        const goals = data.parsed.reduce((a, m) => a + m.scoreA + m.scoreB, 0);
-        const matches = data.parsed.length;
         const top = data.ranking.slice(0, 6).map((p) => ({ name: p.name, history: p.history }));
-        if (!matches) return <GettingStarted players={data.ranking.length} />;
+        if (!data.parsed.length) return <GettingStarted players={data.ranking.length} />;
         return (
           <div className="space-y-6">
-            <PageHeader
-              eyebrow={t("eyebrow")}
-              title={t("title")}
-              description={t("description")}
-            />
+            <header className="min-w-0">
+              <p className="label text-accent-text">{data.season?.name ?? t("eyebrow")}</p>
+              <h1 lang={nameLang(name)} className="display mt-2 truncate text-4xl sm:text-5xl">
+                {name}
+              </h1>
+            </header>
 
-            <NightRecapBanner data={data} />
-
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-              <Kpi i={1} label={t("matches")} value={matches} icon={<Trophy className="size-4" />} hint={t("matchdays", { n: data.matchdays.length })} />
-              <Kpi i={2} label={t("goals")} value={goals} icon={<Goal className="size-4" />} hint={t("draws", { n: data.parsed.filter((m) => m.result === "D").length })} />
-              <Kpi
-                i={3}
-                label={t("perMatch")}
-                value={matches ? goals / matches : 0}
-                format={(n) => n.toFixed(2)}
-                icon={<Target className="size-4" />}
-                hint={t("bothSides")}
-              />
-              <Kpi i={4} label={t("players")} value={data.ranking.length} icon={<Users className="size-4" />} hint={t("kFactor", { k: data.k })} />
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+              <div className="min-w-0 space-y-4 lg:col-span-7">
+                <LastNight data={data} />
+                <KpiStrip data={data} />
+              </div>
+              <PowerRankings data={data} className="lg:col-span-5" />
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-12">
-              <LeaderHero data={data} />
-              <PowerRankings data={data} />
-            </div>
-
-            <Panel
-              title={t("race")}
-              subtitle={t("raceSub")}
-              icon={<TrendingUp className="size-4" />}
-            >
-              <EloRaceChart series={top} />
-            </Panel>
-
-            <div className="grid gap-4 lg:grid-cols-12">
-              <LastMatchday data={data} />
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+              <Panel
+                title={t("race")}
+                subtitle={t("raceSub")}
+                icon={<TrendingUp className="size-4" />}
+                className="lg:col-span-8"
+              >
+                <EloRaceChart series={top} />
+              </Panel>
               <HotCold data={data} />
             </div>
 

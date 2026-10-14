@@ -6,6 +6,7 @@ import { Check, ChevronsUpDown, LayoutGrid, LogOut, Menu, Plus, Search, X } from
 import { useAnalytics } from "../../hooks/useAnalytics";
 import { useBoard, useSessions } from "../../hooks/useBoard";
 import { cn } from "../../lib/cn";
+import { nameLang } from "../../lib/format";
 import { defineMessages } from "../../lib/i18n";
 import { common } from "../../lib/messages";
 import { removeSession } from "../../lib/session";
@@ -296,7 +297,9 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
           animate={{ opacity: 1, y: 0 }}
           className="border-t border-line px-4 py-4 lg:hidden"
         >
-          <p className="label mb-3 truncate">{name}</p>
+          <p lang={nameLang(name)} className="label mb-3 truncate">
+            {name}
+          </p>
           <div className="grid grid-cols-2 gap-2">
             {[...navGroup("more"), ...navGroup("settings")].map((n) => (
               <NavLink

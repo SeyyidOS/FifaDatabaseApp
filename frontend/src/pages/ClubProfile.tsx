@@ -16,6 +16,7 @@ import { cn } from "../lib/cn";
 import { SLOTS, STATS, type RatedClub } from "../lib/clubModel";
 import { cardLine, clubFinder, clubRecord, distinctGameName, referenceSeason, runModel } from "../lib/clubs";
 import { clubStars, expectedScore } from "../lib/elo";
+import { nameLang } from "../lib/format";
 import type { ParsedMatch } from "../lib/stats";
 import type { Club } from "../lib/types";
 
@@ -256,7 +257,9 @@ function ClubProfileInner({ data }: { data: Analytics }) {
           <ClubCrest name={displayName} size="2xl" />
           <div className="min-w-0 flex-1">
             <p className="label mb-1 text-accent-text">{rated ? rated.club.league : season?.name}</p>
-            <h1 className="display text-4xl sm:text-5xl">{displayName}</h1>
+            <h1 lang={nameLang(displayName)} className="display text-4xl sm:text-5xl">
+              {displayName}
+            </h1>
             {rated && distinctGameName(displayName, rated.club.gameName) && (
               <p className="mt-1 text-sm text-muted">{t("inGame", { name: rated.club.gameName })}</p>
             )}
