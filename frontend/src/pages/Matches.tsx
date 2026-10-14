@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import { useMemo, useState } from "react";
-import { CalendarDays, Search, Star, X, Zap } from "lucide-react";
+import { CalendarDays, Newspaper, Search, Star, X, Zap } from "lucide-react";
+import { BoardLink } from "../components/board/BoardLink";
 import { DataGate } from "../components/DataGate";
 import { PageHeader } from "../components/layout/AppShell";
 import { MatchCard } from "../components/match/MatchCard";
@@ -20,6 +21,7 @@ type ResultFilter = "all" | "decisive" | "draws" | "upsets";
 
 const msg = defineMessages({
   en: {
+    nightPost: "Night Post",
     eyebrow: "Match history",
     title: "Matches",
     description: "{matches} results across {days} matchdays. Elo swings shown next to each line-up.",
@@ -38,6 +40,7 @@ const msg = defineMessages({
     loadMore: "Load older matchdays ({n} more)",
   },
   tr: {
+    nightPost: "Gece Postası",
     eyebrow: "Maç geçmişi",
     title: "Maçlar",
     description: "{days} maç gecesinde {matches} sonuç. Elo değişimleri her kadronun yanında.",
@@ -186,13 +189,21 @@ function MatchesInner({ data }: { data: Analytics }) {
                       {t("daySub", { when: relativeTime(day.matches[0].date), matches: day.matches.length, goals: day.goals })}
                     </p>
                   </div>
-                  {mvp && !player && (
-                    <Pill tone="accent" className="ml-auto py-1 pl-1">
-                      <Avatar name={mvp.name} size="xs" />
-                      <Star className="size-3" /> {displayName(mvp.name)}
-                      <Delta value={mvp.delta} className="ml-0.5" />
-                    </Pill>
-                  )}
+                  <div className="ml-auto flex items-center gap-2">
+                    {mvp && !player && (
+                      <Pill tone="accent" className="py-1 pl-1">
+                        <Avatar name={mvp.name} size="xs" />
+                        <Star className="size-3" /> {displayName(mvp.name)}
+                        <Delta value={mvp.delta} className="ml-0.5" />
+                      </Pill>
+                    )}
+                    <BoardLink
+                      to={`/night/${day.key}`}
+                      className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 text-xs font-semibold text-muted transition-colors hover:border-line-strong hover:text-fg"
+                    >
+                      <Newspaper className="size-3.5" /> {t("nightPost")}
+                    </BoardLink>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   {day.matches.map((m) => (

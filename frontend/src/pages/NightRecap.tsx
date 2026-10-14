@@ -1,6 +1,8 @@
 import { motion } from "motion/react";
 import {
   BrickWall,
+  ChevronLeft,
+  ChevronRight,
   CircleDot,
   CloudRain,
   Clock,
@@ -25,22 +27,19 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
-import { Navigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { BoardLink } from "../components/board/BoardLink";
 import { DataGate } from "../components/DataGate";
 import { MatchPhotosButton } from "../components/match/MatchPhotos";
 import { Avatar, ClubCrest } from "../components/ui/Identity";
 import { Panel, Pill } from "../components/ui/primitives";
 import type { Analytics } from "../hooks/analytics-context";
-import { useBoard } from "../hooks/useBoard";
 import { useT } from "../hooks/useI18n";
 import { cn } from "../lib/cn";
-import { dayFromKey, displayName, formatTime, formatWeekday, nameLang } from "../lib/format";
+import { dayFromKey, displayName, formatDayShort, formatTime, formatWeekday, nameLang } from "../lib/format";
 import { defineMessages } from "../lib/i18n";
 import {
-  NIGHT_RECAP,
   nightRecap,
-  nightRecapOn,
   type DuoNight,
   type NightAward,
   type NightAwardKey,
@@ -56,13 +55,13 @@ const msg = defineMessages({
     upsetKicker: "Upset of the night",
     upsetDeck: "{names} kicked off with a {chance}% chance. On paper it was impossible.",
     clubKicker: "Club of the night",
-    clubHead: "{club}: {w}W {d}D {l}L",
+    clubHead: "{w}W {d}D {l}L",
     clubDeckUnderdog: "One of the night's weakest clubs on paper (rated {elo}), scored {gf} and let in {ga}.",
     clubDeck: "Rated {elo}, scored {gf} and let in {ga}.",
     festKicker: "Goal rain",
     festDeck: "{n} goals at {time}. The neighbours have questions.",
     streakKicker: "Unstoppable",
-    streakHead: "{name}: {n} without a loss",
+    streakHead: "{n} without a loss",
     lastKicker: "The last word",
     lastDeck: "{time}, the night's final match: won by {names}.",
     matches: "Matches",
@@ -85,7 +84,10 @@ const msg = defineMessages({
     flowSub: "{n} matches, oldest first",
     upsetTag: "Upset · {chance}%",
     festTag: "{n} goals",
-    gone: "This report is no longer on show.",
+    noNight: "No matches were played that night.",
+    latest: "Go to the latest night",
+    older: "Previous night",
+    newer: "Next night",
     // awards: title, caption, value, line
     king: "King of the Night",
     kingCap: "Most Elo won",
@@ -155,13 +157,13 @@ const msg = defineMessages({
     upsetKicker: "Gecenin sürprizi",
     upsetDeck: "{names} maça sadece %{chance} şansla başladı. Kâğıt üstünde imkânsızdı.",
     clubKicker: "Gecenin kulübü",
-    clubHead: "{club}: {w}G {d}B {l}M",
+    clubHead: "{w}G {d}B {l}M",
     clubDeckUnderdog: "Kâğıt üstünde gecenin en zayıf kulüplerinden (puanı {elo}); {gf} attı, {ga} yedi.",
     clubDeck: "Puanı {elo}; {gf} attı, {ga} yedi.",
     festKicker: "Gol yağmuru",
     festDeck: "Saat {time}, {n} gol. Komşuların soruları var.",
     streakKicker: "Durdurulamaz",
-    streakHead: "{name}: {n} maç yenilgisiz",
+    streakHead: "{n} maç yenilgisiz",
     lastKicker: "Son söz",
     lastDeck: "Saat {time}, gecenin son maçı: kazanan {names}.",
     matches: "Maç",
@@ -184,7 +186,10 @@ const msg = defineMessages({
     flowSub: "{n} maç, ilkinden sonuncusuna",
     upsetTag: "Sürpriz · %{chance}",
     festTag: "{n} gol",
-    gone: "Bu rapor artık yayında değil.",
+    noNight: "O gece maç oynanmamış.",
+    latest: "Son geceye git",
+    older: "Önceki gece",
+    newer: "Sonraki gece",
     king: "Gecenin Kralı",
     kingCap: "En çok Elo kazanan",
     kingVal: "+{v} Elo",
@@ -316,13 +321,13 @@ function ScoreLine({ m }: { m: ParsedMatch }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
       <span className="inline-flex items-center gap-1.5">
-        <ClubCrest name={m.clubA} size="sm" /> {m.clubA}
+        <ClubCrest name={m.clubA} size="sm" /> <span lang={nameLang(m.clubA)}>{m.clubA}</span>
       </span>
       <span className="tabular">
         {m.scoreA}–{m.scoreB}
       </span>
       <span className="inline-flex items-center gap-1.5">
-        {m.clubB} <ClubCrest name={m.clubB} size="sm" />
+        <span lang={nameLang(m.clubB)}>{m.clubB}</span> <ClubCrest name={m.clubB} size="sm" />
       </span>
     </span>
   );
@@ -387,7 +392,12 @@ function FrontPage({ r, t }: { r: Recap; t: T }) {
               <Story
                 kicker={t("streakKicker")}
                 icon={ShieldCheck}
-                head={t("streakHead", { name: displayName(unbeaten.winner.name), n: unbeaten.value })}
+                head={
+                  <>
+                    <span lang={nameLang(unbeaten.winner.name)}>{displayName(unbeaten.winner.name)}</span>:{" "}
+                    {t("streakHead", { n: unbeaten.value })}
+                  </>
+                }
                 deck={t("unbeatenLine", { v: unbeaten.value })}
               />
             )}
@@ -412,7 +422,8 @@ function FrontPage({ r, t }: { r: Recap; t: T }) {
               head={
                 <span className="inline-flex items-center gap-2">
                   <ClubCrest name={r.club.club} size="md" />
-                  {t("clubHead", { club: r.club.club, w: r.club.wins, d: r.club.draws, l: r.club.losses })}
+                  <span lang={nameLang(r.club.club)}>{r.club.club}</span>:{" "}
+                  {t("clubHead", { w: r.club.wins, d: r.club.draws, l: r.club.losses })}
                 </span>
               }
               deck={t(r.club.underdog ? "clubDeckUnderdog" : "clubDeck", { elo: r.club.elo, gf: r.club.gf, ga: r.club.ga })}
@@ -433,7 +444,7 @@ function FrontPage({ r, t }: { r: Recap; t: T }) {
               head={
                 <span className="inline-flex items-center gap-2">
                   <Avatar name={king.winner.name} size="sm" />
-                  {displayName(king.winner.name)} {awardValue(t, king)}
+                  <span lang={nameLang(king.winner.name)}>{displayName(king.winner.name)}</span> {awardValue(t, king)}
                 </span>
               }
               deck={awardLine(t, king, r.matches.length)}
@@ -577,7 +588,9 @@ function DuoCard({ d, title, icon: Icon, tone, t }: { d: DuoNight; title: string
           <Avatar name={d.pair[1]} size="md" />
         </span>
         <div className="min-w-0">
-          <p className="display truncate text-xl">{names(d.pair)}</p>
+          <p lang={nameLang(names(d.pair))} className="display truncate text-xl">
+            {names(d.pair)}
+          </p>
           <p className="text-xs text-muted">{t("duoLine", { w: d.wins, d: d.draws, l: d.losses, gf: d.gf, ga: d.ga })}</p>
         </div>
       </div>
@@ -667,15 +680,53 @@ function Flow({ r, data, t }: { r: Recap; data: Analytics; t: T }) {
 
 /* ------------------------------------ Page ----------------------------------- */
 
+/** Steps to the night before and the night after. */
+function NightNav({ older, newer, t }: { older?: string; newer?: string; t: T }) {
+  const step = "flex min-h-11 min-w-0 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-muted transition-colors hover:bg-surface-2 hover:text-fg";
+  return (
+    <nav className="flex items-center justify-between gap-3">
+      {older ? (
+        <BoardLink to={`/night/${older}`} className={step} aria-label={t("older")}>
+          <ChevronLeft className="size-4 shrink-0" />
+          <span className="truncate">{formatDayShort(dayFromKey(older))}</span>
+        </BoardLink>
+      ) : (
+        <span />
+      )}
+      {newer && (
+        <BoardLink to={`/night/${newer}`} className={step} aria-label={t("newer")}>
+          <span className="truncate">{formatDayShort(dayFromKey(newer))}</span>
+          <ChevronRight className="size-4 shrink-0" />
+        </BoardLink>
+      )}
+    </nav>
+  );
+}
+
 function NightRecapInner({ data }: { data: Analytics }) {
   const t = useMsg();
-  const day = data.matchdays.find((d) => d.key === NIGHT_RECAP.night);
+  const { key } = useParams();
+  // matchdays are newest first: /night is the latest night, /night/2026-10-10 that one
+  const index = key ? data.matchdays.findIndex((d) => d.key === key) : 0;
+  const day = data.matchdays[index];
   const r = useMemo(() => (day ? nightRecap(day, data.engine, data.appearances) : null), [day, data.engine, data.appearances]);
-  if (!r) return <p className="text-sm text-muted">{t("gone")}</p>;
+  if (!r)
+    return (
+      <div className="card flex flex-col items-center gap-3 p-10 text-center">
+        <Newspaper className="size-6 text-faint" />
+        <p className="text-sm text-muted">{t("noNight")}</p>
+        {data.matchdays.length > 0 && (
+          <BoardLink to="/night" className="text-sm font-semibold text-accent-text hover:underline">
+            {t("latest")}
+          </BoardLink>
+        )}
+      </div>
+    );
   const honours = r.awards.filter((a) => !a.roast);
   const roasts = r.awards.filter((a) => a.roast);
   return (
     <div className="space-y-6">
+      <NightNav older={data.matchdays[index + 1]?.key} newer={data.matchdays[index - 1]?.key} t={t} />
       <FrontPage r={r} t={t} />
 
       <section>
@@ -707,9 +758,7 @@ function NightRecapInner({ data }: { data: Analytics }) {
   );
 }
 
-/** Temporary: the report of one night (NIGHT_RECAP), on show for a few days. */
+/** The Night Post: one night's report, the latest by default. */
 export default function NightRecap() {
-  const board = useBoard();
-  if (!nightRecapOn()) return <Navigate to={board.path()} replace />;
   return <DataGate>{(data) => <NightRecapInner data={data} />}</DataGate>;
 }

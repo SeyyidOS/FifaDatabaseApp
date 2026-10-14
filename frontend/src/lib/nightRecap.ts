@@ -7,11 +7,6 @@ import type { EloEngine } from "./elo";
 import type { Matchday, ParsedMatch } from "./stats";
 import type { Side } from "./types";
 
-/** The night on show and until when (temporary: the 10 October 2026 night). */
-export const NIGHT_RECAP = { night: "2026-10-10", until: new Date("2026-10-14T06:00:00+03:00") };
-
-export const nightRecapOn = (now = new Date()) => now < NIGHT_RECAP.until;
-
 /** The winner had less than this chance going in. */
 const UPSET_AT = 0.35;
 /** A side below this chance was the underdog, above 1 − this the favourite. */

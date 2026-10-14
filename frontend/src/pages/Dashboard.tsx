@@ -43,6 +43,7 @@ const msg = defineMessages({
   en: {
     king: "King of the night",
     lastNight: "Last match night",
+    nightPost: "Night Post",
     nights: "Nights",
     perMatch: "Goals / match",
     perMatchShort: "Avg",
@@ -50,7 +51,6 @@ const msg = defineMessages({
     powerRankings: "Power rankings",
     powerSub: "Elo · movement since last matchday",
     fullTable: "Full table",
-    allMatches: "All matches",
     hotCold: "Hot & cold",
     hotSub: "Current streaks and form",
     winStreak: "{n} win|{n} wins",
@@ -93,6 +93,7 @@ const msg = defineMessages({
   tr: {
     king: "Gecenin kralı",
     lastNight: "Son maç gecesi",
+    nightPost: "Gece Postası",
     nights: "Gece",
     perMatch: "Maç başı gol",
     perMatchShort: "Gol/maç",
@@ -100,7 +101,6 @@ const msg = defineMessages({
     powerRankings: "Güç sıralaması",
     powerSub: "Elo · son maç gecesinden beri değişim",
     fullTable: "Tüm tablo",
-    allMatches: "Tüm maçlar",
     hotCold: "Sıcak & soğuk",
     hotSub: "Güncel seriler ve form",
     winStreak: "{n} galibiyet|{n} galibiyet",
@@ -181,10 +181,10 @@ function LastNight({ data }: { data: Analytics }) {
           <span className="hidden sm:inline">{formatWeekday(dayFromKey(day.key))}</span>
         </span>
         <BoardLink
-          to="/matches"
+          to={`/night/${day.key}`}
           className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-accent-text hover:underline"
         >
-          {t("allMatches")} <ArrowRight className="size-3.5" />
+          {t("nightPost")} <ArrowRight className="size-3.5" />
         </BoardLink>
       </div>
       <div className="relative grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-4 pt-5 sm:px-6">
