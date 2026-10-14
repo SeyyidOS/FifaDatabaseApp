@@ -77,7 +77,8 @@ def issue_token(board_id: int, role: Role, version: int) -> str:
     return f"{body}.{_sign(body)}"
 
 
-def read_token(token: str) -> dict | None:
+def _decode(token: str) -> dict | None:
+    """The payload of a token this server signed and that hasn't expired."""
     try:
         body, signature = token.split(".")
         if not hmac.compare_digest(signature, _sign(body)):
@@ -85,9 +86,26 @@ def read_token(token: str) -> dict | None:
         payload = json.loads(_unb64(body))
     except (ValueError, TypeError):
         return None
-    if payload.get("r") not in ("member", "admin") or payload.get("iat", 0) + TOKEN_TTL < time.time():
+    if not isinstance(payload, dict) or payload.get("iat", 0) + TOKEN_TTL < time.time():
         return None
     return payload
+
+
+def read_token(token: str) -> dict | None:
+    payload = _decode(token)
+    return payload if payload and payload.get("r") in ("member", "admin") else None
+
+
+def issue_user_token(user_id: int, version: int) -> str:
+    """A signed-in person, as opposed to a device signed in to one board (`issue_token`)."""
+    payload = {"k": "user", "u": user_id, "v": version, "iat": int(time.time())}
+    body = _b64(json.dumps(payload, separators=(",", ":")).encode())
+    return f"{body}.{_sign(body)}"
+
+
+def read_user_token(token: str) -> dict | None:
+    payload = _decode(token)
+    return payload if payload and payload.get("k") == "user" else None
 
 
 def server_admin_key_matches(candidate: str | None) -> bool:
@@ -125,6 +143,9 @@ class RateLimiter:
 
 failed_logins = RateLimiter(limit=10, window=15 * 60)
 board_creations = RateLimiter(limit=5, window=60 * 60)
+# sign-in links: per address, so nobody's inbox gets flooded, and per network
+links_per_email = RateLimiter(limit=5, window=60 * 60)
+links_per_ip = RateLimiter(limit=20, window=60 * 60)
 
 
 def client_ip(request: Request) -> str:

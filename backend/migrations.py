@@ -311,6 +311,32 @@ def v8_match_stats(cur: RealDictCursor) -> None:
     cur.execute(V8_MATCH_STATS)
 
 
+# Accounts (accounts.py): a person who signs in with a link sent to their e-mail. Links are stored
+# only as SHA-256 hashes, are good for one use and expire after a few minutes.
+V9_ACCOUNTS = """
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(254) UNIQUE NOT NULL,
+    name VARCHAR(40),
+    session_version INT NOT NULL DEFAULT 1,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_login_at TIMESTAMPTZ
+);
+CREATE TABLE login_links (
+    id SERIAL PRIMARY KEY,
+    token_hash CHAR(64) UNIQUE NOT NULL,
+    email VARCHAR(254) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ
+);
+"""
+
+
+def v9_accounts(cur: RealDictCursor) -> None:
+    cur.execute(V9_ACCOUNTS)
+
+
 MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (1, v1_legacy),
     (2, v2_boards),
@@ -320,6 +346,7 @@ MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (6, v6_club_weight),
     (7, v7_match_photos),
     (8, v8_match_stats),
+    (9, v9_accounts),
 ]
 
 

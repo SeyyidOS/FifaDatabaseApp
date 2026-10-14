@@ -142,6 +142,13 @@ export interface SignIn extends BoardInfo {
   token: string;
 }
 
+/** A person who signs in with a link sent to their e-mail (not a board sign-in). */
+export interface Account {
+  id: number;
+  email: string;
+  name: string | null;
+}
+
 /** One match of the night's plan; matchId is set once it has been played. */
 export interface PlannedMatch {
   slot: number;
