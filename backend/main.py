@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+import accounts
 import board_data
 import boards
 import fixtures
@@ -58,6 +59,7 @@ def health(request: Request):
     return {"ok": True, "version": os.getenv("APP_VERSION", "dev")}
 
 
+app.include_router(accounts.router)
 app.include_router(boards.router)
 app.include_router(board_data.router)
 app.include_router(seasons.router)

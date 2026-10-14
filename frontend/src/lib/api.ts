@@ -1,5 +1,6 @@
 import { removeSession } from "./session";
 import type {
+  Account,
   BoardInfo,
   BoardMe,
   Club,
@@ -16,7 +17,7 @@ import type {
   SideStats,
   SignIn,
 } from "./types";
-import { defineMessages, translator } from "./i18n";
+import { defineMessages, translator, type Lang } from "./i18n";
 
 const messages = defineMessages({
   en: { offline: "Can't reach the server. Check your connection." },
@@ -147,3 +148,12 @@ export function boardApi(slug: string, token: string) {
     },
   };
 }
+
+/** Accounts: sign in with a link sent to an e-mail address. Off unless the server says otherwise. */
+export const accountApi = {
+  config: () => request<{ accounts: boolean }>("/auth/config"),
+  requestLink: (email: string, lang: Lang) => request<{ sent: boolean }>("/auth/email", json("POST", { email, lang })),
+  verify: (token: string) => request<{ token: string; user: Account }>("/auth/email/verify", json("POST", { token })),
+  me: (token: string) => request<Account>("/auth/me", {}, token),
+  rename: (token: string, name: string) => request<Account>("/auth/me", json("PATCH", { name }), token),
+};

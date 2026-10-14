@@ -47,6 +47,34 @@ class Login(BaseModel):
     password: str = Field(min_length=1, max_length=128)
 
 
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _email(email: str) -> str:
+    email = email.strip().lower()
+    if not EMAIL_PATTERN.match(email):
+        raise ValueError("enter an e-mail address")
+    return email
+
+
+Email = Annotated[str, StringConstraints(max_length=254), AfterValidator(_email)]
+AccountName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
+
+
+class LinkRequest(BaseModel):
+    email: Email
+    # the language of the e-mail
+    lang: Literal["en", "tr"] = "en"
+
+
+class LinkVerify(BaseModel):
+    token: str = Field(min_length=20, max_length=100)
+
+
+class AccountUpdate(BaseModel):
+    name: AccountName
+
+
 class BoardUpdate(BaseModel):
     name: BoardName | None = None
     kFactor: KFactor | None = None

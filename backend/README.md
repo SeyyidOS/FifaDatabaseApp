@@ -12,8 +12,10 @@ standings, K-factor and club ratings. On startup the API applies pending schema 
 | `seasons.py`     | a board's seasons and their club ratings (by hand or from a card model)     |
 | `fixtures.py`    | the night's plan: who plays with and against whom, in order                 |
 | `photos.py`      | photos of a match (the stats screens), stored as files in `PHOTO_DIR`       |
+| `accounts.py`    | accounts: sign in with a one-time link sent by e-mail (off by default)      |
+| `mailer.py`      | the e-mails the app sends (sign-in links), over SMTP                        |
 | `auth.py`        | password hashing, signed device tokens, rate limits, access checks          |
-| `migrations.py`  | versioned schema changes (v2 boards … v7 match photos, v8 match stats)      |
+| `migrations.py`  | versioned schema changes (v2 boards … v8 match stats, v9 accounts)          |
 | `db.py`          | connection pool (recovers after database restarts) and transactions         |
 | `schemas.py`     | request validation                                                          |
 | `elo.py`         | Elo replay (mirrored in `frontend/src/lib/elo.ts`)                          |
@@ -27,6 +29,24 @@ password** (role `admin`: archive/rename/delete players, delete matches, setting
 `SECRET_KEY`; send it as `Authorization: Bearer <token>`. Changing a password bumps that role's
 version, which invalidates its old tokens. Players with matches are archived, never deleted, so
 history and everyone's ratings stay put.
+
+## Accounts
+
+The first step towards boards that people join with their own account (boards still use their
+passwords for now). `POST /auth/email` mails a sign-in link; `POST /auth/email/verify` trades the
+link's token for an account token (`Authorization: Bearer <token>`, separate from board tokens), and
+creates the account on its first sign-in. `GET`/`PATCH /auth/me` read and rename it. Links work once,
+for 15 minutes, and only their SHA-256 hashes are stored; the reply never says whether an address has
+an account, and requests are rate-limited per address and per network.
+
+It is all off (404, and `GET /auth/config` says `{"accounts": false}`) unless:
+
+| Variable         | Meaning                                                                      |
+|------------------|------------------------------------------------------------------------------|
+| `ACCOUNTS`       | `on` to offer accounts                                                       |
+| `APP_URL`        | where the app lives; the links in the e-mails point here, never at the request's origin |
+| `SMTP_HOST`      | the mail server (`SMTP_PORT` 587 with STARTTLS by default, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`) |
+| `MAIL_LOG_LINKS` | `1` writes the links to the log instead of mailing them: development only, a logged link signs anyone in |
 
 ## Seasons and club ratings
 
