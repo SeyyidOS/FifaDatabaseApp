@@ -13,10 +13,12 @@ import { clubStars } from "../lib/elo";
 import { cleanName, daysAgoIso, displayName } from "../lib/format";
 import type { StandingStats } from "../lib/types";
 import { BoardLink } from "../components/board/BoardLink";
+import { NewPlayers, RankingRow } from "../components/ranking/Ranking";
 import { useT } from "../hooks/useI18n";
 import { defineMessages } from "../lib/i18n";
 
 type Tab = "players" | "clubs" | "duos";
+type View = "ranking" | "points";
 type Range = "7" | "30" | "90" | "365" | "all" | "custom";
 type SortKey = "points" | "win" | "played" | "gd" | "gf" | "elo";
 
@@ -47,6 +49,10 @@ const msg = defineMessages({
     pts: "{n} pts",
     eyebrow: "Standings",
     title: "League Table",
+    ranking: "Elo ranking",
+    points: "Points table",
+    rankingDescription:
+      "Ranked by Elo, which weighs who you beat and with which club. New players join after {n} matches.",
     description: "Three points for a win, one for a draw. Elo and form are all-time; everything else follows the date range.",
     players: "Players",
     clubs: "Clubs",
@@ -83,6 +89,10 @@ const msg = defineMessages({
     pts: "{n} puan",
     eyebrow: "Puan durumu",
     title: "Lig Tablosu",
+    ranking: "Elo sıralaması",
+    points: "Puan tablosu",
+    rankingDescription:
+      "Elo'ya göre: kimi, hangi kulüple yendiğin sayılır. Yeni oyuncular {n} maçtan sonra girer.",
     description: "Galibiyet üç, beraberlik bir puan. Elo ve form tüm zamanlara göre; geri kalan her şey seçilen tarih aralığına göre.",
     players: "Oyuncular",
     clubs: "Kulüpler",
@@ -130,11 +140,23 @@ function sortRows(rows: Row[], key: SortKey) {
   );
 }
 
-function Podium({ rows, metric }: { rows: Row[]; metric: (r: Row) => ReactNode }) {
-  const order = [rows[1], rows[0], rows[2]];
-  const heights = ["h-24", "h-32", "h-20"];
-  const tones = ["text-silver", "text-gold", "text-bronze"];
-  const ranks = [2, 1, 3];
+interface PodiumItem {
+  key: string;
+  label: string;
+  entity: ReactNode;
+  value: ReactNode;
+  to?: string;
+}
+
+const MEDALS = [
+  { rank: 2, height: "h-24", text: "text-silver", block: "border-silver/25 from-silver/15 to-silver/[0.03]" },
+  { rank: 1, height: "h-32", text: "text-accent-text", block: "border-accent/30 from-accent/20 to-accent/[0.03]" },
+  { rank: 3, height: "h-20", text: "text-bronze", block: "border-bronze/25 from-bronze/15 to-bronze/[0.03]" },
+];
+
+/** The top three on pedestals: second, first, third. */
+function Podium({ items }: { items: PodiumItem[] }) {
+  const order = [items[1], items[0], items[2]];
   return (
     <div className="grid grid-cols-3 items-end gap-3 sm:gap-5">
       {order.map((r, i) =>
@@ -144,10 +166,12 @@ function Podium({ rows, metric }: { rows: Row[]; metric: (r: Row) => ReactNode }
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: [0.15, 0, 0.3][i], type: "spring", bounce: 0.3 }}
-            className="flex flex-col items-center text-center"
+            className="flex min-w-0 flex-col items-center text-center"
           >
-            {ranks[i] === 1 && <Crown className="mb-1 size-6 text-gold drop-shadow-[0_0_12px_var(--gold)]" />}
-            <div className="mb-2">{r.entity}</div>
+            {MEDALS[i].rank === 1 && (
+              <Crown className="mb-1.5 size-6 fill-accent-text text-accent-text drop-shadow-[0_0_12px_var(--accent)]" />
+            )}
+            <div className="mb-2.5">{r.entity}</div>
             {r.to ? (
               <BoardLink to={r.to} className="max-w-full truncate text-sm font-semibold hover:underline">
                 {r.label}
@@ -155,19 +179,66 @@ function Podium({ rows, metric }: { rows: Row[]; metric: (r: Row) => ReactNode }
             ) : (
               <span className="max-w-full truncate text-sm font-semibold">{r.label}</span>
             )}
-            <p className="mt-0.5 text-xs text-muted">{metric(r)}</p>
+            <div className="mt-1">{r.value}</div>
             <div
               className={cn(
-                "mt-3 grid w-full place-items-center rounded-t-2xl border border-b-0 border-line bg-gradient-to-b from-surface-3 to-surface-2",
-                heights[i],
+                "mt-3 grid w-full place-items-center rounded-t-2xl border border-b-0 bg-gradient-to-b",
+                MEDALS[i].height,
+                MEDALS[i].block,
               )}
             >
-              <span className={cn("display text-5xl", tones[i])}>{ranks[i]}</span>
+              <span className={cn("display text-5xl", MEDALS[i].text)}>{MEDALS[i].rank}</span>
             </div>
           </motion.div>
         ) : (
           <div key={i} />
         ),
+      )}
+    </div>
+  );
+}
+
+const PODIUM_RINGS = [
+  "size-20 text-3xl ring-[3px] ring-accent ring-offset-4 ring-offset-surface shadow-[0_12px_40px_-6px_var(--accent)]",
+  "ring-2 ring-silver ring-offset-[3px] ring-offset-surface",
+  "ring-2 ring-bronze ring-offset-[3px] ring-offset-surface",
+];
+
+/** Players by Elo: the top three on the podium, the rest in a list, new players folded at the end. */
+function EloRanking({ data }: { data: Analytics }) {
+  const ranked = data.ranking.filter((p) => !p.provisional);
+  const fresh = data.ranking.filter((p) => p.provisional);
+  const items: PodiumItem[] = ranked.slice(0, 3).map((p, i) => ({
+    key: p.name,
+    label: displayName(p.name),
+    to: `/players/${encodeURIComponent(p.name)}`,
+    entity: <Avatar name={p.name} size="lg" className={PODIUM_RINGS[i]} />,
+    value: <span className={cn("display tabular text-2xl", i === 0 && "text-accent-text")}>{p.elo}</span>,
+  }));
+  const rest = ranked.slice(3);
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+      <Panel className="overflow-hidden lg:col-span-7" bodyClassName="px-4 pt-8 pb-0 sm:px-10">
+        <div className="mx-auto max-w-xl">
+          <Podium items={items} />
+        </div>
+      </Panel>
+      {(rest.length > 0 || fresh.length > 0) && (
+        <Panel className="lg:col-span-5" bodyClassName="px-2 py-3">
+          <ol>
+            {rest.map((p, i) => (
+              <motion.li
+                key={p.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 * Math.min(i, 10) }}
+              >
+                <RankingRow player={p} rankedAfter={data.rankedAfter} />
+              </motion.li>
+            ))}
+          </ol>
+          <NewPlayers players={fresh} rankedAfter={data.rankedAfter} />
+        </Panel>
       )}
     </div>
   );
@@ -206,6 +277,8 @@ function Th({
 function StandingsInner({ data }: { data: Analytics }) {
   const t = useT(msg);
   const [tab, setTab] = useSessionState<Tab>("st-tab", "players");
+  const [playersView, setPlayersView] = useSessionState<View>("st-view", "ranking");
+  const view: View = tab === "players" ? playersView : "points";
   const [range, setRange] = useSessionState<Range>("st-range", "all");
   const [custom, setCustom] = useSessionState("st-custom", daysAgoIso(30));
   const [sort, setSort] = useSessionState<SortKey>("st-sort", "points");
@@ -298,14 +371,16 @@ function StandingsInner({ data }: { data: Analytics }) {
       <PageHeader
         eyebrow={t("eyebrow")}
         title={t("title")}
-        description={t("description")}
+        description={view === "ranking" ? t("rankingDescription", { n: data.rankedAfter }) : t("description")}
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Segmented<Range> value={range} onChange={setRange} options={[...RANGES.map((r) => ({ value: r, label: t(`r${r}`) })), { value: "custom", label: <CalendarRange className="size-4" /> }]} size="sm" />
-            {range === "custom" && (
-              <input type="date" value={custom} onChange={(e) => setCustom(e.target.value)} className="input h-9 w-auto" />
-            )}
-          </div>
+          view === "points" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Segmented<Range> value={range} onChange={setRange} options={[...RANGES.map((r) => ({ value: r, label: t(`r${r}`) })), { value: "custom", label: <CalendarRange className="size-4" /> }]} size="sm" />
+              {range === "custom" && (
+                <input type="date" value={custom} onChange={(e) => setCustom(e.target.value)} className="input h-9 w-auto" />
+              )}
+            </div>
+          )
         }
       />
 
@@ -318,26 +393,41 @@ function StandingsInner({ data }: { data: Analytics }) {
           }}
           options={[
             { value: "players", label: t("players") },
-            { value: "clubs", label: t("clubs") },
             { value: "duos", label: t("duos") },
+            { value: "clubs", label: t("clubs") },
           ]}
         />
-        <div className="ml-auto flex items-center gap-3 rounded-xl border border-line bg-surface px-3 py-2">
-          <span className="text-xs whitespace-nowrap text-muted">{t("minGames")}</span>
-          <input
-            type="range"
-            min={0}
-            max={Math.min(20, maxGames)}
-            value={minGames}
-            onChange={(e) => setMinGames(Number(e.target.value))}
-            className="range w-28"
-            style={{ ["--fill" as string]: `${(minGames / Math.max(1, Math.min(20, maxGames))) * 100}%` }}
+        {tab === "players" && (
+          <Segmented<View>
+            value={playersView}
+            onChange={setPlayersView}
+            size="sm"
+            options={[
+              { value: "ranking", label: t("ranking") },
+              { value: "points", label: t("points") },
+            ]}
           />
-          <span className="tabular w-5 text-right text-sm font-semibold">{minGames}</span>
-        </div>
+        )}
+        {view === "points" && (
+          <div className="ml-auto flex items-center gap-3 rounded-xl border border-line bg-surface px-3 py-2">
+            <span className="text-xs whitespace-nowrap text-muted">{t("minGames")}</span>
+            <input
+              type="range"
+              min={0}
+              max={Math.min(20, maxGames)}
+              value={minGames}
+              onChange={(e) => setMinGames(Number(e.target.value))}
+              className="range w-28"
+              style={{ ["--fill" as string]: `${(minGames / Math.max(1, Math.min(20, maxGames))) * 100}%` }}
+            />
+            <span className="tabular w-5 text-right text-sm font-semibold">{minGames}</span>
+          </div>
+        )}
       </div>
 
-      {q.isLoading ? (
+      {view === "ranking" ? (
+        <EloRanking data={data} />
+      ) : q.isLoading ? (
         <div className="space-y-3">
           <Skeleton className="h-56 rounded-2xl" />
           <Skeleton className="h-96 rounded-2xl" />
@@ -350,7 +440,15 @@ function StandingsInner({ data }: { data: Analytics }) {
         <>
           <Panel className="overflow-hidden" bodyClassName="px-4 pt-8 pb-0 sm:px-10">
             <div className="mx-auto max-w-2xl">
-              <Podium rows={visible.slice(0, 3)} metric={metricLabel} />
+              <Podium
+                items={visible.slice(0, 3).map((r) => ({
+                  key: r.key,
+                  label: r.label,
+                  entity: r.entity,
+                  to: r.to,
+                  value: <p className="text-xs text-muted">{metricLabel(r)}</p>,
+                }))}
+              />
             </div>
           </Panel>
 

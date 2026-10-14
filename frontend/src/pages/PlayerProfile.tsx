@@ -33,7 +33,7 @@ const msg = defineMessages({
     allPlayers: "All players",
     archived: "Archived",
     rankByElo: "#{rank} by Elo",
-    provisional: "Provisional",
+    provisional: "New · ranked after {need} matches",
     streakW: "{n} win in a row|{n} wins in a row",
     streakL: "{n} loss in a row|{n} losses in a row",
     streakD: "{n} draw in a row|{n} draws in a row",
@@ -88,7 +88,7 @@ const msg = defineMessages({
     allPlayers: "Tüm oyuncular",
     archived: "Arşivde",
     rankByElo: "Elo'da {rank}.",
-    provisional: "Geçici",
+    provisional: "Yeni · {need} maçta sıralamaya girer",
     streakW: "Üst üste {n} galibiyet|Üst üste {n} galibiyet",
     streakL: "Üst üste {n} mağlubiyet|Üst üste {n} mağlubiyet",
     streakD: "Üst üste {n} beraberlik|Üst üste {n} beraberlik",
@@ -241,9 +241,14 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
           <PlayerCard player={player} size="lg" />
           <div className="w-full min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              {player.archived ? <Pill>{t("archived")}</Pill> : <Pill tone="accent">{t("rankByElo", { rank: player.rank })}</Pill>}
+              {player.archived ? (
+                <Pill>{t("archived")}</Pill>
+              ) : player.provisional ? (
+                <Pill>{t("provisional", { need: data.rankedAfter })}</Pill>
+              ) : (
+                <Pill tone="accent">{t("rankByElo", { rank: player.rank })}</Pill>
+              )}
               <RankMove value={player.rankDelta} hideZero />
-              {player.provisional && <Pill>{t("provisional")}</Pill>}
               {current && current.count >= 2 && (
                 <Pill tone={current.type === "W" ? "win" : current.type === "L" ? "loss" : "draw"}>
                   <Flame className="size-3" /> {t(current.type === "W" ? "streakW" : current.type === "L" ? "streakL" : "streakD", { n: current.count })}

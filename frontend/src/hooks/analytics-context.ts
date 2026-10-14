@@ -8,13 +8,14 @@ export interface RankedPlayer {
   id: number;
   name: string;
   elo: number;
-  /** 1-based position among active players; 0 for archived players. */
+  /** 1-based position among ranked players; 0 for new players (see `provisional`) and archived ones. */
   rank: number;
   /** Positions gained (+) or lost (−) over the latest matchday. */
   rankDelta: number;
   /** Elo gained over the latest matchday. */
   eloDelta: number;
   peak: number;
+  /** New to the board: fewer than `Analytics.rankedAfter` matches, so rated but not ranked yet. */
   provisional: boolean;
   /** Left the roster: not ranked (rank 0), but their matches still count. */
   archived: boolean;
@@ -34,8 +35,10 @@ export interface Analytics {
   parsed: ParsedMatch[];
   engine: EloEngine;
   stats: Map<string, PlayerStats>;
-  /** Active players, best first. */
+  /** Active players: the ranked ones best first, then the new ones by rating. */
   ranking: RankedPlayer[];
+  /** matches a player needs before they get a rank on this board */
+  rankedAfter: number;
   /** Everyone, archived players included. */
   byName: Map<string, RankedPlayer>;
   eloByName: Map<string, number>;
@@ -59,5 +62,3 @@ export interface AnalyticsState {
 }
 
 export const AnalyticsContext = createContext<AnalyticsState | null>(null);
-
-export const PROVISIONAL_GAMES = 5;

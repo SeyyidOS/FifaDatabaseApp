@@ -45,7 +45,7 @@ export default function Players() {
           if (order === "name") return a.name.localeCompare(b.name);
           if (order === "win") return winRate(b.stats ?? { played: 0, wins: 0 }) - winRate(a.stats ?? { played: 0, wins: 0 });
           if (order === "played") return (b.stats?.played ?? 0) - (a.stats?.played ?? 0);
-          return a.rank - b.rank;
+          return 0; // data.ranking order: ranked players by Elo, then new ones
         });
         return (
           <div>

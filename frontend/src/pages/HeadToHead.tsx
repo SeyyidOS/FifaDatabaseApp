@@ -20,6 +20,7 @@ const msg = defineMessages({
   en: {
     pick: "Pick a player",
     archived: "Archived",
+    newPlayer: "New",
     eyebrow: "Rivalries",
     title: "Head to Head",
     description: "Pick any two players to see their record against each other, as partners, and how they stack up.",
@@ -52,6 +53,7 @@ const msg = defineMessages({
   tr: {
     pick: "Bir oyuncu seç",
     archived: "Arşivde",
+    newPlayer: "Yeni",
     eyebrow: "Rekabetler",
     title: "Karşılaştır",
     description: "İki oyuncu seç: birbirlerine karşı ve ortak olarak kayıtlarını, kimin daha iyi olduğunu gör.",
@@ -190,7 +192,7 @@ function Fighter({ p, side }: { p?: RankedPlayer; side: "A" | "B" }) {
           {displayName(p.name)}
         </p>
         <p className="mt-1 text-xs text-muted">
-          {p.rank ? `#${p.rank}` : t("archived")} · <span className="tabular font-semibold text-fg">{p.elo}</span> Elo
+          {p.rank ? `#${p.rank}` : p.archived ? t("archived") : t("newPlayer")} · <span className="tabular font-semibold text-fg">{p.elo}</span> Elo
         </p>
       </div>
       <FormPills outcomes={p.stats?.outcomes ?? []} size="sm" />

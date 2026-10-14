@@ -59,7 +59,7 @@ const m = defineMessages({
     exp: "EXP",
     expTip: "Matches played",
     footer: "{elo} Elo",
-    footerProv: "{elo} Elo · Prov.",
+    footerProv: "{elo} Elo · New",
   },
   tr: {
     win: "GAL",
@@ -75,7 +75,7 @@ const m = defineMessages({
     exp: "TEC",
     expTip: "Oynanan maç",
     footer: "{elo} Elo",
-    footerProv: "{elo} Elo · Geçici",
+    footerProv: "{elo} Elo · Yeni",
   },
 });
 

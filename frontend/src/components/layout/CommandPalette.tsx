@@ -25,6 +25,7 @@ const m = defineMessages({
     boards: "Boards",
     switchTo: "Switch to {name}",
     players: "Players",
+    newPlayer: "New",
   },
   tr: {
     label: "Komut menüsü",
@@ -39,6 +40,7 @@ const m = defineMessages({
     boards: "Board'lar",
     switchTo: "{name} board'una geç",
     players: "Oyuncular",
+    newPlayer: "Yeni",
   },
 });
 
@@ -164,7 +166,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                 <Avatar name={p.name} size="sm" />
                 <span>{displayName(p.name)}</span>
                 <span className="ml-auto tabular text-xs text-muted">
-                  #{p.rank} · {p.elo}
+                  {p.rank ? `#${p.rank}` : t("newPlayer")} · {p.elo}
                 </span>
               </Command.Item>
             ))}
