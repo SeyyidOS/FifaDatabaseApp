@@ -15,7 +15,7 @@ import { Button } from "../ui/primitives";
 import { CommandPalette } from "./CommandPalette";
 import { Logo } from "./Logo";
 import { LanguageButton } from "./LanguageButton";
-import { NAV, navMessages } from "./nav";
+import { navGroup, navMessages, type NavItem } from "./nav";
 import { ThemeButton } from "./ThemeButton";
 
 const m = defineMessages({
@@ -25,7 +25,7 @@ const m = defineMessages({
     live: "Live data",
     yourBoards: "Your boards",
     menu: "Menu",
-    playBadge: "PLAY",
+    more: "More",
     footer: "{matches} matches · {players} players · K {k}",
     search: "Search players, pages…",
     newMatch: "New match",
@@ -37,7 +37,7 @@ const m = defineMessages({
     live: "Canlı veri",
     yourBoards: "Board'ların",
     menu: "Menü",
-    playBadge: "OYNA",
+    more: "Daha fazla",
     footer: "{matches} maç · {players} oyuncu · K {k}",
     search: "Oyuncu, sayfa ara…",
     newMatch: "Yeni maç",
@@ -147,59 +147,80 @@ function BoardSwitcher() {
   );
 }
 
+function SideLink({ item, quiet }: { item: NavItem; quiet?: boolean }) {
+  const tn = useT(navMessages);
+  const { path } = useBoard();
+  return (
+    <NavLink
+      to={path(item.to)}
+      end={item.to === ""}
+      className={({ isActive }) =>
+        cn(
+          "group relative flex items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors",
+          quiet ? "py-2" : "py-2.5",
+          isActive ? "text-fg" : "text-muted hover:bg-surface-2/60 hover:text-fg",
+        )
+      }
+    >
+      {({ isActive }) => (
+        <>
+          {isActive && (
+            <motion.span
+              layoutId="nav-active"
+              className="absolute inset-0 -z-10 rounded-xl bg-surface-2 ring-1 ring-line"
+              transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+            />
+          )}
+          {isActive && (
+            <motion.span layoutId="nav-bar" className="absolute top-2 bottom-2 -left-3 w-[3px] rounded-r-full bg-accent" />
+          )}
+          <item.icon className={cn("size-[18px]", isActive ? "text-accent-text" : quiet && "text-faint")} />
+          {tn(item.key)}
+        </>
+      )}
+    </NavLink>
+  );
+}
+
 function Sidebar() {
   const t = useT(m);
-  const tn = useT(navMessages);
   const { data } = useAnalytics();
   const { path } = useBoard();
+  const onPlay = useLocation().pathname === path("/play");
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-bg-elev/80 backdrop-blur-xl lg:flex">
       <Link to="/" className="px-5 pt-6 pb-6">
         <Logo />
       </Link>
-      <div className="px-3 pb-6">
+      <div className="px-3 pb-4">
         <BoardSwitcher />
       </div>
-      <nav className="flex-1 space-y-1 px-3">
-        <p className="label px-3 pb-2">{t("menu")}</p>
-        {NAV.map((n) => (
-          <NavLink
-            key={n.to}
-            to={path(n.to)}
-            end={n.to === ""}
-            className={({ isActive }) =>
-              cn(
-                "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive ? "text-fg" : "text-muted hover:bg-surface-2/60 hover:text-fg",
-              )
-            }
-          >
-            {({ isActive }) => (
-              <>
-                {isActive && (
-                  <motion.span
-                    layoutId="nav-active"
-                    className="absolute inset-0 -z-10 rounded-xl bg-surface-2 ring-1 ring-line"
-                    transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
-                  />
-                )}
-                {isActive && (
-                  <motion.span
-                    layoutId="nav-bar"
-                    className="absolute top-2 bottom-2 -left-3 w-[3px] rounded-r-full bg-accent"
-                  />
-                )}
-                <n.icon className={cn("size-[18px]", isActive && "text-accent-text")} />
-                {tn(n.key)}
-                {n.to === "/play" && (
-                  <span className="ml-auto rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-ink">
-                    {t("playBadge")}
-                  </span>
-                )}
-              </>
-            )}
-          </NavLink>
+      <div className="px-3 pb-5">
+        <Link
+          to={path("/play")}
+          aria-current={onPlay ? "page" : undefined}
+          className={cn(
+            "accent-gem flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-bold transition-transform active:scale-[0.98]",
+            onPlay && "ring-2 ring-accent/60 ring-offset-2 ring-offset-bg-elev",
+          )}
+        >
+          <Plus className="size-4" strokeWidth={2.6} />
+          {t("newMatch")}
+        </Link>
+      </div>
+      <nav aria-label={t("menu")} className="flex flex-1 flex-col gap-1 px-3">
+        {navGroup("tab").map((n) => (
+          <SideLink key={n.to} item={n} />
         ))}
+        <p className="label px-3 pt-5 pb-1.5">{t("more")}</p>
+        {navGroup("more").map((n) => (
+          <SideLink key={n.to} item={n} quiet />
+        ))}
+        <div className="mt-auto pt-4">
+          {navGroup("settings").map((n) => (
+            <SideLink key={n.to} item={n} quiet />
+          ))}
+        </div>
       </nav>
       <div className="m-3 rounded-2xl border border-line bg-surface/70 p-4">
         <div className="flex items-center justify-between">
@@ -256,7 +277,7 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
             <LanguageButton />
             <ThemeButton />
           </span>
-          <span className="hidden sm:block">
+          <span className="hidden sm:block lg:hidden">
             <Button variant="primary" onClick={() => navigate(path("/play"))}>
               <Plus className="size-4" strokeWidth={2.5} />
               {t("newMatch")}
@@ -277,7 +298,7 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
         >
           <p className="label mb-3 truncate">{name}</p>
           <div className="grid grid-cols-2 gap-2">
-            {NAV.map((n) => (
+            {[...navGroup("more"), ...navGroup("settings")].map((n) => (
               <NavLink
                 key={n.to}
                 to={path(n.to)}
@@ -309,51 +330,49 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
   );
 }
 
+/** Phones: the four tabs on a floating glass bar, with the match center as the gem in the middle. */
 function BottomNav() {
   const t = useT(m);
   const tn = useT(navMessages);
   const { path } = useBoard();
-  const items = NAV.filter((n) => ["", "/leaderboard", "/matches", "/players"].includes(n.to));
-  const navigate = useNavigate();
   const { pathname } = useLocation();
+  const tabs = navGroup("tab");
   const onPlay = pathname === path("/play");
-  const cell = (n: (typeof NAV)[number]) => (
+  const cell = (n: NavItem) => (
     <NavLink
       key={n.to}
       to={path(n.to)}
       end={n.to === ""}
       className={({ isActive }) =>
         cn(
-          "flex flex-1 flex-col items-center gap-1 py-2 text-[10px] font-semibold tracking-wide",
-          isActive ? "text-fg" : "text-faint",
+          "flex h-full flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors",
+          isActive ? "text-accent-text" : "text-faint hover:text-muted",
         )
       }
     >
-      {({ isActive }) => (
-        <>
-          <n.icon className={cn("size-5", isActive && "text-accent-text")} />
-          {tn(`${n.key}Short`)}
-        </>
-      )}
+      <n.icon className="size-[22px]" strokeWidth={1.9} />
+      {tn(`${n.key}Short`)}
     </NavLink>
   );
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg-elev/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
-      <div className="mx-auto flex max-w-lg items-end px-2">
-        {items.slice(0, 2).map(cell)}
-        <div className="flex flex-1 justify-center">
-          <button
-            onClick={() => navigate(path("/play"))}
-            aria-label={t("matchCenter")}
-            className={cn(
-              "-mt-6 grid size-14 place-items-center rounded-2xl bg-accent text-accent-ink shadow-[0_10px_30px_-8px_var(--accent)] ring-4 ring-bg transition-transform active:scale-95",
-              onPlay && "rotate-45",
-            )}
-          >
-            <Plus className={cn("size-6 transition-transform", onPlay && "-rotate-45")} strokeWidth={2.5} />
-          </button>
-        </div>
-        {items.slice(2).map(cell)}
+    <nav
+      aria-label={t("menu")}
+      className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-30 lg:hidden"
+    >
+      <div className="mx-auto grid h-[68px] max-w-md grid-cols-5 items-center rounded-3xl border border-line bg-bg-elev/80 shadow-[0_20px_40px_-16px_rgba(0,0,0,0.6)] backdrop-blur-xl backdrop-saturate-150">
+        {tabs.slice(0, 2).map(cell)}
+        <Link
+          to={path("/play")}
+          aria-label={t("matchCenter")}
+          aria-current={onPlay ? "page" : undefined}
+          className={cn(
+            "accent-gem mx-auto grid size-[52px] rotate-45 place-items-center rounded-2xl transition-transform active:scale-95",
+            onPlay && "ring-2 ring-accent/60 ring-offset-2 ring-offset-bg-elev",
+          )}
+        >
+          <Plus className="size-6 -rotate-45" strokeWidth={2.6} />
+        </Link>
+        {tabs.slice(2).map(cell)}
       </div>
     </nav>
   );
@@ -389,7 +408,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          className="mx-auto max-w-[1400px] px-4 pt-6 pb-28 sm:px-6 lg:px-8 lg:pt-8 lg:pb-16"
+          className="mx-auto max-w-[1400px] px-4 pt-6 pb-32 sm:px-6 lg:px-8 lg:pt-8 lg:pb-16"
         >
           {children}
         </motion.main>

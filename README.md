@@ -1,6 +1,6 @@
-# FIFA Manager
+# Matchnight
 
-Match tracking for our FIFA nights: boards per group, Elo for players, club ratings per game
+Match tracking for match nights with friends (formerly FIFA Manager): boards per group, Elo for players, club ratings per game
 (FC26, FC27…), a night planner and stats. Live at **https://fifa.173.249.40.69.sslip.io**.
 
 | Folder      | What it is                                                                     |

@@ -3,8 +3,8 @@ import { useT } from "../../hooks/useI18n";
 import { defineMessages } from "../../lib/i18n";
 
 const m = defineMessages({
-  en: { tagline: "Club Nights" },
-  tr: { tagline: "FIFA Geceleri" },
+  en: { tagline: "Match nights" },
+  tr: { tagline: "Maç geceleri" },
 });
 
 export function Logo({ className, compact }: { className?: string; compact?: boolean }) {
@@ -20,7 +20,7 @@ export function Logo({ className, compact }: { className?: string; compact?: boo
       </span>
       {!compact && (
         <span className="leading-none">
-          <span className="display block text-[19px] tracking-[0.06em]">FIFA Manager</span>
+          <span className="display block text-[19px] tracking-[0.06em]">Matchnight</span>
           <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.22em] text-faint">
             {t("tagline")}
           </span>

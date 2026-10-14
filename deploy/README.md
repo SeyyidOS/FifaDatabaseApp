@@ -1,6 +1,6 @@
 # Self-hosted deployment
 
-Runs FIFA Manager on this server behind the shared Caddy proxy (the one that serves MLflow), at
+Runs Matchnight on this server behind the shared Caddy proxy (the one that serves MLflow), at
 **https://fifa.173.249.40.69.sslip.io**. Caddy handles HTTPS; this folder only adds a site block.
 
 | Container  | What it is                                                     | Networks                      |

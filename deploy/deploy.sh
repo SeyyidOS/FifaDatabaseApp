@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Publish or update FIFA Manager on this server, next to the other sites behind Caddy:
+# Publish or update Matchnight on this server, next to the other sites behind Caddy:
 #   1. create any missing secrets in $BASE/secrets.env (never committed),
 #   2. back up the database, then build the images and (re)start fifa_db, fifa_api and fifa_web
 #      (compose.public.yml); the API applies pending schema migrations when it starts,

@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
     app.state.db.close()
 
 
-app = FastAPI(title="FIFA Manager API", version="3.0.0", lifespan=lifespan)
+app = FastAPI(title="Matchnight API", version="3.0.0", lifespan=lifespan)
 
 # Tokens travel in the Authorization header (no cookies), so any origin may call the API; set
 # CORS_ORIGINS (comma-separated) to restrict browsers to known frontends.
