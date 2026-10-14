@@ -40,7 +40,7 @@ export const formatDateTime = (d: Date) => `${formatDay(d)} · ${formatTime(d)}`
 export const isoDay = (d: Date) => isoDayFmt.format(d);
 
 /**
- * FIFA nights run past midnight; a match at 01:30 belongs to the previous
+ * Match nights run past midnight; a match at 01:30 belongs to the previous
  * evening's session. Shift by 6h before taking the calendar day.
  */
 export const matchdayKey = (d: Date) =>

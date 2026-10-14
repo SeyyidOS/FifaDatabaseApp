@@ -80,16 +80,24 @@ export interface NavItem {
   to: string;
   key: NavKey;
   icon: LucideIcon;
+  /**
+   * tab: one of the four main tabs. play: the match center, the main action between them.
+   * more: pages one level down. settings: the board's settings.
+   */
+  group: "tab" | "play" | "more" | "settings";
 }
 
+/** Every page, in the order the command palette lists them. */
 export const NAV: NavItem[] = [
-  { to: "", key: "overview", icon: LayoutDashboard },
-  { to: "/play", key: "play", icon: Gamepad2 },
-  { to: "/leaderboard", key: "standings", icon: Trophy },
-  { to: "/clubs", key: "clubs", icon: Shield },
-  { to: "/matches", key: "matches", icon: CalendarDays },
-  { to: "/players", key: "players", icon: Users },
-  { to: "/h2h", key: "h2h", icon: Swords },
-  { to: "/insights", key: "insights", icon: Sparkles },
-  { to: "/settings", key: "settings", icon: Settings },
+  { to: "", key: "overview", icon: LayoutDashboard, group: "tab" },
+  { to: "/play", key: "play", icon: Gamepad2, group: "play" },
+  { to: "/leaderboard", key: "standings", icon: Trophy, group: "tab" },
+  { to: "/clubs", key: "clubs", icon: Shield, group: "more" },
+  { to: "/matches", key: "matches", icon: CalendarDays, group: "tab" },
+  { to: "/players", key: "players", icon: Users, group: "tab" },
+  { to: "/h2h", key: "h2h", icon: Swords, group: "more" },
+  { to: "/insights", key: "insights", icon: Sparkles, group: "more" },
+  { to: "/settings", key: "settings", icon: Settings, group: "settings" },
 ];
+
+export const navGroup = (group: NavItem["group"]) => NAV.filter((n) => n.group === group);

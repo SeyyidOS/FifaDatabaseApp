@@ -205,6 +205,14 @@
       placeholder:text-faint transition-colors outline-none
       focus:border-accent/60 focus:ring-4 focus:ring-accent/10;
   }
+  /* The lime gem: the one main action on a screen (a new match) */
+  .accent-gem {
+    color: var(--accent-ink);
+    background: linear-gradient(145deg, color-mix(in oklab, var(--accent) 70%, white), var(--accent-strong));
+    box-shadow:
+      0 10px 28px -10px color-mix(in oklab, var(--accent) 80%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  }
   .hairline {
     background: linear-gradient(
       90deg,

@@ -1,4 +1,4 @@
-# FIFA Manager API
+# Matchnight API
 
 FastAPI + Postgres. Each group gets a password-protected **board** with its own players, matches,
 standings, K-factor and club ratings. On startup the API applies pending schema migrations
