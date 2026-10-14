@@ -35,7 +35,7 @@ import type { Analytics } from "../hooks/analytics-context";
 import { useBoard } from "../hooks/useBoard";
 import { useT } from "../hooks/useI18n";
 import { cn } from "../lib/cn";
-import { dayFromKey, displayName, formatTime, formatWeekday } from "../lib/format";
+import { dayFromKey, displayName, formatTime, formatWeekday, nameLang } from "../lib/format";
 import { defineMessages } from "../lib/i18n";
 import {
   NIGHT_RECAP,
@@ -487,7 +487,9 @@ function AwardTile({ a, t, total, index }: { a: NightAward; t: T; total: number;
       <BoardLink to={`/players/${encodeURIComponent(a.winner.name)}`} className="mt-5 flex items-center gap-3 hover:opacity-90">
         <Avatar name={a.winner.name} size="lg" ring={a.roast ? undefined : "accent"} />
         <div className="min-w-0">
-          <p className="display truncate text-2xl">{displayName(a.winner.name)}</p>
+          <p lang={nameLang(a.winner.name)} className="display truncate text-2xl">
+            {displayName(a.winner.name)}
+          </p>
           <p className={cn("display text-xl", a.roast ? "text-loss" : "text-accent-text")}>{awardValue(t, a)}</p>
         </div>
       </BoardLink>

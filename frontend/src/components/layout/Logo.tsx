@@ -20,7 +20,9 @@ export function Logo({ className, compact }: { className?: string; compact?: boo
       </span>
       {!compact && (
         <span className="leading-none">
-          <span className="display block text-[19px] tracking-[0.06em]">Matchnight</span>
+          <span lang="en" className="display block text-[19px] tracking-[0.06em]">
+            Matchnight
+          </span>
           <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.22em] text-faint">
             {t("tagline")}
           </span>

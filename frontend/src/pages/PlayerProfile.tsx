@@ -15,7 +15,7 @@ import { AnimatedNumber, Button, Delta, FormPills, Panel, Pill, ProgressBar, Ran
 import type { Analytics, RankedPlayer } from "../hooks/analytics-context";
 import { cn } from "../lib/cn";
 import { vsDuosOf } from "../lib/analysis";
-import { cleanName, displayName, relativeTime } from "../lib/format";
+import { cleanName, displayName, nameLang, relativeTime } from "../lib/format";
 import { winRate, type Tally } from "../lib/stats";
 import { BoardLink } from "../components/board/BoardLink";
 import { useBoard } from "../hooks/useBoard";
@@ -250,7 +250,9 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
                 </Pill>
               )}
             </div>
-            <h1 className="display mt-3 text-6xl sm:text-7xl">{displayName(player.name)}</h1>
+            <h1 lang={nameLang(player.name)} className="display mt-3 text-6xl sm:text-7xl">
+              {displayName(player.name)}
+            </h1>
             <p className="mt-2 text-sm text-muted">
               {t("matchesN", { n: played })}{s?.lastPlayed && t("lastPlayed", { when: relativeTime(s.lastPlayed) })}
             </p>

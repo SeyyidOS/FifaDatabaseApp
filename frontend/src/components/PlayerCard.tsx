@@ -2,7 +2,7 @@ import { motion, useMotionTemplate, useMotionValue, useSpring, useTransform } fr
 import type { MouseEvent } from "react";
 import type { RankedPlayer } from "../hooks/analytics-context";
 import { cn } from "../lib/cn";
-import { displayName } from "../lib/format";
+import { displayName, nameLang } from "../lib/format";
 import { eloToOvr } from "../lib/insights";
 import { initials, playerGradient } from "../lib/identity";
 import { ClubCrest } from "./ui/Identity";
@@ -213,7 +213,7 @@ export function PlayerCard({
 
             {/* name */}
             <div className="absolute inset-x-0 text-center" style={{ top: 146 * scale }}>
-              <p className="display truncate px-3" style={{ fontSize: 24 * scale, letterSpacing: "0.04em" }}>
+              <p lang={nameLang(player.name)} className="display truncate px-3" style={{ fontSize: 24 * scale, letterSpacing: "0.04em" }}>
                 {displayName(player.name)}
               </p>
               <div className="mx-auto mt-1 h-px w-3/4" style={{ background: t.line }} />

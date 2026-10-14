@@ -1,4 +1,5 @@
-import type { EloEngine, MatchElo } from "./elo";
+import type { EloEngine, EloPoint, MatchElo } from "./elo";
+import { matchdayKey } from "./format";
 import { outcomeFor, type Matchday, type ParsedMatch } from "./stats";
 
 export const UPSET_THRESHOLD = 0.35;
@@ -33,6 +34,29 @@ export function nightSummary(day: Matchday, engine: EloEngine): NightSummary[] {
     }
   }
   return [...map.values()].sort((a, b) => b.delta - a.delta);
+}
+
+/** A night's headline match: the biggest win, then the most goals; on a tie, the later one (matchdays list newest first). */
+export function scoreOfTheNight(day: Matchday): ParsedMatch | undefined {
+  const margin = (m: ParsedMatch) => Math.abs(m.scoreA - m.scoreB);
+  const goals = (m: ParsedMatch) => m.scoreA + m.scoreB;
+  let best: ParsedMatch | undefined;
+  for (const m of day.matches)
+    if (!best || margin(m) > margin(best) || (margin(m) === margin(best) && goals(m) > goals(best))) best = m;
+  return best;
+}
+
+/** A player's rating after each night they played, oldest first, from their starting rating. */
+export function nightlyElo(history: EloPoint[], start = 1000): number[] {
+  const out = [start];
+  let night = "";
+  for (const p of history) {
+    const key = matchdayKey(p.time);
+    if (key === night) out[out.length - 1] = p.elo;
+    else out.push(p.elo);
+    night = key;
+  }
+  return out;
 }
 
 /** FUT-style overall rating derived from Elo. */

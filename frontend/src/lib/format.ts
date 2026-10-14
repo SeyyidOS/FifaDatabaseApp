@@ -46,6 +46,13 @@ export const isoDay = (d: Date) => isoDayFmt.format(d);
 export const matchdayKey = (d: Date) =>
   isoDay(new Date(d.getTime() - 6 * 3600 * 1000));
 
+/**
+ * The language to upper-case a name by. Names keep the spelling they were typed with: "Seyyid" or
+ * "Friday Night League" become SEYYID and FRIDAY NIGHT LEAGUE even in the Turkish UI, while a name
+ * typed with Turkish letters ("Çağrı", "İlker") gets Turkish casing.
+ */
+export const nameLang = (name: string) => (/[çğıöşüİÇĞÖŞÜ]/.test(name) ? "tr" : "en");
+
 /** Local-midnight Date for a YYYY-MM-DD key (for display only). */
 export const dayFromKey = (key: string) => new Date(`${key}T12:00:00Z`);
 
