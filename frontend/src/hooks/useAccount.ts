@@ -14,6 +14,13 @@ export function useAccountsEnabled() {
   return config.data?.accounts === true;
 }
 
+/** Someone is signed in and the server offers accounts (a league then shows the account menu). */
+export function useShowsAccount() {
+  const enabled = useAccountsEnabled();
+  const account = useAccount();
+  return enabled && !!account;
+}
+
 /** The boards the signed-in account is a member of (empty when signed out or accounts are off). */
 export function useMemberships() {
   const enabled = useAccountsEnabled();

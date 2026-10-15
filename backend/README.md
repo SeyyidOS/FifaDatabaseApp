@@ -58,9 +58,12 @@ in makes the account its owner; `POST /boards/{slug}/claim` with the board's adm
 account the owner of a board that has none yet, which is how boards from before accounts move over.
 `POST /boards/{slug}/session` trades membership for an ordinary board token (owners and admins get the
 admin role, players the member role), so the rest of the API is unchanged and a new admin password
-signs those tokens out like any device. `PUT /boards/{slug}/membership/player` links an owner or admin to
-their player; `GET /auth/boards` lists the account's boards with its player's Elo, matches and rank, and
-for owners and admins how many join requests wait for them (`pending`).
+signs those tokens out like any device. Such a token also names the account, and works only while the
+account is in the board with that role: removing someone, or changing their role, ends it (401), and the
+app opens the board again with whatever the account has now. `PUT /boards/{slug}/membership/player` links an owner or admin to
+their player; `GET /auth/boards` lists the account's boards with its player's Elo, matches and rank, the
+player it asked to be while that waits for an answer (`asked`), and for owners and admins how many join
+requests wait for them (`pending`).
 
 ### Invites
 

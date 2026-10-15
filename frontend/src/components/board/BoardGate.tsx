@@ -6,7 +6,7 @@ import { useAccount, useMemberships } from "../../hooks/useAccount";
 import { useSessions } from "../../hooks/useBoard";
 import { useMe } from "../../hooks/useData";
 import { accountApi, boardApi } from "../../lib/api";
-import { saveSession, updateSession } from "../../lib/session";
+import { saveSession, updateSession, type BoardSession } from "../../lib/session";
 import { PageSkeleton } from "../DataGate";
 import { AppShell } from "../layout/AppShell";
 import { BoardSignIn } from "./BoardSignIn";
@@ -36,15 +36,19 @@ function SessionSync({ slug, name }: { slug: string; name: string }) {
 
 /**
  * A board the signed-in account is a member of opens without its password: the account trades its
- * membership for a board token. True while that is still being worked out.
+ * membership for a board token. An owner or admin who came in with the board password moves up to
+ * their own role the same way. True while that is still being worked out.
  */
-function useAccountEntry(slug: string, signedIn: boolean) {
+function useAccountEntry(slug: string, session: BoardSession | undefined) {
   const account = useAccount();
   const memberships = useMemberships();
-  const member = !!memberships.data?.some((mb) => mb.slug === slug);
+  const membership = memberships.data?.find((mb) => mb.slug === slug);
+  const member = !!membership;
+  const upgrade = !!session && session.role === "member" && !!membership && membership.role !== "player";
+  const signedIn = !!session;
   const [failed, setFailed] = useState(false);
   useEffect(() => {
-    if (signedIn || !account || !member) return;
+    if ((signedIn && !upgrade) || !account || !member) return;
     let cancelled = false;
     accountApi
       .session(account.token, slug)
@@ -53,7 +57,7 @@ function useAccountEntry(slug: string, signedIn: boolean) {
     return () => {
       cancelled = true;
     };
-  }, [signedIn, account, member, slug]);
+  }, [signedIn, upgrade, account, member, slug]);
   return !signedIn && !failed && (memberships.isLoading || member);
 }
 
@@ -72,12 +76,13 @@ export default function BoardGate() {
             token: session.token,
             api: boardApi(slug, session.token),
             path: (to = "") => `/b/${slug}${to}`,
+            viaAccount: session.viaAccount !== undefined,
           }
         : null,
     [slug, session],
   );
 
-  const entering = useAccountEntry(slug, !!session);
+  const entering = useAccountEntry(slug, session);
   if (!board && entering) return <PageSkeleton />;
   if (!board)
     return (

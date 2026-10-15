@@ -4,7 +4,8 @@ import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useIsFetching, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronsUpDown, LayoutGrid, LogOut, Menu, Plus, Search, X } from "lucide-react";
 import { useAnalytics } from "../../hooks/useAnalytics";
-import { useLeagues, usePending } from "../../hooks/useAccount";
+import { useLeagues, usePending, useShowsAccount } from "../../hooks/useAccount";
+import { AccountMenu } from "../account/AccountMenu";
 import { useBoard } from "../../hooks/useBoard";
 import { cn } from "../../lib/cn";
 import { nameLang } from "../../lib/format";
@@ -83,7 +84,7 @@ function useSignOut() {
 function BoardSwitcher() {
   const t = useT(m);
   const tc = useT(common);
-  const { slug, name, role } = useBoard();
+  const { slug, name, role, viaAccount } = useBoard();
   const leagues = useLeagues();
   const signOut = useSignOut();
   const [open, setOpen] = useState(false);
@@ -139,9 +140,11 @@ function BoardSwitcher() {
             <Link to="/" className={item}>
               <LayoutGrid className="size-4 text-muted" /> {tc("joinOrCreate")}
             </Link>
-            <button onClick={signOut} className={cn(item, "text-loss")}>
-              <LogOut className="size-4" /> {tc("signOutDevice")}
-            </button>
+            {!viaAccount && (
+              <button onClick={signOut} className={cn(item, "text-loss")}>
+                <LogOut className="size-4" /> {tc("signOutDevice")}
+              </button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -253,9 +256,11 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
   const tc = useT(common);
   const tn = useT(navMessages);
   const navigate = useNavigate();
-  const { path, name, slug } = useBoard();
+  const { path, name, slug, viaAccount } = useBoard();
   const pending = usePending(slug);
   const signOut = useSignOut();
+  // signed in: the account menu has the way to your leagues, signing out, and on phones language and theme
+  const showsAccount = useShowsAccount();
   const [menu, setMenu] = useState(false);
   const location = useLocation();
   useEffect(() => {
@@ -282,10 +287,12 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
           <span className="hidden md:block">
             <SyncStatus />
           </span>
-          <span className="flex items-center lg:hidden">
-            <LanguageButton />
-            <ThemeButton />
-          </span>
+          {!showsAccount && (
+            <span className="flex items-center lg:hidden">
+              <LanguageButton />
+              <ThemeButton />
+            </span>
+          )}
           <span className="hidden sm:block lg:hidden">
             <Button variant="primary" onClick={() => navigate(path("/play"))}>
               <Plus className="size-4" strokeWidth={2.5} />
@@ -297,6 +304,7 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
               {menu ? <X className="size-5" /> : <Menu className="size-5" />}
             </Button>
           </span>
+          {showsAccount && <AccountMenu />}
         </div>
       </div>
       {menu && (
@@ -328,15 +336,19 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
                 )}
               </NavLink>
             ))}
-            <Link to="/" className="flex items-center gap-2.5 rounded-xl border border-line px-3 py-3 text-sm font-medium text-muted">
-              <LayoutGrid className="size-4" /> {tc("allBoards")}
-            </Link>
-            <button
-              onClick={signOut}
-              className="flex items-center gap-2.5 rounded-xl border border-line px-3 py-3 text-left text-sm font-medium text-loss"
-            >
-              <LogOut className="size-4" /> {tc("signOut")}
-            </button>
+            {!showsAccount && (
+              <Link to="/" className="flex items-center gap-2.5 rounded-xl border border-line px-3 py-3 text-sm font-medium text-muted">
+                <LayoutGrid className="size-4" /> {tc("allBoards")}
+              </Link>
+            )}
+            {!viaAccount && (
+              <button
+                onClick={signOut}
+                className="flex items-center gap-2.5 rounded-xl border border-line px-3 py-3 text-left text-sm font-medium text-loss"
+              >
+                <LogOut className="size-4" /> {tc("signOut")}
+              </button>
+            )}
           </div>
         </motion.nav>
       )}

@@ -10,6 +10,8 @@ export interface BoardContextValue {
   api: BoardApi;
   /** "/players" -> "/b/<slug>/players" */
   path: (to?: string) => string;
+  /** opened with the signed-in account rather than the board password: signing out is the account's */
+  viaAccount: boolean;
 }
 
 export const BoardContext = createContext<BoardContextValue | null>(null);

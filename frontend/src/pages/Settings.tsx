@@ -832,7 +832,7 @@ function Section({ children, delay = 0 }: { children: ReactNode; delay?: number 
 export default function Settings() {
   const t = useT(msg);
   const tc = useT(common);
-  const { slug, role, name } = useBoard();
+  const { slug, role, name, viaAccount } = useBoard();
   // an owner or admin by account invites and manages people with accounts; otherwise the board link and password
   const manager = useMemberships().data?.find((mb) => mb.slug === slug && mb.role !== "player");
   const [params] = useSearchParams();
@@ -855,9 +855,12 @@ export default function Settings() {
               role === "admin" ? t("adminDesc") : t("memberDesc")
             }
             actions={
-              <Button variant="ghost" onClick={signOut}>
-                <LogOut className="size-4" /> {tc("signOutDevice")}
-              </Button>
+              // opened with an account, signing out is the account's (its menu)
+              !viaAccount && (
+                <Button variant="ghost" onClick={signOut}>
+                  <LogOut className="size-4" /> {tc("signOutDevice")}
+                </Button>
+              )
             }
           />
           <div className="grid gap-6 xl:grid-cols-12">

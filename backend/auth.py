@@ -71,8 +71,16 @@ def _sign(body: str) -> str:
     return _b64(hmac.new(_secret(), body.encode(), hashlib.sha256).digest())
 
 
-def issue_token(board_id: int, role: Role, version: int) -> str:
+# the board role a membership's role gives
+BOARD_ROLE: dict[str, Role] = {"owner": "admin", "admin": "admin", "player": "member"}
+
+
+def issue_token(board_id: int, role: Role, version: int, user_id: int | None = None) -> str:
+    """A device signed in to one board. One opened with an account (`user_id`) works only while that account
+    is in the board with the same role."""
     payload = {"b": board_id, "r": role, "v": version, "iat": int(time.time())}
+    if user_id is not None:
+        payload["u"] = user_id
     body = _b64(json.dumps(payload, separators=(",", ":")).encode())
     return f"{body}.{_sign(body)}"
 
@@ -198,6 +206,12 @@ def board_access(
     current = board["admin_version"] if payload["r"] == "admin" else board["member_version"]
     if payload["v"] != current:
         raise HTTPException(status_code=401, detail="The board password changed; sign in again")
+    if "u" in payload:
+        membership = request.app.state.db.fetch_one(
+            "SELECT role FROM memberships WHERE user_id = %s AND board_id = %s", (payload["u"], board["id"])
+        )
+        if membership is None or BOARD_ROLE[membership["role"]] != payload["r"]:
+            raise HTTPException(status_code=401, detail="Your place in this board changed; open it again")
     return access(payload["r"])
 
 

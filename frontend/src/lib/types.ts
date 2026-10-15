@@ -150,6 +150,8 @@ export interface Membership {
   /** join requests waiting for an owner or admin (0 for players) */
   pending: number;
   player: { id: number; name: string; elo: number; rank: number; played: number } | null;
+  /** the player this account asked to be (or the new one it asked to start as), until an owner or admin answers */
+  asked: { name: string; new: boolean } | null;
 }
 
 /** What an invite link leads to, shown before signing in. */
