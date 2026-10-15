@@ -13,7 +13,7 @@ import psycopg2.errors
 from fastapi import APIRouter, Header, HTTPException, Request
 
 from accounts import current_user
-from auth import client_ip, failed_logins, issue_token, verify_password
+from auth import BOARD_ROLE, client_ip, failed_logins, issue_token, verify_password
 from elo import board_ratings
 from schemas import BoardClaim, MembershipPlayer
 
@@ -21,7 +21,6 @@ router = APIRouter(tags=["memberships"])
 
 # a player gets a rank once they have played this many matches (frontend/src/lib/ranking.ts)
 RANKED_GAMES = 15
-BOARD_ROLE = {"owner": "admin", "admin": "admin", "player": "member"}
 
 
 def ranked_games(most_played: int) -> int:
@@ -77,15 +76,19 @@ def standing(request: Request, board: dict, player_id: int) -> dict:
 
 @router.get("/auth/boards")
 def my_boards(request: Request, authorization: str | None = Header(default=None)):
-    """The boards an account is in, with its role and, once linked, its player's standing."""
+    """The boards an account is in, with its role and, once linked, its player's standing; or the player it
+    asked to be, while an owner or admin hasn't answered."""
     user = current_user(request, authorization)
     rows = request.app.state.db.fetch_all(
         """
         SELECT b.id, b.slug, b.name, b.k_factor, m.role, m.player_id, p.name AS player_name,
-               (SELECT COUNT(*) FROM join_requests r WHERE r.board_id = b.id) AS pending
+               (SELECT COUNT(*) FROM join_requests r WHERE r.board_id = b.id) AS pending,
+               jr.id AS asked, COALESCE(ap.name, jr.new_name) AS asked_name, jr.new_name IS NOT NULL AS asked_new
         FROM memberships m
         JOIN boards b ON b.id = m.board_id
         LEFT JOIN players p ON p.id = m.player_id
+        LEFT JOIN join_requests jr ON jr.board_id = m.board_id AND jr.user_id = m.user_id
+        LEFT JOIN players ap ON ap.id = jr.player_id
         WHERE m.user_id = %s
         ORDER BY m.created_at, b.id
         """,
@@ -101,6 +104,7 @@ def my_boards(request: Request, authorization: str | None = Header(default=None)
             "player": None
             if r["player_id"] is None
             else {"id": r["player_id"], "name": r["player_name"], **standing(request, r, r["player_id"])},
+            "asked": None if r["asked"] is None else {"name": r["asked_name"], "new": r["asked_new"]},
         }
         for r in rows
     ]
@@ -141,7 +145,7 @@ def session(slug: str, request: Request, authorization: str | None = Header(defa
         "slug": board["slug"],
         "name": board["name"],
         "role": role,
-        "token": issue_token(board["id"], role, version),
+        "token": issue_token(board["id"], role, version, user["id"]),
     }
 
 

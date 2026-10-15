@@ -57,7 +57,7 @@ def test_the_group_link_asks_for_approval(api, mail, board):
     assert asked.json()["status"] == "requested"
     # in the board already, as a player without a player yet
     [mine] = api.get("/auth/boards", headers=bearer(seyyid["token"])).json()
-    assert (mine["role"], mine["player"]) == ("player", None)
+    assert (mine["role"], mine["player"], mine["asked"]) == ("player", None, {"name": "seyyid", "new": False})
     assert api.get("/auth/boards", headers=bearer(owner["token"])).json()[0]["pending"] == 1
 
     newcomer = sign_in(api, mail, "arda@example.com")
@@ -70,7 +70,8 @@ def test_the_group_link_asks_for_approval(api, mail, board):
 
     for r in members["requests"]:
         assert api.post(board.url(f"/requests/{r['id']}/approve"), headers=bearer(owner["token"])).status_code == 200
-    assert api.get("/auth/boards", headers=bearer(seyyid["token"])).json()[0]["player"]["name"] == "seyyid"
+    [mine] = api.get("/auth/boards", headers=bearer(seyyid["token"])).json()
+    assert (mine["player"]["name"], mine["asked"]) == ("seyyid", None)
     assert api.get("/auth/boards", headers=bearer(newcomer["token"])).json()[0]["player"]["name"] == "arda"
     assert "arda" in [p["name"] for p in api.get(board.url("/players"), headers=board.member).json()]
 
@@ -110,12 +111,18 @@ def test_roles_and_removal(api, mail, board):
 
     # players can't manage; the owner makes admins
     assert api.get(board.url("/members"), headers=bearer(ozgun["token"])).status_code == 403
+    as_player = bearer(api.post(board.url("/session"), headers=bearer(ozgun["token"])).json()["token"])
+    assert api.get(board.url("/players"), headers=as_player).status_code == 200
     assert (
         api.patch(board.url(f"/members/{oz}"), json={"role": "admin"}, headers=bearer(owner["token"])).status_code
         == 200
     )
+    # the board token from before the new role gives way to one with it
+    assert api.get(board.url("/players"), headers=as_player).status_code == 401
     session = api.post(board.url("/session"), headers=bearer(ozgun["token"])).json()
     assert session["role"] == "admin"
+    as_admin = bearer(session["token"])
+    assert api.get(board.url("/players"), headers=as_admin).status_code == 200
     # an admin can't touch the owner or change roles
     me = members[0]["userId"]
     assert (
@@ -126,6 +133,8 @@ def test_roles_and_removal(api, mail, board):
 
     assert api.delete(board.url(f"/members/{oz}"), headers=bearer(owner["token"])).status_code == 200
     assert api.get("/auth/boards", headers=bearer(ozgun["token"])).json() == []
+    # removed means out: the board token opened with the account stops working too
+    assert api.get(board.url("/players"), headers=as_admin).status_code == 401
     # ozgun's player and matches stay
     assert "ozgun" in [p["name"] for p in api.get(board.url("/players"), headers=board.member).json()]
 

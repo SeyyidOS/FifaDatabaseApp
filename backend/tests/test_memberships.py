@@ -12,7 +12,9 @@ def test_creating_a_board_while_signed_in_makes_you_its_owner(api, mail):
     )
     assert created.status_code == 201, created.text
     boards = api.get("/auth/boards", headers=bearer(me["token"])).json()
-    assert boards == [{"slug": "office-league", "name": "Office League", "role": "owner", "pending": 0, "player": None}]
+    assert boards == [
+        {"slug": "office-league", "name": "Office League", "role": "owner", "pending": 0, "player": None, "asked": None}
+    ]
 
 
 def test_creating_a_board_without_accounts_ignores_the_header(api, monkeypatch):
