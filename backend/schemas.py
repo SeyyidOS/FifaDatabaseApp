@@ -84,6 +84,28 @@ class MembershipPlayer(BaseModel):
     playerId: int | None
 
 
+class InviteCreate(BaseModel):
+    # a personal link for this player; none: the board's group link
+    playerId: int | None = None
+
+
+class InviteAccept(BaseModel):
+    """By a group link: the player you are, or the name of a new player (or neither: just join)."""
+
+    playerId: int | None = None
+    newName: PlayerName | None = None
+
+    @model_validator(mode="after")
+    def one_of(self) -> "InviteAccept":
+        if self.playerId is not None and self.newName is not None:
+            raise ValueError("pick a player or a new name, not both")
+        return self
+
+
+class MemberUpdate(BaseModel):
+    role: Literal["admin", "player"]
+
+
 class BoardUpdate(BaseModel):
     name: BoardName | None = None
     kFactor: KFactor | None = None

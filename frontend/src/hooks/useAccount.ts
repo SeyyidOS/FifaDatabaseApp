@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { Membership } from "../lib/types";
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
+import { useSessions } from "./useBoard";
 import { getAccount, subscribeAccount } from "../lib/account";
 import { accountApi } from "../lib/api";
 
@@ -21,6 +22,22 @@ export function useMemberships() {
     queryKey: ["auth-boards", account?.user.id],
     queryFn: () => accountApi.boards(account!.token),
     enabled: enabled && !!account,
-    staleTime: 60_000,
+    // owners and admins see join requests come in (the Settings badge) without reloading
+    refetchInterval: (query) => (query.state.data?.some((mb) => mb.role !== "player") ? 60_000 : false),
   });
+}
+
+/** The leagues to switch between: the account's (once accounts are on), then boards this device opened with a password. */
+export function useLeagues(): { slug: string; name: string }[] {
+  const memberships = useMemberships().data;
+  const sessions = useSessions();
+  return useMemo(() => {
+    const mine = (memberships ?? []).map((mb) => ({ slug: mb.slug, name: mb.name }));
+    return [...mine, ...sessions.filter((s) => !mine.some((mb) => mb.slug === s.slug)).map((s) => ({ slug: s.slug, name: s.name }))];
+  }, [memberships, sessions]);
+}
+
+/** Join requests waiting for this person in a board they own or run (0 otherwise). */
+export function usePending(slug: string) {
+  return useMemberships().data?.find((mb) => mb.slug === slug)?.pending ?? 0;
 }

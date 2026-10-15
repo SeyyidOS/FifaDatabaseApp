@@ -358,6 +358,39 @@ def v10_memberships(cur: RealDictCursor) -> None:
     cur.execute(V10_MEMBERSHIPS)
 
 
+# Invites (invites.py): a personal link for one player (one use, a week) or the board's group link
+# (until reset), and the requests of people who joined by the group link and said which player they are.
+V11_INVITES = """
+CREATE TABLE invites (
+    id SERIAL PRIMARY KEY,
+    board_id INT NOT NULL REFERENCES boards (id) ON DELETE CASCADE,
+    code VARCHAR(32) UNIQUE NOT NULL,
+    kind VARCHAR(10) NOT NULL CHECK (kind IN ('personal', 'group')),
+    player_id INT REFERENCES players (id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ,
+    used_at TIMESTAMPTZ,
+    revoked_at TIMESTAMPTZ,
+    CHECK ((kind = 'personal') = (player_id IS NOT NULL))
+);
+CREATE UNIQUE INDEX invites_one_group ON invites (board_id) WHERE kind = 'group' AND revoked_at IS NULL;
+CREATE TABLE join_requests (
+    id SERIAL PRIMARY KEY,
+    board_id INT NOT NULL REFERENCES boards (id) ON DELETE CASCADE,
+    user_id INT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    player_id INT REFERENCES players (id) ON DELETE CASCADE,
+    new_name VARCHAR(30),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (board_id, user_id),
+    CHECK ((player_id IS NULL) <> (new_name IS NULL))
+);
+"""
+
+
+def v11_invites(cur: RealDictCursor) -> None:
+    cur.execute(V11_INVITES)
+
+
 MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (1, v1_legacy),
     (2, v2_boards),
@@ -369,6 +402,7 @@ MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (8, v8_match_stats),
     (9, v9_accounts),
     (10, v10_memberships),
+    (11, v11_invites),
 ]
 
 

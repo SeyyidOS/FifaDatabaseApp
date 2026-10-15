@@ -62,3 +62,27 @@ export function subscribeAccount(listener: () => void) {
     window.removeEventListener("storage", onStorage);
   };
 }
+
+// Where to go once the sign-in link comes back (an invite, say). In localStorage, not sessionStorage:
+// the link usually opens in a new tab.
+const AFTER = "fm-after-signin";
+
+export function rememberAfterSignIn(path: string) {
+  try {
+    localStorage.setItem(AFTER, JSON.stringify({ path, at: Date.now() }));
+  } catch {
+    /* storage blocked: the sign-in just ends at home */
+  }
+}
+
+/** The remembered path (within the link's lifetime), once. */
+export function takeAfterSignIn(): string | null {
+  try {
+    const raw = localStorage.getItem(AFTER);
+    localStorage.removeItem(AFTER);
+    const value = raw ? JSON.parse(raw) : null;
+    return value && typeof value.path === "string" && Date.now() - value.at < 30 * 60_000 ? value.path : null;
+  } catch {
+    return null;
+  }
+}
