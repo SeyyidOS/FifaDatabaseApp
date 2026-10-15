@@ -142,6 +142,14 @@ export interface SignIn extends BoardInfo {
   token: string;
 }
 
+/** An account's place in a board: its role and, once it said which, its player's standing there. */
+export interface Membership {
+  slug: string;
+  name: string;
+  role: "owner" | "admin" | "player";
+  player: { id: number; name: string; elo: number; rank: number; played: number } | null;
+}
+
 /** A person who signs in with a link sent to their e-mail (not a board sign-in). */
 export interface Account {
   id: number;

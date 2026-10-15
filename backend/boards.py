@@ -6,6 +6,7 @@ import secrets
 import psycopg2.errors
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
+from accounts import accounts_on, current_user
 from auth import (
     BoardAccess,
     board_access,
@@ -19,6 +20,7 @@ from auth import (
     slugify,
     verify_password,
 )
+from memberships import add_owner
 from schemas import BoardCreate, BoardUpdate, Login
 from seasons import start_first_season
 
@@ -35,10 +37,17 @@ def _session(board: dict, role: str, version: int) -> dict:
 
 
 @router.post("", status_code=201)
-def create_board(body: BoardCreate, request: Request, x_admin_key: str | None = Header(default=None)):
-    """Anyone may create a board unless BOARD_CREATION=closed (then only with the server ADMIN_KEY)."""
+def create_board(
+    body: BoardCreate,
+    request: Request,
+    x_admin_key: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+):
+    """Anyone may create a board unless BOARD_CREATION=closed (then only with the server ADMIN_KEY).
+    Signed in with an account (and accounts on), the account owns the new board."""
     if os.getenv("BOARD_CREATION", "open") != "open" and not server_admin_key_matches(x_admin_key):
         raise HTTPException(status_code=403, detail="Creating boards is disabled on this server")
+    owner = current_user(request, authorization) if authorization and accounts_on() else None
     ip = client_ip(request)
     if board_creations.blocked(ip):
         raise HTTPException(status_code=429, detail="Too many new boards from this network; try again later")
@@ -64,6 +73,8 @@ def create_board(body: BoardCreate, request: Request, x_admin_key: str | None = 
             raise HTTPException(status_code=409, detail="That board name was just taken; try again") from exc
         board = cur.fetchone()
         start_first_season(cur, board["id"])
+        if owner:
+            add_owner(cur, owner["id"], board["id"])
     return _session(board, "admin", board["admin_version"])
 
 

@@ -24,6 +24,10 @@ import { winRate, type Tally } from "../lib/stats";
 import { BoardLink } from "../components/board/BoardLink";
 import { useBoard } from "../hooks/useBoard";
 import { useBoardNavigate } from "../hooks/useBoardNavigate";
+import { useAccount, useMemberships } from "../hooks/useAccount";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { accountApi, ApiError } from "../lib/api";
 import { useSessionState } from "../hooks/useSessionState";
 import { useT } from "../hooks/useI18n";
 import { defineMessages } from "../lib/i18n";
@@ -52,6 +56,9 @@ const msg = defineMessages({
     perGame: "{f} for · {a} against /g",
     form: "Form",
     compare: "Compare",
+    you: "You",
+    thatsMe: "That's me",
+    linked: "Linked to your account",
     journey: "Elo journey",
     byNight: "By night",
     byMatch: "By match",
@@ -107,6 +114,9 @@ const msg = defineMessages({
     perGame: "Maç başı {f} attı · {a} yedi",
     form: "Form",
     compare: "Karşılaştır",
+    you: "Sen",
+    thatsMe: "Bu benim",
+    linked: "Hesabına bağlandı",
     journey: "Elo yolculuğu",
     byNight: "Gece gece",
     byMatch: "Maç maç",
@@ -218,6 +228,32 @@ function pickExtreme(map: Map<string, Tally> | undefined, best: boolean): [strin
   return eligible[0];
 }
 
+/** "You" on your own profile; "That's me" for an owner or admin who hasn't said which player they are. */
+function MeTag({ player }: { player: RankedPlayer }) {
+  const t = useT(msg);
+  const { slug } = useBoard();
+  const account = useAccount();
+  const membership = useMemberships().data?.find((mb) => mb.slug === slug);
+  const queryClient = useQueryClient();
+  if (!account || !membership) return null;
+  if (membership.player?.id === player.id) return <Pill tone="accent">{t("you")}</Pill>;
+  if (membership.player || membership.role === "player" || player.archived) return null;
+  const link = async () => {
+    try {
+      await accountApi.linkPlayer(account.token, slug, player.id);
+      await queryClient.invalidateQueries({ queryKey: ["auth-boards"] });
+      toast.success(t("linked"));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : String(err));
+    }
+  };
+  return (
+    <Button variant="outline" size="sm" onClick={link}>
+      {t("thatsMe")}
+    </Button>
+  );
+}
+
 function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
   const [showAll, setShowAll] = useState(false);
   const navigate = useBoardNavigate();
@@ -281,6 +317,7 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
                     </Pill>
                   )}
                   <RankMove value={player.rankDelta} hideZero />
+                  <MeTag player={player} />
                   {current && current.count >= 2 && (
                     <Pill tone={current.type === "W" ? "win" : current.type === "L" ? "loss" : "draw"}>
                       <Flame className="size-3" /> {t(current.type === "W" ? "streakW" : current.type === "L" ? "streakL" : "streakD", { n: current.count })}
