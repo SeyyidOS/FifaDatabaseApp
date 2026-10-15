@@ -37,7 +37,8 @@ def api(client):
     import auth
 
     client.app.state.db.execute(
-        "TRUNCATE boards, players, matches, match_players, users, login_links, memberships RESTART IDENTITY CASCADE"
+        "TRUNCATE boards, players, matches, match_players, users, login_links, memberships, invites, join_requests "
+        "RESTART IDENTITY CASCADE"
     )
     for limiter in (auth.failed_logins, auth.board_creations, auth.links_per_email, auth.links_per_ip):
         limiter._events.clear()

@@ -9,6 +9,7 @@ const LEGACY_BOARD = "main";
 const Home = lazy(() => import("./pages/Home"));
 const BoardGate = lazy(() => import("./components/board/BoardGate"));
 const SignIn = lazy(() => import("./pages/SignIn"));
+const JoinInvite = lazy(() => import("./pages/JoinInvite"));
 
 /** Links from before boards existed (#/leaderboard, #/admin, …) belong to the original group's board. */
 function LegacyRedirect() {
@@ -24,6 +25,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/signin" element={<SignIn />} />
+          <Route path="/join/:code" element={<JoinInvite />} />
           <Route path="/b/:slug/*" element={<BoardGate />} />
           <Route path="*" element={<LegacyRedirect />} />
         </Routes>

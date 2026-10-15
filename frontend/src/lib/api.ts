@@ -2,6 +2,9 @@ import { removeSession } from "./session";
 import type {
   Account,
   BoardInfo,
+  BoardInvites,
+  BoardMembers,
+  InvitePreview,
   Membership,
   BoardMe,
   Club,
@@ -166,4 +169,29 @@ export const accountApi = {
   session: (token: string, slug: string) => request<SignIn>(`/boards/${encodeURIComponent(slug)}/session`, json("POST"), token),
   linkPlayer: (token: string, slug: string, playerId: number | null) =>
     request<{ playerId: number | null }>(`/boards/${encodeURIComponent(slug)}/membership/player`, json("PUT", { playerId }), token),
+
+  // owners and admins
+  invites: (token: string, slug: string) => request<BoardInvites>(`/boards/${encodeURIComponent(slug)}/invites`, {}, token),
+  /** a personal link for a player, or (no player) the group link */
+  invite: (token: string, slug: string, playerId?: number) =>
+    request<{ kind: string; code: string }>(`/boards/${encodeURIComponent(slug)}/invites`, json("POST", { playerId }), token),
+  resetGroupInvite: (token: string, slug: string) =>
+    request<{ kind: string; code: string }>(`/boards/${encodeURIComponent(slug)}/invites/group/reset`, json("POST"), token),
+  members: (token: string, slug: string) => request<BoardMembers>(`/boards/${encodeURIComponent(slug)}/members`, {}, token),
+  approve: (token: string, slug: string, id: number) =>
+    request<{ playerId: number }>(`/boards/${encodeURIComponent(slug)}/requests/${id}/approve`, json("POST"), token),
+  reject: (token: string, slug: string, id: number) =>
+    request<{ rejected: boolean }>(`/boards/${encodeURIComponent(slug)}/requests/${id}/reject`, json("POST"), token),
+  setRole: (token: string, slug: string, userId: number, role: "admin" | "player") =>
+    request<{ role: string }>(`/boards/${encodeURIComponent(slug)}/members/${userId}`, json("PATCH", { role }), token),
+  removeMember: (token: string, slug: string, userId: number) =>
+    request<{ removed: boolean }>(`/boards/${encodeURIComponent(slug)}/members/${userId}`, json("DELETE"), token),
+
+  // people with a link
+  preview: (code: string) => request<InvitePreview>(`/invites/${encodeURIComponent(code)}`),
+  accept: (token: string, code: string, body: { playerId?: number; newName?: string }) =>
+    request<{ slug: string; status: "joined" | "requested" }>(`/invites/${encodeURIComponent(code)}/accept`, json("POST", body), token),
 };
+
+/** The address of an invite link, on whatever host the app is served from. */
+export const inviteLink = (code: string) => `${window.location.origin}${window.location.pathname}#/join/${code}`;

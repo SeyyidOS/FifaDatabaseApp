@@ -2,7 +2,8 @@ import { Command } from "cmdk";
 import { useNavigate } from "react-router-dom";
 import { CornerDownLeft, Languages, LayoutGrid, Moon, Newspaper, Plus, Search, Sun } from "lucide-react";
 import { useAnalytics } from "../../hooks/useAnalytics";
-import { useBoard, useSessions } from "../../hooks/useBoard";
+import { useLeagues } from "../../hooks/useAccount";
+import { useBoard } from "../../hooks/useBoard";
 import { useLang, useT } from "../../hooks/useI18n";
 import { useTheme } from "../../hooks/useTheme";
 import { defineMessages, LANGS } from "../../lib/i18n";
@@ -56,7 +57,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   const tn = useT(navMessages);
   const { lang, setLang } = useLang();
   const otherLang = LANGS.find((l) => l.value !== lang)!;
-  const sessions = useSessions();
+  const leagues = useLeagues();
 
   /** `to` is a path inside the board unless `absolute` */
   const go = (to: string, absolute = false) => {
@@ -141,7 +142,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         </Command.Group>
 
         <Command.Group heading={t("boards")}>
-          {sessions
+          {leagues
             .filter((s) => s.slug !== slug)
             .map((s) => (
               <Command.Item

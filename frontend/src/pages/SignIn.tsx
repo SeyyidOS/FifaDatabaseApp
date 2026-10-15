@@ -8,7 +8,7 @@ import { Field, TextInput } from "../components/ui/form";
 import { Button } from "../components/ui/primitives";
 import { useAccount, useAccountsEnabled } from "../hooks/useAccount";
 import { useLang, useT } from "../hooks/useI18n";
-import { getAccount, saveAccount } from "../lib/account";
+import { getAccount, saveAccount, takeAfterSignIn } from "../lib/account";
 import { accountApi, ApiError } from "../lib/api";
 import { defineMessages } from "../lib/i18n";
 
@@ -132,7 +132,7 @@ export default function SignIn() {
         saveAccount(session);
         toast.success(t("welcome"));
         // the token is spent: keep it out of the address bar and the history
-        navigate("/", { replace: true });
+        navigate(takeAfterSignIn() ?? "/", { replace: true });
       })
       .catch(() => {
         // already signed in on this device: say so and stay signed in

@@ -147,7 +147,30 @@ export interface Membership {
   slug: string;
   name: string;
   role: "owner" | "admin" | "player";
+  /** join requests waiting for an owner or admin (0 for players) */
+  pending: number;
   player: { id: number; name: string; elo: number; rank: number; played: number } | null;
+}
+
+/** What an invite link leads to, shown before signing in. */
+export interface InvitePreview {
+  kind: "personal" | "group";
+  board: { name: string; players: number; matches: number };
+  /** personal: the player it is for */
+  player?: { id: number; name: string; elo: number; rank: number; played: number };
+  /** group: the players nobody has claimed yet */
+  players?: { id: number; name: string; played: number }[];
+}
+
+export interface BoardInvites {
+  group: string | null;
+  /** players without an account, with their personal link if one is out */
+  players: { id: number; name: string; played: number; code: string | null }[];
+}
+
+export interface BoardMembers {
+  members: { userId: number; name: string | null; role: Membership["role"]; player: { id: number; name: string } | null }[];
+  requests: { id: number; name: string | null; email: string; player: { id: number; name: string } | null; newName: string | null }[];
 }
 
 /** A person who signs in with a link sent to their e-mail (not a board sign-in). */

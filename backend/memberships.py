@@ -81,7 +81,8 @@ def my_boards(request: Request, authorization: str | None = Header(default=None)
     user = current_user(request, authorization)
     rows = request.app.state.db.fetch_all(
         """
-        SELECT b.id, b.slug, b.name, b.k_factor, m.role, m.player_id, p.name AS player_name
+        SELECT b.id, b.slug, b.name, b.k_factor, m.role, m.player_id, p.name AS player_name,
+               (SELECT COUNT(*) FROM join_requests r WHERE r.board_id = b.id) AS pending
         FROM memberships m
         JOIN boards b ON b.id = m.board_id
         LEFT JOIN players p ON p.id = m.player_id
@@ -95,6 +96,8 @@ def my_boards(request: Request, authorization: str | None = Header(default=None)
             "slug": r["slug"],
             "name": r["name"],
             "role": r["role"],
+            # requests waiting for an owner or admin; players don't see them
+            "pending": r["pending"] if r["role"] in ("owner", "admin") else 0,
             "player": None
             if r["player_id"] is None
             else {"id": r["player_id"], "name": r["player_name"], **standing(request, r, r["player_id"])},

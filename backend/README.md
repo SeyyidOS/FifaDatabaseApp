@@ -15,8 +15,9 @@ standings, K-factor and club ratings. On startup the API applies pending schema 
 | `accounts.py`    | accounts: sign in with a one-time link sent by e-mail (off by default)      |
 | `mailer.py`      | the e-mails the app sends (sign-in links), over SMTP                        |
 | `memberships.py` | which accounts are in which board, with what role (off with accounts)      |
+| `invites.py`     | invite links, join requests and managing members (off with accounts)        |
 | `auth.py`        | password hashing, signed device tokens, rate limits, access checks          |
-| `migrations.py`  | versioned schema changes (v2 boards … v9 accounts, v10 memberships)         |
+| `migrations.py`  | versioned schema changes (v2 boards … v10 memberships, v11 invites)         |
 | `db.py`          | connection pool (recovers after database restarts) and transactions         |
 | `schemas.py`     | request validation                                                          |
 | `elo.py`         | Elo replay (mirrored in `frontend/src/lib/elo.ts`)                          |
@@ -58,7 +59,28 @@ account the owner of a board that has none yet, which is how boards from before 
 `POST /boards/{slug}/session` trades membership for an ordinary board token (owners and admins get the
 admin role, players the member role), so the rest of the API is unchanged and a new admin password
 signs those tokens out like any device. `PUT /boards/{slug}/membership/player` links an owner or admin to
-their player; `GET /auth/boards` lists the account's boards with its player's Elo, matches and rank.
+their player; `GET /auth/boards` lists the account's boards with its player's Elo, matches and rank, and
+for owners and admins how many join requests wait for them (`pending`).
+
+### Invites
+
+Owners and admins invite people with two kinds of links, made with `POST /boards/{slug}/invites`:
+
+- A **personal link** (`{"playerId": …}`) is for one player who has no account yet. Whoever opens it and
+  signs in becomes that player's account, without approval, since the admin chose who it was for. It works
+  once and for 7 days; asking again for the same player returns the link that is still open.
+- The **group link** (`{}`) is one per board, for a group chat, until `POST …/invites/group/reset` replaces
+  it. Whoever opens it joins as a player and says which player they are, or gives a name to start as a new
+  one. That is a join request, because anyone with the link could pick anyone: an owner or admin sees it
+  with the asker's e-mail and approves it (`POST …/requests/{id}/approve`, which links the player or
+  creates it) or rejects it (they stay in the board without a player).
+
+`GET /invites/{code}` previews a link without signing in (the board, and the player it is for or the
+players still free to pick); `POST /invites/{code}/accept` joins with it. `GET /boards/{slug}/invites`
+lists the group link and the players without an account, `GET /boards/{slug}/members` the members and the
+requests. The owner makes admins and takes it back (`PATCH …/members/{user_id}`), and removes anyone but
+themselves; admins remove players (`DELETE …/members/{user_id}`). A removed member's player and matches
+stay, without an account.
 
 ## Seasons and club ratings
 

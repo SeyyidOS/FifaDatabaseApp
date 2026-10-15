@@ -11,6 +11,7 @@ import accounts
 import board_data
 import boards
 import fixtures
+import invites
 import memberships
 import migrations
 import photos
@@ -62,6 +63,7 @@ def health(request: Request):
 
 app.include_router(accounts.router)
 app.include_router(memberships.router)
+app.include_router(invites.router)
 app.include_router(boards.router)
 app.include_router(board_data.router)
 app.include_router(seasons.router)

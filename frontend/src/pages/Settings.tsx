@@ -27,9 +27,11 @@ import { ClubsAdmin } from "../components/settings/ClubsAdmin";
 import { PageHeader } from "../components/layout/AppShell";
 import { ConfirmDialog } from "../components/ui/Dialog";
 import { Avatar, ClubCrest } from "../components/ui/Identity";
+import { AccountInvites, Members } from "../components/settings/AccountInvites";
 import { Field, PasswordInput, TextInput } from "../components/ui/form";
 import { Button, Delta, Panel, Pill, RankMove } from "../components/ui/primitives";
 import type { Analytics } from "../hooks/analytics-context";
+import { useMemberships } from "../hooks/useAccount";
 import { useBoard } from "../hooks/useBoard";
 import { useDeleteMatch, useDeletePlayer, useUpdateBoard, useUpdatePlayer } from "../hooks/useData";
 import { ApiError, publicApi } from "../lib/api";
@@ -831,6 +833,8 @@ export default function Settings() {
   const t = useT(msg);
   const tc = useT(common);
   const { slug, role, name } = useBoard();
+  // an owner or admin by account invites and manages people with accounts; otherwise the board link and password
+  const manager = useMemberships().data?.find((mb) => mb.slug === slug && mb.role !== "player");
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -859,8 +863,17 @@ export default function Settings() {
           <div className="grid gap-6 xl:grid-cols-12">
             <div className="min-w-0 space-y-6 xl:col-span-7">
               <Section>
-                <Invite welcome={params.get("welcome") === "1"} />
+                {manager ? (
+                  <AccountInvites welcome={params.get("welcome") === "1"} />
+                ) : (
+                  <Invite welcome={params.get("welcome") === "1"} />
+                )}
               </Section>
+              {manager && (
+                <Section delay={0.03}>
+                  <Members role={manager.role} />
+                </Section>
+              )}
               <AnimatePresence mode="wait">
                 {role !== "admin" ? (
                   <Section key="locked" delay={0.05}>

@@ -4,7 +4,8 @@ import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useIsFetching, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronsUpDown, LayoutGrid, LogOut, Menu, Plus, Search, X } from "lucide-react";
 import { useAnalytics } from "../../hooks/useAnalytics";
-import { useBoard, useSessions } from "../../hooks/useBoard";
+import { useLeagues, usePending } from "../../hooks/useAccount";
+import { useBoard } from "../../hooks/useBoard";
 import { cn } from "../../lib/cn";
 import { nameLang } from "../../lib/format";
 import { defineMessages } from "../../lib/i18n";
@@ -83,7 +84,7 @@ function BoardSwitcher() {
   const t = useT(m);
   const tc = useT(common);
   const { slug, name, role } = useBoard();
-  const sessions = useSessions();
+  const leagues = useLeagues();
   const signOut = useSignOut();
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -127,7 +128,7 @@ function BoardSwitcher() {
             className="card absolute inset-x-0 top-full z-40 mt-2 p-1.5 shadow-2xl"
           >
             <p className="label px-2.5 pt-1.5 pb-1">{t("yourBoards")}</p>
-            {sessions.map((s) => (
+            {leagues.map((s) => (
               <Link key={s.slug} to={`/b/${s.slug}`} className={item}>
                 <Avatar name={s.name} size="sm" className="rounded-lg" />
                 <span className="min-w-0 flex-1 truncate">{s.name}</span>
@@ -150,7 +151,10 @@ function BoardSwitcher() {
 
 function SideLink({ item, quiet }: { item: NavItem; quiet?: boolean }) {
   const tn = useT(navMessages);
-  const { path } = useBoard();
+  const { path, slug } = useBoard();
+  // join requests waiting in Settings, where they are handled
+  const pending = usePending(slug);
+  const badge = item.group === "settings" ? pending : 0;
   return (
     <NavLink
       to={path(item.to)}
@@ -177,6 +181,9 @@ function SideLink({ item, quiet }: { item: NavItem; quiet?: boolean }) {
           )}
           <item.icon className={cn("size-[18px]", isActive ? "text-accent-text" : quiet && "text-faint")} />
           {tn(item.key)}
+          {badge > 0 && (
+            <span className="tabular ml-auto rounded-md bg-team-b/15 px-1.5 py-0.5 text-[11px] font-bold text-team-b">{badge}</span>
+          )}
         </>
       )}
     </NavLink>
@@ -246,7 +253,8 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
   const tc = useT(common);
   const tn = useT(navMessages);
   const navigate = useNavigate();
-  const { path, name } = useBoard();
+  const { path, name, slug } = useBoard();
+  const pending = usePending(slug);
   const signOut = useSignOut();
   const [menu, setMenu] = useState(false);
   const location = useLocation();
@@ -315,6 +323,9 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
               >
                 <n.icon className="size-4" />
                 {tn(n.key)}
+                {n.group === "settings" && pending > 0 && (
+                  <span className="tabular ml-auto rounded-md bg-team-b/15 px-1.5 py-0.5 text-[11px] font-bold text-team-b">{pending}</span>
+                )}
               </NavLink>
             ))}
             <Link to="/" className="flex items-center gap-2.5 rounded-xl border border-line px-3 py-3 text-sm font-medium text-muted">
