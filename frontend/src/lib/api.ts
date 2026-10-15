@@ -2,6 +2,7 @@ import { removeSession } from "./session";
 import type {
   Account,
   BoardInfo,
+  Membership,
   BoardMe,
   Club,
   ClubStanding,
@@ -76,8 +77,9 @@ export const publicApi = {
   /** "version" is the short commit hash that is live */
   health: () => request<{ ok: boolean; version: string }>("/health"),
   board: (slug: string) => request<BoardInfo>(`/boards/${encodeURIComponent(slug)}`),
-  createBoard: (body: { name: string; password: string; adminPassword: string }) =>
-    request<SignIn>("/boards", json("POST", body)),
+  /** With an account token (accounts on), the account owns the new board. */
+  createBoard: (body: { name: string; password: string; adminPassword: string }, accountToken?: string) =>
+    request<SignIn>("/boards", json("POST", body), accountToken),
   signIn: (slug: string, password: string) =>
     request<SignIn>(`/boards/${encodeURIComponent(slug)}/login`, json("POST", { password })),
 };
@@ -156,4 +158,12 @@ export const accountApi = {
   verify: (token: string) => request<{ token: string; user: Account }>("/auth/email/verify", json("POST", { token })),
   me: (token: string) => request<Account>("/auth/me", {}, token),
   rename: (token: string, name: string) => request<Account>("/auth/me", json("PATCH", { name }), token),
+  boards: (token: string) => request<Membership[]>("/auth/boards", {}, token),
+  /** Take over a board that has no owner yet, with its admin password. */
+  claim: (token: string, slug: string, password: string) =>
+    request<{ slug: string; name: string; role: string }>(`/boards/${encodeURIComponent(slug)}/claim`, json("POST", { password }), token),
+  /** A board token for a board the account is a member of. */
+  session: (token: string, slug: string) => request<SignIn>(`/boards/${encodeURIComponent(slug)}/session`, json("POST"), token),
+  linkPlayer: (token: string, slug: string, playerId: number | null) =>
+    request<{ playerId: number | null }>(`/boards/${encodeURIComponent(slug)}/membership/player`, json("PUT", { playerId }), token),
 };

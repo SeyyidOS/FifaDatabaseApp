@@ -1,18 +1,16 @@
 import { motion } from "motion/react";
-import { ArrowLeft, LogOut, MailCheck } from "lucide-react";
+import { ArrowLeft, MailCheck } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { PublicLayout } from "../components/board/PublicLayout";
-import { Avatar } from "../components/ui/Identity";
 import { Field, TextInput } from "../components/ui/form";
 import { Button } from "../components/ui/primitives";
 import { useAccount, useAccountsEnabled } from "../hooks/useAccount";
 import { useLang, useT } from "../hooks/useI18n";
-import { getAccount, saveAccount, signOutAccount } from "../lib/account";
+import { getAccount, saveAccount } from "../lib/account";
 import { accountApi, ApiError } from "../lib/api";
 import { defineMessages } from "../lib/i18n";
-import type { Account } from "../lib/types";
 
 const m = defineMessages({
   en: {
@@ -30,12 +28,6 @@ const m = defineMessages({
     badLinkText: "Sign-in links work once and only for 15 minutes. Ask for a new one below.",
     off: "Accounts aren't open yet",
     offText: "For now, boards are joined with their password.",
-    signedInAs: "Signed in as",
-    name: "Your name",
-    nameHint: "What others see once boards use accounts.",
-    save: "Save",
-    saved: "Saved",
-    signOut: "Sign out",
     boards: "Back to boards",
   },
   tr: {
@@ -53,12 +45,6 @@ const m = defineMessages({
     badLinkText: "Giriş linkleri bir kez ve sadece 15 dakika geçerli. Aşağıdan yenisini iste.",
     off: "Hesaplar henüz açık değil",
     offText: "Şimdilik board'lara şifreyle giriliyor.",
-    signedInAs: "Giriş yapan",
-    name: "Adın",
-    nameHint: "Board'lar hesaplarla çalışmaya başlayınca diğerleri bunu görecek.",
-    save: "Kaydet",
-    saved: "Kaydedildi",
-    signOut: "Çıkış yap",
     boards: "Board'lara dön",
   },
 });
@@ -127,56 +113,7 @@ function LinkForm() {
   );
 }
 
-function SignedIn({ token, user }: { token: string; user: Account }) {
-  const t = useT(m);
-  const [name, setName] = useState(user.name ?? "");
-  const [busy, setBusy] = useState(false);
-
-  const save = async (e: FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      saveAccount({ token, user: await accountApi.rename(token, name) });
-      toast.success(t("saved"));
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 401) signOutAccount();
-      toast.error(err instanceof ApiError ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="card flex items-center gap-4 p-4">
-        <Avatar name={user.name || user.email} size="lg" />
-        <span className="min-w-0 flex-1">
-          <span className="label block">{t("signedInAs")}</span>
-          <span className="block truncate font-semibold">{user.name || user.email}</span>
-          {user.name && <span className="block truncate text-sm text-muted">{user.email}</span>}
-        </span>
-      </div>
-      <form onSubmit={save} className="space-y-3">
-        <Field label={t("name")} hint={t("nameHint")} htmlFor="account-name">
-          <TextInput id="account-name" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} />
-        </Field>
-        <Button type="submit" variant="primary" loading={busy} disabled={!name.trim() || name.trim() === user.name}>
-          {t("save")}
-        </Button>
-      </form>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
-        <Link to="/" className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted hover:text-fg">
-          <ArrowLeft className="size-4" /> {t("boards")}
-        </Link>
-        <Button variant="danger" onClick={signOutAccount}>
-          <LogOut className="size-4" /> {t("signOut")}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-/** /signin: ask for a link, come back with one (?token=…), or see who is signed in. */
+/** /signin: ask for a link, or come back with one (?token=…). Signed in, the home page is Profilim. */
 export default function SignIn() {
   const t = useT(m);
   const navigate = useNavigate();
@@ -195,20 +132,20 @@ export default function SignIn() {
         saveAccount(session);
         toast.success(t("welcome"));
         // the token is spent: keep it out of the address bar and the history
-        navigate("/signin", { replace: true });
+        navigate("/", { replace: true });
       })
       .catch(() => {
         // already signed in on this device: say so and stay signed in
         if (getAccount()) {
           toast.error(t("badLink"));
-          navigate("/signin", { replace: true });
+          navigate("/", { replace: true });
         } else setFailed(true);
       });
   }, [linkToken, navigate, t]);
 
   let body;
   if (linkToken && !failed) body = <p className="text-muted">{t("checking")}</p>;
-  else if (account && !linkToken) body = <SignedIn token={account.token} user={account.user} />;
+  else if (account && !linkToken) return <Navigate to="/" replace />;
   else if (!enabled && !linkToken)
     body = (
       <div className="space-y-3">

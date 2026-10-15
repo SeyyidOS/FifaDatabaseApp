@@ -14,8 +14,9 @@ standings, K-factor and club ratings. On startup the API applies pending schema 
 | `photos.py`      | photos of a match (the stats screens), stored as files in `PHOTO_DIR`       |
 | `accounts.py`    | accounts: sign in with a one-time link sent by e-mail (off by default)      |
 | `mailer.py`      | the e-mails the app sends (sign-in links), over SMTP                        |
+| `memberships.py` | which accounts are in which board, with what role (off with accounts)      |
 | `auth.py`        | password hashing, signed device tokens, rate limits, access checks          |
-| `migrations.py`  | versioned schema changes (v2 boards … v8 match stats, v9 accounts)          |
+| `migrations.py`  | versioned schema changes (v2 boards … v9 accounts, v10 memberships)         |
 | `db.py`          | connection pool (recovers after database restarts) and transactions         |
 | `schemas.py`     | request validation                                                          |
 | `elo.py`         | Elo replay (mirrored in `frontend/src/lib/elo.ts`)                          |
@@ -47,6 +48,17 @@ It is all off (404, and `GET /auth/config` says `{"accounts": false}`) unless:
 | `APP_URL`        | where the app lives; the links in the e-mails point here, never at the request's origin |
 | `SMTP_HOST`      | the mail server (`SMTP_PORT` 587 with STARTTLS by default, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`) |
 | `MAIL_LOG_LINKS` | `1` writes the links to the log instead of mailing them: development only, a logged link signs anyone in |
+
+### Memberships
+
+An account is in a board with a role: `owner` (one per board), `admin` or `player`, and once it says so,
+as one of the board's players (a player belongs to at most one account). Creating a board while signed
+in makes the account its owner; `POST /boards/{slug}/claim` with the board's admin password makes an
+account the owner of a board that has none yet, which is how boards from before accounts move over.
+`POST /boards/{slug}/session` trades membership for an ordinary board token (owners and admins get the
+admin role, players the member role), so the rest of the API is unchanged and a new admin password
+signs those tokens out like any device. `PUT /boards/{slug}/membership/player` links an owner or admin to
+their player; `GET /auth/boards` lists the account's boards with its player's Elo, matches and rank.
 
 ## Seasons and club ratings
 

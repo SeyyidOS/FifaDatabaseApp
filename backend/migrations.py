@@ -337,6 +337,27 @@ def v9_accounts(cur: RealDictCursor) -> None:
     cur.execute(V9_ACCOUNTS)
 
 
+# Who is in which board (memberships.py): an account's role there and, once known, which of the
+# board's players it is. One owner per board; a player belongs to at most one account.
+V10_MEMBERSHIPS = """
+CREATE TABLE memberships (
+    user_id INT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    board_id INT NOT NULL REFERENCES boards (id) ON DELETE CASCADE,
+    role VARCHAR(10) NOT NULL CHECK (role IN ('owner', 'admin', 'player')),
+    player_id INT REFERENCES players (id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, board_id)
+);
+CREATE UNIQUE INDEX memberships_one_owner ON memberships (board_id) WHERE role = 'owner';
+CREATE UNIQUE INDEX memberships_player_key ON memberships (player_id) WHERE player_id IS NOT NULL;
+CREATE INDEX memberships_board_idx ON memberships (board_id);
+"""
+
+
+def v10_memberships(cur: RealDictCursor) -> None:
+    cur.execute(V10_MEMBERSHIPS)
+
+
 MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (1, v1_legacy),
     (2, v2_boards),
@@ -347,6 +368,7 @@ MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (7, v7_match_photos),
     (8, v8_match_stats),
     (9, v9_accounts),
+    (10, v10_memberships),
 ]
 
 

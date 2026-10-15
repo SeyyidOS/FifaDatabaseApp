@@ -7,6 +7,8 @@ import type { SignIn } from "./types";
 export interface BoardSession extends SignIn {
   remember: boolean;
   savedAt: number;
+  /** opened with an account (its user id) rather than the board password */
+  viaAccount?: number;
 }
 
 const KEY = "fm-boards";
@@ -62,8 +64,8 @@ export function subscribeSessions(listener: () => void) {
 
 const notify = () => listeners.forEach((l) => l());
 
-export function saveSession(signIn: SignIn, remember: boolean) {
-  const session: BoardSession = { ...signIn, remember, savedAt: Date.now() };
+export function saveSession(signIn: SignIn, remember: boolean, viaAccount?: number) {
+  const session: BoardSession = { ...signIn, remember, savedAt: Date.now(), viaAccount };
   const [keep, drop] = remember ? [local(), tab()] : [tab(), local()];
   write(keep, [session, ...read(keep).filter((s) => s.slug !== signIn.slug)]);
   write(drop, read(drop).filter((s) => s.slug !== signIn.slug));
@@ -72,7 +74,13 @@ export function saveSession(signIn: SignIn, remember: boolean) {
 
 export function updateSession(slug: string, changes: Partial<Pick<BoardSession, "name" | "token" | "role">>) {
   const current = getSession(slug);
-  if (current) saveSession({ ...current, ...changes }, current.remember);
+  if (current) saveSession({ ...current, ...changes }, current.remember, current.viaAccount);
+}
+
+/** Forget the boards this device opened with an account (when that account signs out). */
+export function removeAccountSessions() {
+  for (const storage of [local(), tab()]) write(storage, read(storage).filter((s) => s.viaAccount === undefined));
+  notify();
 }
 
 /** Forget a board on this device. With `token`, only if that is still the stored one. */

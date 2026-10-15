@@ -75,6 +75,15 @@ class AccountUpdate(BaseModel):
     name: AccountName
 
 
+class BoardClaim(BaseModel):
+    password: str = Field(min_length=1, max_length=128)
+
+
+class MembershipPlayer(BaseModel):
+    # None: not linked to any player
+    playerId: int | None
+
+
 class BoardUpdate(BaseModel):
     name: BoardName | None = None
     kFactor: KFactor | None = None

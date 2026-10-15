@@ -1,11 +1,12 @@
-import { lazy, Suspense, useEffect, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { AnalyticsProvider } from "../../hooks/AnalyticsProvider";
 import { BoardContext, type BoardContextValue } from "../../hooks/board-context";
+import { useAccount, useMemberships } from "../../hooks/useAccount";
 import { useSessions } from "../../hooks/useBoard";
 import { useMe } from "../../hooks/useData";
-import { boardApi } from "../../lib/api";
-import { updateSession } from "../../lib/session";
+import { accountApi, boardApi } from "../../lib/api";
+import { saveSession, updateSession } from "../../lib/session";
 import { PageSkeleton } from "../DataGate";
 import { AppShell } from "../layout/AppShell";
 import { BoardSignIn } from "./BoardSignIn";
@@ -33,6 +34,29 @@ function SessionSync({ slug, name }: { slug: string; name: string }) {
   return null;
 }
 
+/**
+ * A board the signed-in account is a member of opens without its password: the account trades its
+ * membership for a board token. True while that is still being worked out.
+ */
+function useAccountEntry(slug: string, signedIn: boolean) {
+  const account = useAccount();
+  const memberships = useMemberships();
+  const member = !!memberships.data?.some((mb) => mb.slug === slug);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (signedIn || !account || !member) return;
+    let cancelled = false;
+    accountApi
+      .session(account.token, slug)
+      .then((signIn) => !cancelled && saveSession(signIn, true, account.user.id))
+      .catch(() => !cancelled && setFailed(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [signedIn, account, member, slug]);
+  return !signedIn && !failed && (memberships.isLoading || member);
+}
+
 /** /b/:slug/* — the board's pages once this device is signed in, its sign-in screen before. */
 export default function BoardGate() {
   const { slug = "" } = useParams();
@@ -53,6 +77,8 @@ export default function BoardGate() {
     [slug, session],
   );
 
+  const entering = useAccountEntry(slug, !!session);
+  if (!board && entering) return <PageSkeleton />;
   if (!board)
     return (
       <PublicLayout>

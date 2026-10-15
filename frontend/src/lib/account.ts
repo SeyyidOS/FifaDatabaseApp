@@ -2,6 +2,7 @@
  * The account signed in on this device (kept in localStorage), separate from the boards it is signed in to
  * with their passwords (session.ts).
  */
+import { removeAccountSessions } from "./session";
 import type { Account } from "./types";
 
 export interface AccountSession {
@@ -45,7 +46,12 @@ function write(value: AccountSession | null) {
 }
 
 export const saveAccount = (session: AccountSession) => write(session);
-export const signOutAccount = () => write(null);
+
+/** Signs the account out, and out of the boards this device opened with it. */
+export function signOutAccount() {
+  write(null);
+  removeAccountSessions();
+}
 
 export function subscribeAccount(listener: () => void) {
   listeners.add(listener);

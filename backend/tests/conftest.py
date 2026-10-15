@@ -37,7 +37,7 @@ def api(client):
     import auth
 
     client.app.state.db.execute(
-        "TRUNCATE boards, players, matches, match_players, users, login_links RESTART IDENTITY CASCADE"
+        "TRUNCATE boards, players, matches, match_players, users, login_links, memberships RESTART IDENTITY CASCADE"
     )
     for limiter in (auth.failed_logins, auth.board_creations, auth.links_per_email, auth.links_per_ip):
         limiter._events.clear()
@@ -87,3 +87,33 @@ def scratch_database():
     with admin.cursor() as cur:
         cur.execute(f"DROP DATABASE IF EXISTS {name} WITH (FORCE)")
     admin.close()
+
+
+@pytest.fixture
+def mail(api, monkeypatch):
+    """Accounts on, with the e-mails caught here instead of sent."""
+    import mailer
+
+    sent: list[dict] = []
+    monkeypatch.setenv("ACCOUNTS", "on")
+    monkeypatch.setenv("APP_URL", "https://matchnight.test/")
+    monkeypatch.setenv("MAIL_LOG_LINKS", "1")
+    monkeypatch.setattr(
+        mailer,
+        "send_login_link",
+        lambda to, link, lang, minutes: sent.append({"to": to, "link": link, "lang": lang, "minutes": minutes}),
+    )
+    return sent
+
+
+def sign_in(api, mail, email="kerem@example.com"):
+    """Signs in with a mailed link; returns {"token", "user"}."""
+    assert api.post("/auth/email", json={"email": email}).status_code == 202
+    token = mail[-1]["link"].split("token=")[1]
+    response = api.post("/auth/email/verify", json={"token": token})
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def bearer(token: str) -> dict:
+    return {"Authorization": f"Bearer {token}"}

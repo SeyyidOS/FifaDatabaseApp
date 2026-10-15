@@ -1,35 +1,6 @@
 """Accounts: sign-in links by e-mail, account tokens, and the switch that keeps it all off by default."""
 
-import pytest
-
-
-@pytest.fixture
-def mail(api, monkeypatch):
-    """Accounts on, with the e-mails caught here instead of sent."""
-    import mailer
-
-    sent: list[dict] = []
-    monkeypatch.setenv("ACCOUNTS", "on")
-    monkeypatch.setenv("APP_URL", "https://matchnight.test/")
-    monkeypatch.setenv("MAIL_LOG_LINKS", "1")
-    monkeypatch.setattr(
-        mailer,
-        "send_login_link",
-        lambda to, link, lang, minutes: sent.append({"to": to, "link": link, "lang": lang, "minutes": minutes}),
-    )
-    return sent
-
-
-def sign_in(api, mail, email="kerem@example.com"):
-    assert api.post("/auth/email", json={"email": email}).status_code == 202
-    token = mail[-1]["link"].split("token=")[1]
-    response = api.post("/auth/email/verify", json={"token": token})
-    assert response.status_code == 200, response.text
-    return response.json()
-
-
-def bearer(token: str) -> dict:
-    return {"Authorization": f"Bearer {token}"}
+from conftest import bearer, sign_in
 
 
 def test_off_unless_switched_on(api, monkeypatch):
