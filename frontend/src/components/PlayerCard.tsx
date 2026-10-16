@@ -1,8 +1,10 @@
 import { motion, useMotionTemplate, useMotionValue, useSpring, useTransform } from "motion/react";
-import type { MouseEvent } from "react";
+import { useContext, type MouseEvent } from "react";
 import type { RankedPlayer } from "../hooks/analytics-context";
+import { PlayerPhotosContext } from "../hooks/player-photos";
+import { photoUrl } from "../lib/api";
 import { cn } from "../lib/cn";
-import { displayName, nameLang } from "../lib/format";
+import { cleanName, displayName, nameLang } from "../lib/format";
 import { eloToOvr } from "../lib/insights";
 import { initials, playerGradient } from "../lib/identity";
 import { ClubCrest } from "./ui/Identity";
@@ -122,6 +124,8 @@ export function PlayerCard({
   const attrs = attributes(player);
   const club = favouriteClub(player);
   const [c1, c2] = playerGradient(player.name);
+  // the photo of the account this player belongs to, if any
+  const photo = useContext(PlayerPhotosContext)?.get(cleanName(player.name));
 
   const mx = useMotionValue(0.5);
   const my = useMotionValue(0.5);
@@ -207,7 +211,12 @@ export function PlayerCard({
                   boxShadow: `0 0 0 ${3 * scale}px ${t.line}, 0 14px 30px -10px rgba(0,0,0,.55), inset 0 2px 0 rgba(255,255,255,.35)`,
                 }}
               >
-                <span className="drop-shadow-[0_2px_2px_rgba(0,0,0,.35)]">{initials(displayName(player.name))}</span>
+                {photo ? (
+                  // clipped, not just rounded: the card tilts in 3D, where Safari can drop an image's rounding
+                  <img src={photoUrl(photo)} alt="" className="size-full rounded-full object-cover [clip-path:circle(50%)]" />
+                ) : (
+                  <span className="drop-shadow-[0_2px_2px_rgba(0,0,0,.35)]">{initials(displayName(player.name))}</span>
+                )}
               </div>
             </div>
 
