@@ -1,17 +1,15 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, ChevronDown, KeyRound, Link2, Mail, Plus } from "lucide-react";
+import { motion } from "motion/react";
+import { ArrowRight, Link2, Mail, Plus } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useT } from "../../hooks/useI18n";
 import type { AccountSession } from "../../lib/account";
 import { accountApi, ApiError } from "../../lib/api";
-import { cn } from "../../lib/cn";
 import { defineMessages } from "../../lib/i18n";
 import { linkTarget } from "../../lib/links";
 import { saveSession } from "../../lib/session";
-import { JoinForm } from "../board/BoardForms";
 import { Field, TextInput } from "../ui/form";
 import { Button, Segmented } from "../ui/primitives";
 
@@ -26,8 +24,6 @@ const m = defineMessages({
     invitePlaceholder: "Paste the link you were sent",
     open: "Open",
     notInvite: "That isn't an invite link",
-    withPassword: "Enter with a password",
-    withPasswordHint: "Boards from before accounts",
     inviteTab: "Invite link",
     newTab: "New league",
     leagueName: "League name",
@@ -47,8 +43,6 @@ const m = defineMessages({
     invitePlaceholder: "Sana gelen linki yapıştır",
     open: "Aç",
     notInvite: "Bu bir davet linki değil",
-    withPassword: "Şifreyle gir",
-    withPasswordHint: "Hesaplardan önceki board'lar",
     inviteTab: "Davet linki",
     newTab: "Yeni lig",
     leagueName: "Lig adı",
@@ -97,43 +91,7 @@ function InviteLinkForm({ autoFocus }: { autoFocus?: boolean }) {
   );
 }
 
-/** The password way in, folded away: only boards from before accounts have one. */
-function PasswordEntry() {
-  const t = useT(m);
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="border-t border-line pt-4">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="flex w-full items-center gap-2 text-left text-sm font-semibold text-muted hover:text-fg"
-      >
-        <KeyRound className="size-4" />
-        <span className="flex-1">
-          {t("withPassword")}
-          <span className="ml-2 text-xs font-normal text-faint">{t("withPasswordHint")}</span>
-        </span>
-        <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} />
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="pt-4">
-              <JoinForm />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-/** The home page's way in while signed out (accounts on): sign in, open an invite, or a password board. */
+/** The home page's way in while signed out (accounts on): sign in, or open an invite. */
 export function SignedOutForms() {
   const t = useT(m);
   return (
@@ -161,7 +119,6 @@ export function SignedOutForms() {
         </p>
         <InviteLinkForm />
       </div>
-      <PasswordEntry />
     </motion.section>
   );
 }
@@ -209,7 +166,7 @@ function NewLeagueForm({ account }: { account: AccountSession }) {
   );
 }
 
-/** Profilim's way into more leagues: an invite link, a new league of your own, or a password board. */
+/** Profilim's way into more leagues: an invite link, or a new league of your own. */
 export function LeagueForms({ account }: { account: AccountSession }) {
   const t = useT(m);
   const [tab, setTab] = useState<"invite" | "new">("invite");
@@ -224,7 +181,6 @@ export function LeagueForms({ account }: { account: AccountSession }) {
         ]}
       />
       {tab === "invite" ? <InviteLinkForm /> : <NewLeagueForm account={account} />}
-      <PasswordEntry />
     </section>
   );
 }

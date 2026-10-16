@@ -8,7 +8,7 @@ import { BoardForms } from "../components/board/BoardForms";
 import { PublicLayout } from "../components/board/PublicLayout";
 import { Avatar } from "../components/ui/Identity";
 import { Pill } from "../components/ui/primitives";
-import { useAccount, useAccountsEnabled } from "../hooks/useAccount";
+import { useAccount, useAccountsConfig } from "../hooks/useAccount";
 import { useSessions } from "../hooks/useBoard";
 import { relativeTime } from "../lib/format";
 import { useT } from "../hooks/useI18n";
@@ -75,14 +75,15 @@ export default function Home() {
   const t = useT(m);
   const tc = useT(common);
   const sessions = useSessions();
-  const accounts = useAccountsEnabled();
+  // undefined until the server says: the page waits rather than flash the other way in
+  const accounts = useAccountsConfig();
   const account = useAccount();
 
   // signed in: Profilim, where this device's boards join the account's leagues in one list
-  if (accounts && account)
+  if (account && accounts !== false)
     return (
       <PublicLayout>
-        <AccountHome account={account} />
+        {accounts ? <AccountHome account={account} /> : <div className="skeleton mx-auto mt-8 h-64 max-w-2xl" />}
       </PublicLayout>
     );
 
@@ -137,7 +138,9 @@ export default function Home() {
         </motion.section>
 
         {/* with accounts, signing in comes first; a board password is the old way, folded away */}
-        <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1">{accounts ? <SignedOutForms /> : <BoardForms />}</div>
+        <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
+          {accounts === undefined ? <div className="skeleton h-80" /> : accounts ? <SignedOutForms /> : <BoardForms />}
+        </div>
 
         <motion.div
           initial={{ opacity: 0, y: 14 }}

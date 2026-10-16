@@ -66,7 +66,9 @@ It is all off (404, and `GET /auth/config` says `{"accounts": false}`) unless:
 An account is in a board with a role: `owner` (one per board), `admin` or `player`, and once it says so,
 as one of the board's players (a player belongs to at most one account). Creating a board while signed
 in makes the account its owner; `POST /boards/{slug}/claim` with the board's admin password makes an
-account the owner of a board that has none yet, which is how boards from before accounts move over.
+account the owner of a board that has none yet, a way for boards from before accounts to move over
+(the app no longer offers it: on this server Main Board was given to its owner's account directly, and
+its passwords removed, so people now come in with invites).
 `POST /boards/{slug}/session` trades membership for an ordinary board token (owners and admins get the
 admin role, players the member role), so the rest of the API is unchanged and a new admin password
 signs those tokens out like any device. Such a token also names the account, and works only while the
