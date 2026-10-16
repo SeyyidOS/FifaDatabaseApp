@@ -162,7 +162,11 @@ export const accountApi = {
   config: () => request<{ accounts: boolean }>("/auth/config"),
   requestLink: (email: string, lang: Lang) => request<{ sent: boolean }>("/auth/email", json("POST", { email, lang })),
   verify: (token: string) => request<{ token: string; user: Account }>("/auth/email/verify", json("POST", { token })),
-  me: (token: string) => request<Account>("/auth/me", {}, token),
+  /** The six-digit code from the same e-mail, typed where the sign-in began. */
+  verifyCode: (email: string, code: string) =>
+    request<{ token: string; user: Account }>("/auth/email/code", json("POST", { email, code })),
+  /** With `renewed`, a fresh token to keep: the one sent was getting old. */
+  me: (token: string) => request<Account & { renewed?: string }>("/auth/me", {}, token),
   /** A square photo (the app crops it) for the account and, wherever it plays, its player. */
   setPhoto: (token: string, image: Blob) => request<Account>("/auth/me/photo", { method: "PUT", body: image }, token),
   removePhoto: (token: string) => request<Account>("/auth/me/photo", json("DELETE"), token),

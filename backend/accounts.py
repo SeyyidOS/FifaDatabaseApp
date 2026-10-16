@@ -9,17 +9,23 @@ to someone else) and mail can go out (see mailer.py).
 import hashlib
 import os
 import secrets
+import time
 
 import psycopg2.errors
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request
 
 import mailer
-from auth import client_ip, failed_logins, issue_user_token, links_per_email, links_per_ip, read_user_token
-from schemas import AccountUpdate, LinkRequest, LinkVerify
+from auth import _sign, client_ip, failed_logins, issue_user_token, links_per_email, links_per_ip, read_user_token
+from schemas import AccountUpdate, CodeVerify, LinkRequest, LinkVerify
 
 router = APIRouter(prefix="/auth", tags=["accounts"])
 
 LINK_MINUTES = 15
+# wrong guesses a sign-in code allows before it is spent (a new e-mail brings a new one)
+CODE_TRIES = 5
+# an account token older than this is swapped for a new one when the app checks in (GET /auth/me), so a
+# device in use stays signed in instead of expiring a year after its first sign-in
+RENEW_AFTER = 24 * 3600
 
 
 def accounts_on() -> bool:
@@ -33,6 +39,11 @@ def _require_accounts() -> None:
 
 def _hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _code_hash(email: str, code: str) -> str:
+    """Keyed with the server's secret: six digits alone would be quick to guess from a stolen hash."""
+    return _sign(f"sign-in code:{email}:{code}")
 
 
 def _public(user: dict) -> dict:
@@ -59,7 +70,9 @@ def config():
 
 @router.post("/email", status_code=202)
 def request_link(body: LinkRequest, request: Request, tasks: BackgroundTasks):
-    """Mails a sign-in link. The answer is the same whether or not the address has an account."""
+    """Mails a sign-in link and a six-digit code: the link for the browser it opens in, the code to type
+    wherever the sign-in began (another browser, an app on the home screen). Either one signs in, once.
+    The answer is the same whether or not the address has an account."""
     _require_accounts()
     ip = client_ip(request)
     if links_per_ip.blocked(ip) or links_per_email.blocked(body.email):
@@ -68,14 +81,18 @@ def request_link(body: LinkRequest, request: Request, tasks: BackgroundTasks):
     links_per_email.record(body.email)
 
     token = secrets.token_urlsafe(32)
+    code = f"{secrets.randbelow(10**6):06d}"
     # links are worthless a few minutes after they are made: keep the table small
     request.app.state.db.execute("DELETE FROM login_links WHERE expires_at < NOW() - INTERVAL '1 day'")
     request.app.state.db.execute(
-        "INSERT INTO login_links (token_hash, email, expires_at) VALUES (%s, %s, NOW() + %s * INTERVAL '1 minute')",
-        (_hash(token), body.email, LINK_MINUTES),
+        """
+        INSERT INTO login_links (token_hash, code_hash, email, expires_at)
+        VALUES (%s, %s, %s, NOW() + %s * INTERVAL '1 minute')
+        """,
+        (_hash(token), _code_hash(body.email, code), body.email, LINK_MINUTES),
     )
     link = f"{os.environ['APP_URL'].rstrip('/')}/#/signin?token={token}"
-    tasks.add_task(mailer.send_login_link, body.email, link, body.lang, LINK_MINUTES)
+    tasks.add_task(mailer.send_login_link, body.email, link, body.lang, LINK_MINUTES, code)
     return {"sent": True}
 
 
@@ -111,9 +128,52 @@ def verify_link(body: LinkVerify, request: Request):
     return {"token": issue_user_token(user["id"], user["session_version"]), "user": _public(user)}
 
 
+@router.post("/email/code")
+def verify_code(body: CodeVerify, request: Request):
+    """Trades the code from a sign-in e-mail for an account token, like its link. A wrong code counts
+    against every code the address has open; after CODE_TRIES they are spent."""
+    _require_accounts()
+    key = f"code:{client_ip(request)}"
+    if failed_logins.blocked(key):
+        raise HTTPException(status_code=429, detail="Too many wrong codes; try again in a few minutes")
+    db = request.app.state.db
+    link = db.write_one(
+        """
+        UPDATE login_links SET used_at = NOW()
+        WHERE email = %s AND code_hash = %s AND used_at IS NULL AND expires_at > NOW() AND attempts < %s
+        RETURNING email
+        """,
+        (body.email, _code_hash(body.email, body.code), CODE_TRIES),
+    )
+    if link is None:
+        db.execute(
+            """
+            UPDATE login_links SET attempts = attempts + 1
+            WHERE email = %s AND used_at IS NULL AND expires_at > NOW()
+            """,
+            (body.email,),
+        )
+        failed_logins.record(key)
+        raise HTTPException(status_code=400, detail="That code is wrong, used or expired")
+    user = db.write_one(
+        """
+        INSERT INTO users (email, last_login_at) VALUES (%s, NOW())
+        ON CONFLICT (email) DO UPDATE SET last_login_at = NOW()
+        RETURNING *
+        """,
+        (link["email"],),
+    )
+    return {"token": issue_user_token(user["id"], user["session_version"]), "user": _public(user)}
+
+
 @router.get("/me")
 def me(request: Request, authorization: str | None = Header(default=None)):
-    return _public(current_user(request, authorization))
+    """The account; with a fresh token in `renewed` when the one sent is more than a day old."""
+    user = current_user(request, authorization)
+    out = _public(user)
+    if read_user_token(authorization[7:])["iat"] + RENEW_AFTER < time.time():
+        out["renewed"] = issue_user_token(user["id"], user["session_version"])
+    return out
 
 
 @router.patch("/me")

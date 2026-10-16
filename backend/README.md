@@ -18,7 +18,7 @@ standings, K-factor and club ratings. On startup the API applies pending schema 
 | `memberships.py` | which accounts are in which board, with what role (off with accounts)      |
 | `invites.py`     | invite links, join requests and managing members (off with accounts)        |
 | `auth.py`        | password hashing, signed device tokens, rate limits, access checks          |
-| `migrations.py`  | versioned schema changes (v2 boards … v13 e-mail changes, v14 account photos) |
+| `migrations.py`  | versioned schema changes (v2 boards … v14 account photos, v15 sign-in codes) |
 | `db.py`          | connection pool (recovers after database restarts) and transactions         |
 | `schemas.py`     | request validation                                                          |
 | `elo.py`         | Elo replay (mirrored in `frontend/src/lib/elo.ts`)                          |
@@ -41,9 +41,14 @@ still make a board with passwords, for scripts and tests.) Boards from before ke
 ## Accounts
 
 The first step towards boards that people join with their own account (boards still use their
-passwords for now). `POST /auth/email` mails a sign-in link; `POST /auth/email/verify` trades the
-link's token for an account token (`Authorization: Bearer <token>`, separate from board tokens), and
-creates the account on its first sign-in. `GET`/`PATCH /auth/me` read and rename it. Links work once,
+passwords for now). `POST /auth/email` mails a sign-in link and a six-digit code; `POST /auth/email/verify`
+trades the link's token for an account token (`Authorization: Bearer <token>`, separate from board tokens),
+and creates the account on its first sign-in. `POST /auth/email/code` does the same with the code, typed
+where the sign-in began: the link signs in the browser it opens in, which on a phone is often another one
+(and an app on the home screen has storage of its own). Either one spends both; a code allows 5 wrong
+guesses and is kept as a keyed hash. `GET`/`PATCH /auth/me` read and rename the account; an account token
+lasts a year, and `GET /auth/me` hands out a fresh one (`renewed`) once it is a day old, so a device in use
+stays signed in. Links work once,
 for 15 minutes, and only their SHA-256 hashes are stored; the reply never says whether an address has
 an account, and requests are rate-limited per address and per network.
 

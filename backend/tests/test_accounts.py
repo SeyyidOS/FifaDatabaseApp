@@ -126,3 +126,49 @@ def test_moving_the_account_to_a_new_address(api, mail):
     other = sign_in(api, mail, "kerem@example.com")
     assert other["user"]["id"] != me["user"]["id"]
     assert api.get("/auth/boards", headers=bearer(other["token"])).json() == []
+
+
+def test_sign_in_with_the_code(api, mail):
+    assert api.post("/auth/email", json={"email": "kerem@example.com", "lang": "tr"}).status_code == 202
+    code = mail[-1]["code"]
+    assert len(code) == 6 and code.isdigit()
+    assert api.post("/auth/email/code", json={"email": "kerem@example.com", "code": "12345"}).status_code == 422
+    # the code belongs to its address
+    assert api.post("/auth/email/code", json={"email": "ozgun@example.com", "code": code}).status_code == 400
+
+    signed = api.post("/auth/email/code", json={"email": "kerem@example.com", "code": code})
+    assert signed.status_code == 200, signed.text
+    assert signed.json()["user"]["email"] == "kerem@example.com"
+    assert api.get("/auth/me", headers=bearer(signed.json()["token"])).status_code == 200
+    # once: neither the code nor the link from that e-mail works again
+    assert api.post("/auth/email/code", json={"email": "kerem@example.com", "code": code}).status_code == 400
+    assert api.post("/auth/email/verify", json={"token": mail[-1]["link"].split("token=")[1]}).status_code == 400
+
+
+def test_a_code_allows_a_few_wrong_guesses(api, mail):
+    api.post("/auth/email", json={"email": "kerem@example.com"})
+    code = mail[-1]["code"]
+    wrong = f"{(int(code) + 1) % 10**6:06d}"
+    for _ in range(5):
+        assert api.post("/auth/email/code", json={"email": "kerem@example.com", "code": wrong}).status_code == 400
+    # spent: now even the right code is refused; a new e-mail brings a new one
+    assert api.post("/auth/email/code", json={"email": "kerem@example.com", "code": code}).status_code == 400
+    api.post("/auth/email", json={"email": "kerem@example.com"})
+    assert (
+        api.post("/auth/email/code", json={"email": "kerem@example.com", "code": mail[-1]["code"]}).status_code == 200
+    )
+
+
+def test_a_token_in_use_is_renewed(api, mail):
+    import json
+    import time
+
+    import auth
+
+    me = sign_in(api, mail)
+    assert "renewed" not in api.get("/auth/me", headers=bearer(me["token"])).json()
+    # the same account, signed in two days ago
+    payload = {"k": "user", "u": me["user"]["id"], "v": 1, "iat": int(time.time()) - 2 * 86400}
+    body = auth._b64(json.dumps(payload, separators=(",", ":")).encode())
+    renewed = api.get("/auth/me", headers=bearer(f"{body}.{auth._sign(body)}")).json()["renewed"]
+    assert auth.read_user_token(renewed)["iat"] > time.time() - 60
