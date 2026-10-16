@@ -49,6 +49,16 @@ services:
       APP_VERSION: ${APP_VERSION:-manual}
       CORS_ORIGINS: https://fifa.173.249.40.69.sslip.io
       PHOTO_DIR: /data/photos
+      # accounts (backend/README.md, "Accounts"): off unless ACCOUNTS=on, APP_URL and a mail server are set
+      ACCOUNTS: ${ACCOUNTS:-}
+      APP_URL: ${APP_URL:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      # no internet here: mail goes out through fifa_web, which passes the connection on to SMTP_HOST
+      SMTP_RELAY: fifa_web:2587
     volumes:
       # match photos; not part of the database backups
       - ${FIFA_BASE:-/root/programs/fifa-app}/photos:/data/photos
@@ -79,7 +89,9 @@ services:
         condition: service_healthy
     environment:
       API_UPSTREAM: fifa_api:8080
-      NGINX_ENVSUBST_FILTER: "^API_UPSTREAM$"
+      # the API's way out for mail (frontend/nginx/smtp-relay.conf.stream-template)
+      SMTP_UPSTREAM: ${SMTP_HOST:-localhost}:${SMTP_PORT:-587}
+      NGINX_ENVSUBST_FILTER: "^(API|SMTP)_UPSTREAM$"
     mem_limit: 128m
     cpus: 0.5
     security_opt: ["no-new-privileges:true"]

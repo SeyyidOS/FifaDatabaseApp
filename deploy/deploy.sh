@@ -10,6 +10,7 @@
 #        deploy/deploy.sh --backup       write a compressed database dump to $BASE/backups
 #        deploy/deploy.sh --passwords    print the first passwords of the "main" board
 #        deploy/deploy.sh --admin-key    print the server admin key (admin on every board)
+#        deploy/deploy.sh --test-mail TO send a test e-mail with the mail settings in secrets.env
 #        deploy/deploy.sh --remove       unpublish (removes the site block and containers; data stays)
 set -euo pipefail
 
@@ -39,6 +40,27 @@ install_caddyfile() {  # $1 = candidate content
 }
 
 random_text() { openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | cut -c1-"$1"; }
+
+ip_of() { getent ahostsv4 "$1" | awk '{print $1; exit}'; }
+
+# Sets BLOCK to the site block, which also answers on APP_DOMAIN (secrets.env) once that name points at
+# this server (then SERVED_APP_DOMAIN too). Until then it is left out, so Caddy doesn't keep failing to get
+# a certificate for it.
+SERVED_APP_DOMAIN=""
+site_block() {
+    local extra=""
+    if [ -n "${APP_DOMAIN:-}" ]; then
+        local here
+        here=$(ip_of "$DOMAIN")
+        if [ -n "$here" ] && [ "$(ip_of "$APP_DOMAIN")" = "$here" ]; then
+            extra=", $APP_DOMAIN"
+            SERVED_APP_DOMAIN=$APP_DOMAIN
+        else
+            echo "==> $APP_DOMAIN does not point at $here (an A record, DNS only), so it is left out for now" >&2
+        fi
+    fi
+    BLOCK=$(awk -v d="$DOMAIN" -v x="$extra" '!done && $0 == d " {" { print d x " {"; done = 1; next } { print }' "$HERE/Caddyfile.fifa")
+}
 
 ensure_secret() {  # $1 = name, $2 = value to store if it is missing
     grep -q "^$1=" "$SECRETS" 2>/dev/null && return 0
@@ -81,20 +103,21 @@ wait_healthy() {  # $1 = container
     return 1
 }
 
-smoke_test() {
-    echo "==> checking https://$DOMAIN (the first request may wait for the certificate)"
+smoke_test() {  # $1 = domain
+    local domain=$1
+    echo "==> checking https://$domain (the first request may wait for the certificate)"
     for _ in $(seq 1 30); do
-        if curl -fsS --max-time 10 "https://$DOMAIN/api/health" 2>/dev/null | grep -q '"ok": *true'; then
+        if curl -fsS --max-time 10 "https://$domain/api/health" 2>/dev/null | grep -q '"ok": *true'; then
             # board data must never be served without signing in
             local code
-            code=$(curl -s -o /dev/null -w '%{http_code}' "https://$DOMAIN/api/boards/main/players")
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://$domain/api/boards/main/players")
             [ "$code" = 401 ] || [ "$code" = 404 ] || { echo "board data answered $code without a token"; return 1; }
-            echo "Live: https://$DOMAIN"
+            echo "Live: https://$domain"
             return 0
         fi
         sleep 2
     done
-    echo "https://$DOMAIN is not answering yet; check: docker logs --tail 50 $CADDY"
+    echo "https://$domain is not answering yet; check: docker logs --tail 50 $CADDY"
     return 1
 }
 
@@ -117,6 +140,10 @@ case "${1:-}" in
         backup
         exit 0
         ;;
+    --test-mail)
+        docker exec fifa_api python mailer.py "${2:?usage: deploy/deploy.sh --test-mail ADDRESS}"
+        exit 0
+        ;;
     --remove)
         ensure_secrets
         echo "==> removing the Caddy site block"
@@ -131,7 +158,7 @@ case "${1:-}" in
         ;;
     "") ;;
     *)
-        sed -n '8,13p' "$0"
+        sed -n '8,14p' "$0"
         exit 2
         ;;
 esac
@@ -163,11 +190,16 @@ echo "==> building images and (re)starting fifa_db, fifa_api, fifa_web"
 wait_healthy fifa_api
 wait_healthy fifa_web
 
-echo "==> installing the Caddy site block for $DOMAIN"
+site_block
+echo "==> installing the Caddy site block for $DOMAIN${SERVED_APP_DOMAIN:+ and $SERVED_APP_DOMAIN}"
 install_caddyfile "$(without_block)
 
 $BEGIN
-$(cat "$HERE/Caddyfile.fifa")
+$BLOCK
 $END"
 
-smoke_test
+smoke_test "$DOMAIN"
+# the second address only warns: a certificate that is slow to come must not undo the deploy
+if [ -n "$SERVED_APP_DOMAIN" ]; then
+    smoke_test "$SERVED_APP_DOMAIN" || echo "warning: https://$SERVED_APP_DOMAIN is not answering yet"
+fi

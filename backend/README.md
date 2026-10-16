@@ -48,6 +48,7 @@ It is all off (404, and `GET /auth/config` says `{"accounts": false}`) unless:
 | `ACCOUNTS`       | `on` to offer accounts                                                       |
 | `APP_URL`        | where the app lives; the links in the e-mails point here, never at the request's origin |
 | `SMTP_HOST`      | the mail server (`SMTP_PORT` 587 with STARTTLS by default, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`) |
+| `SMTP_RELAY`     | `host:port` to connect through when the API has no internet of its own (the live server's `fifa_web`); TLS is still checked against `SMTP_HOST` |
 | `MAIL_LOG_LINKS` | `1` writes the links to the log instead of mailing them: development only, a logged link signs anyone in |
 
 ### Memberships
