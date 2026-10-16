@@ -1,30 +1,47 @@
 """Memberships: owning a board with an account, entering it with the account, and saying who you are."""
 
-from conftest import ADMIN_PW, MEMBER_PW, bearer, sign_in
+from conftest import ADMIN_KEY, ADMIN_PW, MEMBER_PW, bearer, sign_in
 
 
-def test_creating_a_board_while_signed_in_makes_you_its_owner(api, mail):
+def test_a_league_started_with_an_account_is_yours_and_has_no_passwords(api, mail):
     me = sign_in(api, mail)
-    created = api.post(
-        "/boards",
-        json={"name": "Office League", "password": MEMBER_PW, "adminPassword": ADMIN_PW},
-        headers=bearer(me["token"]),
-    )
+    # with accounts on, a new league needs an account, and takes no passwords
+    assert api.post("/boards", json={"name": "Office League"}).status_code == 401
+    with_passwords = {"name": "Office League", "password": MEMBER_PW, "adminPassword": ADMIN_PW}
+    assert api.post("/boards", json=with_passwords, headers=bearer(me["token"])).status_code == 422
+    # nobody could get into a league with neither passwords nor an owner
+    assert api.post("/boards", json={"name": "Office League"}, headers={"X-Admin-Key": ADMIN_KEY}).status_code == 422
+
+    created = api.post("/boards", json={"name": "Office League"}, headers=bearer(me["token"]))
     assert created.status_code == 201, created.text
     boards = api.get("/auth/boards", headers=bearer(me["token"])).json()
     assert boards == [
         {"slug": "office-league", "name": "Office League", "role": "owner", "pending": 0, "player": None, "asked": None}
     ]
+    # the league opens with the account; there is no password to sign in with or to set
+    admin = bearer(created.json()["token"])
+    assert api.get("/boards/office-league/me", headers=admin).json()["passwordLogin"] is False
+    assert api.get("/boards/office-league").json() == {
+        "slug": "office-league",
+        "name": "Office League",
+        "passwordLogin": False,
+    }
+    assert api.post("/boards/office-league/login", json={"password": MEMBER_PW}).status_code == 403
+    assert api.patch("/boards/office-league", json={"password": MEMBER_PW}, headers=admin).status_code == 422
 
 
-def test_creating_a_board_without_accounts_ignores_the_header(api, monkeypatch):
+def test_without_accounts_a_board_has_both_passwords(api, monkeypatch):
     monkeypatch.delenv("ACCOUNTS", raising=False)
+    assert api.post("/boards", json={"name": "Office League"}).status_code == 422
+    assert api.post("/boards", json={"name": "Office League", "password": MEMBER_PW}).status_code == 422
+    # an account header changes nothing while accounts are off
     created = api.post(
         "/boards",
         json={"name": "Office League", "password": MEMBER_PW, "adminPassword": ADMIN_PW},
         headers=bearer("not-a-token"),
     )
     assert created.status_code == 201
+    assert api.get("/boards/office-league").json()["passwordLogin"] is True
 
 
 def test_claiming_a_board_with_its_admin_password(api, mail, board):

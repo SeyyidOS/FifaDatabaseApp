@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { LockKeyhole, Scale, Swords, TrendingUp, X } from "lucide-react";
 import { AccountHome } from "../components/account/AccountHome";
+import { SignedOutForms } from "../components/account/LeagueForms";
 import { BoardForms } from "../components/board/BoardForms";
 import { PublicLayout } from "../components/board/PublicLayout";
 import { Avatar } from "../components/ui/Identity";
@@ -33,6 +34,7 @@ const m = defineMessages({
     f3: "Head-to-heads, streaks, nemeses and the hall of records.",
     f4Title: "Private by default",
     f4: "One password for the group, remembered on your devices.",
+    f4Invite: "Only the people you invite get in, each with their own account.",
   },
   tr: {
     onDevice: "Bu cihazda",
@@ -51,6 +53,7 @@ const m = defineMessages({
     f3: "Karşılaşmalar, seriler, kâbuslar ve rekorlar kitabı.",
     f4Title: "Varsayılan olarak gizli",
     f4: "Grup için tek şifre, cihazlarında hatırlanır.",
+    f4Invite: "Yalnızca davet ettiklerin girer, herkes kendi hesabıyla.",
   },
 });
 
@@ -121,7 +124,8 @@ export default function Home() {
         </section>
       )}
 
-      <div className="grid items-start gap-10 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
+      {/* phones: the way in right under the pitch, the features after it; side by side on large screens */}
+      <div className="grid items-start gap-10 lg:grid-cols-[1.1fr_1fr] lg:gap-x-16 lg:gap-y-9">
         <motion.section initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} className="pt-2 lg:pt-10">
           <p className="label text-accent-text">{t("eyebrow")}</p>
           <h1 className="display mt-4 text-6xl leading-[0.9] sm:text-7xl">
@@ -130,23 +134,30 @@ export default function Home() {
             <span className="text-accent-text">{t("heroB")}</span>
           </h1>
           <p className="mt-5 max-w-lg text-base text-muted">{t("heroText")}</p>
-          <div className="mt-9 grid gap-5 sm:grid-cols-2">
-            <Feature icon={<TrendingUp className="size-4" />} title={t("f1Title")}>
-              {t("f1")}
-            </Feature>
-            <Feature icon={<Scale className="size-4" />} title={t("f2Title")}>
-              {t("f2")}
-            </Feature>
-            <Feature icon={<Swords className="size-4" />} title={t("f3Title")}>
-              {t("f3")}
-            </Feature>
-            <Feature icon={<LockKeyhole className="size-4" />} title={t("f4Title")}>
-              {t("f4")}
-            </Feature>
-          </div>
         </motion.section>
 
-        <BoardForms />
+        {/* with accounts, signing in comes first; a board password is the old way, folded away */}
+        <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1">{accounts ? <SignedOutForms /> : <BoardForms />}</div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.12 }}
+          className="grid gap-5 sm:grid-cols-2 lg:col-start-1"
+        >
+          <Feature icon={<TrendingUp className="size-4" />} title={t("f1Title")}>
+            {t("f1")}
+          </Feature>
+          <Feature icon={<Scale className="size-4" />} title={t("f2Title")}>
+            {t("f2")}
+          </Feature>
+          <Feature icon={<Swords className="size-4" />} title={t("f3Title")}>
+            {t("f3")}
+          </Feature>
+          <Feature icon={<LockKeyhole className="size-4" />} title={t("f4Title")}>
+            {accounts ? t("f4Invite") : t("f4")}
+          </Feature>
+        </motion.div>
       </div>
     </PublicLayout>
   );

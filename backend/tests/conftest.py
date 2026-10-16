@@ -47,7 +47,9 @@ def api(client):
 
 class Board:
     def __init__(self, api, name="Kerem's Crew"):
-        response = api.post("/boards", json={"name": name, "password": MEMBER_PW, "adminPassword": ADMIN_PW})
+        # with passwords, which with accounts on only the server admin key may still do
+        body = {"name": name, "password": MEMBER_PW, "adminPassword": ADMIN_PW}
+        response = api.post("/boards", json=body, headers={"X-Admin-Key": ADMIN_KEY})
         assert response.status_code == 201, response.text
         self.api = api
         self.slug = response.json()["slug"]

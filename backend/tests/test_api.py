@@ -21,8 +21,13 @@ def test_creating_a_board_signs_the_creator_in_as_admin(api):
         "role": "admin",
         "kFactor": 24,
         "clubWeight": 0.5,
+        "passwordLogin": True,
     }
-    assert api.get("/boards/kerem-in-cocuklari").json() == {"slug": "kerem-in-cocuklari", "name": "Kerem'in Çocukları"}
+    assert api.get("/boards/kerem-in-cocuklari").json() == {
+        "slug": "kerem-in-cocuklari",
+        "name": "Kerem'in Çocukları",
+        "passwordLogin": True,
+    }
 
 
 def test_same_board_name_gets_a_different_slug(api):

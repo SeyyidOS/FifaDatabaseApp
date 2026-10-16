@@ -33,12 +33,15 @@ ClubWeight = Annotated[float, Field(ge=0, le=2), AfterValidator(lambda w: round(
 
 class BoardCreate(BaseModel):
     name: BoardName
-    password: Password
-    adminPassword: Password
+    # both, or neither: a league started with an account has none (boards.create_board)
+    password: Password | None = None
+    adminPassword: Password | None = None
 
     @model_validator(mode="after")
     def different_passwords(self) -> "BoardCreate":
-        if self.password == self.adminPassword:
+        if (self.password is None) != (self.adminPassword is None):
+            raise ValueError("give both passwords, or neither")
+        if self.password is not None and self.password == self.adminPassword:
             raise ValueError("the admin password must differ from the board password")
         return self
 

@@ -1,10 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Lock, SearchX } from "lucide-react";
+import { ArrowLeft, Link2, Lock, SearchX } from "lucide-react";
+import { useAccount } from "../../hooks/useAccount";
+import { rememberAfterSignIn } from "../../lib/account";
 import { ApiError, publicApi } from "../../lib/api";
+import type { BoardPublic } from "../../lib/types";
 import { saveSession } from "../../lib/session";
 import { Avatar } from "../ui/Identity";
 import { Checkbox, Field, PasswordInput } from "../ui/form";
@@ -27,6 +30,11 @@ const m = defineMessages({
     remember: "Remember this device",
     rememberHint: "Stay signed in here; turn off on shared computers.",
     enter: "Enter board",
+    inviteOnly: "Invite-only league",
+    signInPrompt: "Members come in with their account.",
+    signIn: "Sign in",
+    notMember: "You're not in this league yet. Ask whoever runs it for an invite link.",
+    myLeagues: "My leagues",
   },
   tr: {
     asAdmin: "Yönetici olarak giriş yapıldı",
@@ -41,8 +49,54 @@ const m = defineMessages({
     remember: "Bu cihazı hatırla",
     rememberHint: "Burada girişli kal; ortak bilgisayarlarda kapat.",
     enter: "Board'a gir",
+    inviteOnly: "Yalnızca davetle",
+    signInPrompt: "Üyeler kendi hesaplarıyla girer.",
+    signIn: "Giriş yap",
+    notMember: "Henüz bu ligde değilsin. Ligi yöneten kişiden davet linki iste.",
+    myLeagues: "Liglerim",
   },
 });
+
+/** A league started with an account has no password: members get in with the account, others with an invite. */
+function InviteOnly({ board }: { board: BoardPublic }) {
+  const t = useT(m);
+  const account = useAccount();
+  const navigate = useNavigate();
+  const signIn = () => {
+    rememberAfterSignIn(`/b/${board.slug}`);
+    navigate("/signin");
+  };
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="card mx-auto mt-6 flex max-w-md flex-col items-center p-7 text-center sm:mt-14 sm:p-9"
+    >
+      <Avatar name={board.name} size="xl" className="rounded-3xl" />
+      <p className="label mt-5 flex items-center gap-1.5">
+        <Link2 className="size-3" /> {t("inviteOnly")}
+      </p>
+      <h1 className="display mt-2 text-4xl">{board.name}</h1>
+      {account ? (
+        <>
+          <p className="mt-3 text-sm text-muted">{t("notMember")}</p>
+          <Link to="/" className="mt-7 w-full">
+            <Button variant="secondary" size="lg" className="w-full">
+              {t("myLeagues")}
+            </Button>
+          </Link>
+        </>
+      ) : (
+        <>
+          <p className="mt-2 text-sm text-muted">{t("signInPrompt")}</p>
+          <Button variant="primary" size="lg" className="mt-7 w-full" onClick={signIn}>
+            {t("signIn")}
+          </Button>
+        </>
+      )}
+    </motion.div>
+  );
+}
 
 export function BoardSignIn({ slug }: { slug: string }) {
   const t = useT(m);
@@ -91,6 +145,8 @@ export function BoardSignIn({ slug }: { slug: string }) {
       </div>
     );
   }
+
+  if (info.data && !info.data.passwordLogin) return <InviteOnly board={info.data} />;
 
   return (
     <motion.form

@@ -22,7 +22,9 @@ deploy/deploy.sh --remove        # unpublish; containers go, data stays
 ## Boards and access
 
 Anyone can create a board from the home page. Each board has its own players, matches, standings,
-K-factor and club ratings (one list per game, e.g. FC26 and FC27). A board has two passwords:
+K-factor and club ratings (one list per game, e.g. FC26 and FC27). With accounts on (`ACCOUNTS=on`
+below), a new league belongs to the account that starts it and has no passwords: people come in with
+invite links. Boards from before accounts, and every board while accounts are off, have two passwords:
 
 - the **board password**, shared with the group: view everything, add players, log matches;
 - the **admin password**: archive or delete, rename, change the K-factor and the passwords.

@@ -129,11 +129,18 @@ export interface BoardInfo {
   name: string;
 }
 
+/** What the sign-in screen knows about a board: a password box, or invite-only (a league started with an account). */
+export interface BoardPublic extends BoardInfo {
+  passwordLogin: boolean;
+}
+
 export interface BoardMe extends BoardInfo {
   role: Role;
   kFactor: number;
   /** how much a club's rating counts in a side's strength, for matches entered from now on */
   clubWeight: number;
+  /** false for a league started with an account: no passwords, people come in with invites */
+  passwordLogin: boolean;
 }
 
 /** What sign-in and board creation return. */
