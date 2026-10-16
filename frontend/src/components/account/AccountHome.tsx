@@ -1,12 +1,12 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "motion/react";
-import { ChevronRight, UserCheck } from "lucide-react";
+import { ChevronRight, MailCheck, UserCheck } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useSessions } from "../../hooks/useBoard";
 import { useMemberships } from "../../hooks/useAccount";
-import { useT } from "../../hooks/useI18n";
+import { useLang, useT } from "../../hooks/useI18n";
 import { saveAccount, signOutAccount, type AccountSession } from "../../lib/account";
 import { accountApi, ApiError } from "../../lib/api";
 import { cn } from "../../lib/cn";
@@ -25,6 +25,12 @@ const m = defineMessages({
     save: "Save",
     cancel: "Cancel",
     signOut: "Sign out",
+    changeEmail: "Change e-mail",
+    newEmail: "New e-mail address",
+    sendLink: "Send a link",
+    emailSent: "We sent a link to {email}. Opening it moves your account there, leagues and all; until then you sign in with this address.",
+    emailTaken: "That address already has an account",
+    emailSame: "That's already your address",
     leagues: "My leagues",
     none: "No leagues yet. Start one or join one below.",
     owner: "Owner",
@@ -50,6 +56,12 @@ const m = defineMessages({
     save: "Kaydet",
     cancel: "Vazgeç",
     signOut: "Çıkış yap",
+    changeEmail: "E-postayı değiştir",
+    newEmail: "Yeni e-posta adresi",
+    sendLink: "Link gönder",
+    emailSent: "{email} adresine bir link gönderdik. Açınca hesabın, ligleriyle birlikte o adrese geçer; o zamana kadar bu adresle girmeye devam edersin.",
+    emailTaken: "Bu adresin zaten bir hesabı var",
+    emailSame: "Bu zaten senin adresin",
     leagues: "Liglerim",
     none: "Henüz bir ligin yok. Aşağıdan kur ya da katıl.",
     owner: "Sahip",
@@ -71,20 +83,73 @@ const m = defineMessages({
   },
 });
 
+/** Moving the account to another address: a link to that address, which does it once opened. */
+function ChangeEmail({ account }: { account: AccountSession }) {
+  const t = useT(m);
+  const { lang } = useLang();
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const send = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await accountApi.changeEmail(account.token, email.trim(), lang);
+      setSent(email.trim());
+    } catch (err) {
+      const status = err instanceof ApiError ? err.status : 0;
+      setError(status === 409 ? t("emailTaken") : status === 422 ? t("emailSame") : (err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (sent)
+    return (
+      <p className="flex gap-3 rounded-2xl border border-accent/30 bg-accent/[0.07] p-4 text-sm">
+        <MailCheck className="size-5 shrink-0 text-accent-text" />
+        {t("emailSent", { email: sent })}
+      </p>
+    );
+  return (
+    <form onSubmit={send} className="space-y-2">
+      <div className="flex gap-2">
+        <TextInput
+          type="email"
+          autoFocus
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder={t("newEmail")}
+          aria-label={t("newEmail")}
+        />
+        <Button type="submit" variant="primary" className="h-11 shrink-0" loading={busy} disabled={!email.includes("@")}>
+          {t("sendLink")}
+        </Button>
+      </div>
+      {error && <p className="text-xs text-loss">{error}</p>}
+    </form>
+  );
+}
+
 function You({ account }: { account: AccountSession }) {
   const t = useT(m);
   const label = account.user.name || account.user.email;
   // a new account has no name yet: ask for it first
-  const [editing, setEditing] = useState(!account.user.name);
+  const [editing, setEditing] = useState<"name" | "email" | null>(account.user.name ? null : "name");
   const [name, setName] = useState(account.user.name ?? "");
   const [busy, setBusy] = useState(false);
+  const toggle = (what: "name" | "email") => setEditing((e) => (e === what ? null : what));
 
   const save = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
       saveAccount({ token: account.token, user: await accountApi.rename(account.token, name) });
-      setEditing(false);
+      setEditing(null);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) signOutAccount();
       toast.error(err instanceof ApiError ? err.message : String(err));
@@ -94,39 +159,48 @@ function You({ account }: { account: AccountSession }) {
   };
 
   return (
-    <div className="flex items-center gap-4">
-      <Avatar name={label} size="xl" className="ring-2 ring-team-b/70 ring-offset-4 ring-offset-bg" />
-      <div className="min-w-0 flex-1">
-        {editing ? (
-          <form onSubmit={save} className="flex items-center gap-2">
-            <TextInput
-              autoFocus
-              maxLength={40}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t("yourName")}
-              aria-label={t("yourName")}
-            />
-            <Button type="submit" variant="primary" loading={busy} disabled={!name.trim()}>
-              {t("save")}
-            </Button>
-          </form>
-        ) : (
-          <h1 lang={nameLang(label)} className="display truncate text-4xl sm:text-5xl">
-            {label}
-          </h1>
-        )}
-        <div className="mt-2 flex gap-4 text-sm font-semibold text-muted">
-          {account.user.name && (
-            <button onClick={() => setEditing((e) => !e)} className="hover:text-fg">
-              {editing ? t("cancel") : t("rename")}
-            </button>
+    <div className="space-y-4">
+      <div className="flex items-center gap-4">
+        <Avatar name={label} size="xl" className="ring-2 ring-team-b/70 ring-offset-4 ring-offset-bg" />
+        <div className="min-w-0 flex-1">
+          {editing === "name" ? (
+            <form onSubmit={save} className="flex items-center gap-2">
+              <TextInput
+                autoFocus
+                maxLength={40}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t("yourName")}
+                aria-label={t("yourName")}
+              />
+              <Button type="submit" variant="primary" loading={busy} disabled={!name.trim()}>
+                {t("save")}
+              </Button>
+            </form>
+          ) : (
+            <>
+              <h1 lang={nameLang(label)} className="display truncate text-4xl sm:text-5xl">
+                {label}
+              </h1>
+              {account.user.name && <p className="mt-1 truncate text-sm text-muted">{account.user.email}</p>}
+            </>
           )}
-          <button onClick={signOutAccount} className="hover:text-fg">
-            {t("signOut")}
-          </button>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-semibold text-muted">
+            {account.user.name && (
+              <button onClick={() => toggle("name")} className="hover:text-fg">
+                {editing === "name" ? t("cancel") : t("rename")}
+              </button>
+            )}
+            <button onClick={() => toggle("email")} className="hover:text-fg">
+              {editing === "email" ? t("cancel") : t("changeEmail")}
+            </button>
+            <button onClick={signOutAccount} className="hover:text-fg">
+              {t("signOut")}
+            </button>
+          </div>
         </div>
       </div>
+      {editing === "email" && <ChangeEmail account={account} />}
     </div>
   );
 }

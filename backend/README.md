@@ -17,7 +17,7 @@ standings, K-factor and club ratings. On startup the API applies pending schema 
 | `memberships.py` | which accounts are in which board, with what role (off with accounts)      |
 | `invites.py`     | invite links, join requests and managing members (off with accounts)        |
 | `auth.py`        | password hashing, signed device tokens, rate limits, access checks          |
-| `migrations.py`  | versioned schema changes (v2 boards … v11 invites, v12 passwordless leagues) |
+| `migrations.py`  | versioned schema changes (v2 boards … v12 passwordless leagues, v13 e-mail changes) |
 | `db.py`          | connection pool (recovers after database restarts) and transactions         |
 | `schemas.py`     | request validation                                                          |
 | `elo.py`         | Elo replay (mirrored in `frontend/src/lib/elo.ts`)                          |
@@ -45,6 +45,11 @@ link's token for an account token (`Authorization: Bearer <token>`, separate fro
 creates the account on its first sign-in. `GET`/`PATCH /auth/me` read and rename it. Links work once,
 for 15 minutes, and only their SHA-256 hashes are stored; the reply never says whether an address has
 an account, and requests are rate-limited per address and per network.
+
+`POST /auth/me/email` moves an account to another address: it mails a link of the same kind to the new
+address (409 if that address already has an account), and `POST /auth/me/email/verify` with its token
+makes the change, signs that device in, and tells the old address. Leagues, roles and the player stay
+with the account; a newer request replaces an older one.
 
 It is all off (404, and `GET /auth/config` says `{"accounts": false}`) unless:
 
@@ -87,7 +92,8 @@ Owners and admins invite people with two kinds of links, made with `POST /boards
 `GET /invites/{code}` previews a link without signing in (the board, and the player it is for or the
 players still free to pick); `POST /invites/{code}/accept` joins with it. `GET /boards/{slug}/invites`
 lists the group link and the players without an account, `GET /boards/{slug}/members` the members and the
-requests. The owner makes admins and takes it back (`PATCH …/members/{user_id}`), and removes anyone but
+requests. The owner makes admins and takes it back (`PATCH …/members/{user_id}`), hands the board over to
+another member and stays on as an admin (`POST …/members/{user_id}/owner`), and removes anyone but
 themselves; admins remove players (`DELETE …/members/{user_id}`). A removed member's player and matches
 stay, without an account.
 

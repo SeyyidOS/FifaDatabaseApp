@@ -160,6 +160,11 @@ export const accountApi = {
   requestLink: (email: string, lang: Lang) => request<{ sent: boolean }>("/auth/email", json("POST", { email, lang })),
   verify: (token: string) => request<{ token: string; user: Account }>("/auth/email/verify", json("POST", { token })),
   me: (token: string) => request<Account>("/auth/me", {}, token),
+  /** Mails a link to the new address; opening it moves the account there (confirmEmail). */
+  changeEmail: (token: string, email: string, lang: Lang) =>
+    request<{ sent: boolean }>("/auth/me/email", json("POST", { email, lang }), token),
+  confirmEmail: (linkToken: string) =>
+    request<{ token: string; user: Account }>("/auth/me/email/verify", json("POST", { token: linkToken })),
   /** A league owned by the account, with no passwords: people come in with invites. */
   createLeague: (token: string, name: string) => request<SignIn>("/boards", json("POST", { name }), token),
   rename: (token: string, name: string) => request<Account>("/auth/me", json("PATCH", { name }), token),
@@ -188,6 +193,9 @@ export const accountApi = {
     request<{ role: string }>(`/boards/${encodeURIComponent(slug)}/members/${userId}`, json("PATCH", { role }), token),
   removeMember: (token: string, slug: string, userId: number) =>
     request<{ removed: boolean }>(`/boards/${encodeURIComponent(slug)}/members/${userId}`, json("DELETE"), token),
+  /** The owner hands the board over and stays on as an admin. */
+  handOver: (token: string, slug: string, userId: number) =>
+    request<{ owner: number }>(`/boards/${encodeURIComponent(slug)}/members/${userId}/owner`, json("POST"), token),
 
   // people with a link
   preview: (code: string) => request<InvitePreview>(`/invites/${encodeURIComponent(code)}`),

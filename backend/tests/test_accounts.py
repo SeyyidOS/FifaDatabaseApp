@@ -79,3 +79,45 @@ def test_bad_addresses_and_flooding(api, mail):
     assert api.post("/auth/email", json={"email": "KEREM@example.com"}).status_code == 429
     # another address is still fine
     assert api.post("/auth/email", json={"email": "ozgun@example.com"}).status_code == 202
+
+
+def test_moving_the_account_to_a_new_address(api, mail):
+    me = sign_in(api, mail, "kerem@example.com")
+    league = api.post("/boards", json={"name": "Office League"}, headers=bearer(me["token"]))
+    assert league.status_code == 201
+    sign_in(api, mail, "ozgun@example.com")
+
+    def ask(email):
+        return api.post("/auth/me/email", json={"email": email, "lang": "tr"}, headers=bearer(me["token"]))
+
+    assert ask("kerem@example.com").status_code == 422
+    assert ask("ozgun@example.com").status_code == 409
+    # a second request replaces the first
+    assert ask("old-idea@example.com").status_code == 202
+    first = mail[-1]["link"].split("token=")[1]
+    assert ask("kerem@new.example.com").status_code == 202
+    assert (mail[-1]["kind"], mail[-1]["to"], mail[-1]["lang"]) == ("change", "kerem@new.example.com", "tr")
+    assert mail[-1]["link"].startswith("https://matchnight.test/#/email?token=")
+    token = mail[-1]["link"].split("token=")[1]
+    assert api.post("/auth/me/email/verify", json={"token": first}).status_code == 400
+
+    moved = api.post("/auth/me/email/verify", json={"token": token})
+    assert moved.status_code == 200, moved.text
+    assert moved.json()["user"] == {"id": me["user"]["id"], "email": "kerem@new.example.com", "name": None}
+    # the old address hears about it
+    assert (mail[-1]["kind"], mail[-1]["to"], mail[-1]["email"]) == (
+        "changed",
+        "kerem@example.com",
+        "kerem@new.example.com",
+    )
+    # once only
+    assert api.post("/auth/me/email/verify", json={"token": token}).status_code == 400
+
+    # same account, leagues and all; tokens from before still work
+    assert api.get("/auth/me", headers=bearer(me["token"])).json()["email"] == "kerem@new.example.com"
+    [owned] = api.get("/auth/boards", headers=bearer(moved.json()["token"])).json()
+    assert (owned["slug"], owned["role"]) == ("office-league", "owner")
+    # the old address is free again: signing in with it makes a new, empty account
+    other = sign_in(api, mail, "kerem@example.com")
+    assert other["user"]["id"] != me["user"]["id"]
+    assert api.get("/auth/boards", headers=bearer(other["token"])).json() == []
