@@ -205,6 +205,14 @@
       placeholder:text-faint transition-colors outline-none
       focus:border-accent/60 focus:ring-4 focus:ring-accent/10;
   }
+  /* A soft round light behind a card's content, in the colour --glow. A radial gradient rather than
+     filter: blur(), which in Safari paints black boxes behind the layers drawn above it (an animated
+     number, a photo). */
+  .glow {
+    pointer-events: none;
+    position: absolute;
+    background: radial-gradient(closest-side, var(--glow), transparent);
+  }
   /* The lime gem: the one main action on a screen (a new match) */
   .accent-gem {
     color: var(--accent-ink);

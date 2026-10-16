@@ -269,8 +269,8 @@ function TeamPanel({
       style={{ boxShadow: `inset 0 2px 0 ${sideColor(side)}` }}
     >
       <div
-        className="pointer-events-none absolute -top-16 left-1/2 size-40 -translate-x-1/2 rounded-full blur-3xl"
-        style={{ background: sideColor(side), opacity: 0.12 }}
+        className="glow -top-25 left-1/2 size-58 -translate-x-1/2"
+        style={{ ["--glow" as string]: sideColor(side), opacity: 0.12 }}
       />
       <div className="relative mb-3 flex items-center justify-between">
         <span className="flex items-center gap-2">
@@ -829,15 +829,15 @@ function MatchCenterInner({ data }: { data: Analytics }) {
               {clubAName && (
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute -top-20 -left-20 size-64 rounded-full opacity-25 blur-3xl"
-                  style={{ background: clubIdentity(clubAName).primary }}
+                  className="glow -top-32 -left-32 size-88 opacity-25"
+                  style={{ ["--glow" as string]: clubIdentity(clubAName).primary }}
                 />
               )}
               {clubBName && (
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute -top-20 -right-20 size-64 rounded-full opacity-25 blur-3xl"
-                  style={{ background: clubIdentity(clubBName).primary }}
+                  className="glow -top-32 -right-32 size-88 opacity-25"
+                  style={{ ["--glow" as string]: clubIdentity(clubBName).primary }}
                 />
               )}
               <div className="relative flex items-center justify-between px-5 pt-4">

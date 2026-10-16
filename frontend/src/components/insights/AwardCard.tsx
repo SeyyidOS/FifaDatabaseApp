@@ -30,8 +30,8 @@ export function AwardCard({ award, index }: { award: Award; index: number }) {
       className="card card-hover relative flex flex-col overflow-hidden p-5"
     >
       <div
-        className="pointer-events-none absolute -top-12 -right-12 size-36 rounded-full blur-3xl"
-        style={{ background: roast ? "var(--loss)" : "var(--accent)", opacity: 0.12 }}
+        className="glow -top-20 -right-20 size-52"
+        style={{ ["--glow" as string]: roast ? "var(--loss)" : "var(--accent)", opacity: 0.12 }}
       />
       <div className="flex items-center gap-2.5">
         <span

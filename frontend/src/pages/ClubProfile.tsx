@@ -252,7 +252,7 @@ function ClubProfileInner({ data }: { data: Analytics }) {
         animate={{ opacity: 1, y: 0 }}
         className="card relative overflow-hidden p-5 sm:p-7"
       >
-        <div className="pointer-events-none absolute -top-24 -right-24 size-72 rounded-full bg-accent/10 blur-3xl" />
+        <div className="glow -top-38 -right-38 size-[25rem] opacity-10" style={{ ["--glow" as string]: "var(--accent)" }} />
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
           <ClubCrest name={displayName} size="2xl" />
           <div className="min-w-0 flex-1">
