@@ -42,8 +42,10 @@ export function useAccountSync() {
   });
   useEffect(() => {
     const current = getAccount();
-    if (me.data && current?.user.id === me.data.id && JSON.stringify(me.data) !== JSON.stringify(current.user))
-      saveAccount({ token: current.token, user: me.data });
+    if (!me.data || current?.user.id !== me.data.id) return;
+    // a token in use is renewed, so a device that keeps coming back stays signed in
+    const { renewed, ...user } = me.data;
+    if (renewed || JSON.stringify(user) !== JSON.stringify(current.user)) saveAccount({ token: renewed ?? current.token, user });
   }, [me.data]);
   useEffect(() => {
     if (me.error instanceof ApiError && me.error.status === 401) signOutAccount();

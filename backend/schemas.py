@@ -74,6 +74,11 @@ class LinkVerify(BaseModel):
     token: str = Field(min_length=20, max_length=100)
 
 
+class CodeVerify(BaseModel):
+    email: Email
+    code: Annotated[str, StringConstraints(strip_whitespace=True, pattern=r"^[0-9]{6}$")]
+
+
 class AccountUpdate(BaseModel):
     name: AccountName
 

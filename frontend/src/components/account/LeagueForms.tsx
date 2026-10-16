@@ -16,7 +16,7 @@ import { Button } from "../ui/primitives";
 const m = defineMessages({
   en: {
     getIn: "Get in",
-    getInText: "No password: we e-mail you a link. Your first sign-in makes your account.",
+    getInText: "No password: we e-mail you a code. Your first sign-in makes your account.",
     signIn: "Sign in with e-mail",
     toStart: "Sign in to start a league, too.",
     haveInvite: "Got an invite link?",
@@ -33,7 +33,7 @@ const m = defineMessages({
   },
   tr: {
     getIn: "Ligine gir",
-    getInText: "Şifre yok: e-postana bir link gelir. Hesabın ilk girişte açılır.",
+    getInText: "Şifre yok: e-postana bir kod gelir. Hesabın ilk girişte açılır.",
     signIn: "E-postayla giriş yap",
     toStart: "Lig kurmak için de giriş yap.",
     haveInvite: "Davet linkin mi var?",

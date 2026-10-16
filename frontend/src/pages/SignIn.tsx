@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { ArrowLeft, MailCheck } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { PublicLayout } from "../components/board/PublicLayout";
@@ -15,12 +15,16 @@ import { defineMessages } from "../lib/i18n";
 const m = defineMessages({
   en: {
     eyebrow: "Your account",
-    title: "No password, just a link",
-    lead: "Enter your e-mail and we'll send you a sign-in link. Tap it and you're in.",
+    title: "No password, just a code",
+    lead: "Enter your e-mail and we'll send you a six-digit code. Type it here and you're in.",
     email: "E-mail",
-    send: "Send sign-in link",
+    send: "Send me a code",
     sentTitle: "Check your inbox",
-    sentText: "We sent a link to {email}. It works once, for 15 minutes.",
+    sentText: "We sent a code to {email}. Type it here; it works once, for 15 minutes.",
+    code: "Code",
+    enter: "Sign in",
+    orLink: "Or tap the link in the same e-mail to sign in in the browser it opens.",
+    wrongCode: "That code didn't work: it's wrong, used, or older than 15 minutes.",
     another: "Use another address",
     checking: "Signing you in…",
     welcome: "You're signed in",
@@ -32,12 +36,16 @@ const m = defineMessages({
   },
   tr: {
     eyebrow: "Hesabın",
-    title: "Şifre yok, link var",
-    lead: "E-postanı yaz, giriş linkini gönderelim. Linke dokununca içeridesin.",
+    title: "Şifre yok, kod var",
+    lead: "E-postanı yaz, 6 haneli bir kod gönderelim. Kodu buraya yazınca içeridesin.",
     email: "E-posta",
-    send: "Giriş linkini gönder",
+    send: "Kodu gönder",
     sentTitle: "Gelen kutuna bak",
-    sentText: "Linki {email} adresine gönderdik. Bir kez ve 15 dakika geçerli.",
+    sentText: "Kodu {email} adresine gönderdik. Buraya yaz; bir kez ve 15 dakika geçerli.",
+    code: "Kod",
+    enter: "Giriş yap",
+    orLink: "Ya da aynı e-postadaki linke dokun: açıldığı tarayıcıda giriş yaparsın.",
+    wrongCode: "Bu kod olmadı: yanlış, kullanılmış ya da 15 dakikadan eski.",
     another: "Başka bir adres dene",
     checking: "Giriş yapılıyor…",
     welcome: "Giriş yaptın",
@@ -52,7 +60,65 @@ const m = defineMessages({
 // a link works once: the effect below may run twice in development, so both runs share one request
 const verifying = new Map<string, ReturnType<typeof accountApi.verify>>();
 
-function LinkForm() {
+/** The code from the e-mail, typed here: it signs in this browser or home-screen app, wherever the e-mail opened. */
+function CodeForm({ email }: { email: string }) {
+  const t = useT(m);
+  const navigate = useNavigate();
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const tried = useRef<string | null>(null);
+
+  const enter = async (value: string) => {
+    if (value.length !== 6 || busy) return;
+    tried.current = value;
+    setBusy(true);
+    setError(null);
+    try {
+      saveAccount(await accountApi.verifyCode(email, value));
+      toast.success(t("welcome"));
+      navigate(takeAfterSignIn() ?? "/", { replace: true });
+    } catch (err) {
+      setError(err instanceof ApiError && err.status === 400 ? t("wrongCode") : (err as Error).message);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form
+      onSubmit={(e: FormEvent) => {
+        e.preventDefault();
+        enter(code);
+      }}
+      className="space-y-3"
+    >
+      <Field label={t("code")} htmlFor="signin-code" error={error}>
+        <TextInput
+          id="signin-code"
+          autoFocus
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={6}
+          value={code}
+          onChange={(e) => {
+            const digits = e.target.value.replace(/\D/g, "").slice(0, 6);
+            setCode(digits);
+            // six digits (typed, pasted or filled in from the e-mail): in we go, once per code
+            if (digits.length === 6 && digits !== tried.current) enter(digits);
+          }}
+          className="tabular h-14 text-center text-2xl font-bold tracking-[0.5em]"
+          placeholder="••••••"
+        />
+      </Field>
+      <Button type="submit" variant="primary" size="lg" className="w-full" loading={busy} disabled={code.length !== 6}>
+        {t("enter")}
+      </Button>
+    </form>
+  );
+}
+
+/** Asks for the e-mail (under `header`); once sent, the code takes the whole screen. */
+function LinkForm({ header }: { header: ReactNode }) {
   const t = useT(m);
   const { lang } = useLang();
   const [email, setEmail] = useState("");
@@ -82,38 +148,44 @@ function LinkForm() {
         </span>
         <h1 className="display text-4xl">{t("sentTitle")}</h1>
         <p className="text-muted">{t("sentText", { email: sentTo })}</p>
-        <Button variant="secondary" size="lg" className="w-full" onClick={() => setSentTo(null)}>
+        <CodeForm email={sentTo} />
+        <p className="text-xs text-muted">{t("orLink")}</p>
+        <Button variant="ghost" className="w-full" onClick={() => setSentTo(null)}>
           {t("another")}
         </Button>
       </motion.div>
     );
 
   return (
-    <form onSubmit={submit} className="space-y-4">
-      <Field label={t("email")} htmlFor="signin-email" error={error}>
-        <TextInput
-          id="signin-email"
-          type="email"
-          autoComplete="email"
-          inputMode="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="name@example.com"
-        />
-      </Field>
-      <button
-        type="submit"
-        disabled={busy || !email.trim()}
-        className="accent-gem flex h-12 w-full items-center justify-center rounded-xl text-base font-bold transition-transform active:scale-[0.98] disabled:opacity-50"
-      >
-        {t("send")}
-      </button>
-    </form>
+    <div className="space-y-6">
+      {header}
+      <form onSubmit={submit} className="space-y-4">
+        <Field label={t("email")} htmlFor="signin-email" error={error}>
+          <TextInput
+            id="signin-email"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="name@example.com"
+          />
+        </Field>
+        <button
+          type="submit"
+          disabled={busy || !email.trim()}
+          className="accent-gem flex h-12 w-full items-center justify-center rounded-xl text-base font-bold transition-transform active:scale-[0.98] disabled:opacity-50"
+        >
+          {t("send")}
+        </button>
+      </form>
+    </div>
   );
 }
 
-/** /signin: ask for a link, or come back with one (?token=…). Signed in, the home page is Profilim. */
+/** /signin: ask for a code (and a link), type the code, or come back with the link (?token=…). Signed in,
+ * the home page is Profilim. */
 export default function SignIn() {
   const t = useT(m);
   const navigate = useNavigate();
@@ -158,14 +230,15 @@ export default function SignIn() {
     );
   else
     body = (
-      <div className="space-y-6">
-        <div className="space-y-3">
-          <p className="label text-accent-text">{failed ? t("badLink") : t("eyebrow")}</p>
-          <h1 className="display text-4xl sm:text-5xl">{t("title")}</h1>
-          <p className="text-muted">{failed ? t("badLinkText") : t("lead")}</p>
-        </div>
-        <LinkForm />
-      </div>
+      <LinkForm
+        header={
+          <div className="space-y-3">
+            <p className="label text-accent-text">{failed ? t("badLink") : t("eyebrow")}</p>
+            <h1 className="display text-4xl sm:text-5xl">{t("title")}</h1>
+            <p className="text-muted">{failed ? t("badLinkText") : t("lead")}</p>
+          </div>
+        }
+      />
     );
 
   return (

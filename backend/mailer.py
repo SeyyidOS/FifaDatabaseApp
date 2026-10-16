@@ -21,16 +21,19 @@ from email.message import EmailMessage
 log = logging.getLogger("fifa.mail")
 
 MAILS = {
+    # the code also goes in the subject, where phones spot it and offer to fill it in
     "login": {
         "en": {
-            "subject": "Your Matchnight sign-in link",
-            "body": "Tap the link to sign in to Matchnight:\n\n{link}\n\n"
-            "It works once, for {minutes} minutes. If you didn't ask for it, ignore this e-mail.\n",
+            "subject": "Your Matchnight code: {code}",
+            "body": "Your Matchnight sign-in code:\n\n{code}\n\n"
+            "Type it where you asked for it. Or tap the link to sign in in this browser:\n\n{link}\n\n"
+            "They work once, for {minutes} minutes. If you didn't ask for it, ignore this e-mail.\n",
         },
         "tr": {
-            "subject": "Matchnight giriş linkin",
-            "body": "Matchnight'a girmek için linke dokun:\n\n{link}\n\n"
-            "Link bir kez ve {minutes} dakika geçerli. Sen istemediysen bu e-postayı yok say.\n",
+            "subject": "Matchnight giriş kodun: {code}",
+            "body": "Matchnight giriş kodun:\n\n{code}\n\n"
+            "Kodu istediğin ekrana yaz. Ya da bu tarayıcıda girmek için linke dokun:\n\n{link}\n\n"
+            "İkisi de bir kez ve {minutes} dakika geçerli. Sen istemediysen bu e-postayı yok say.\n",
         },
     },
     # to the new address
@@ -104,15 +107,17 @@ def send_mail(kind: str, to: str, lang: str, **fields) -> None:
     if not os.getenv("SMTP_HOST"):
         if os.getenv("MAIL_LOG_LINKS") == "1":
             log.warning("MAIL_LOG_LINKS: %s link for %s: %s", LOG_LABEL.get(kind, kind), to, fields.get("link", "-"))
+            if "code" in fields:
+                log.warning("MAIL_LOG_LINKS: %s code for %s: %s", LOG_LABEL.get(kind, kind), to, fields["code"])
         return
     try:
-        _send(to, text["subject"], text["body"].format(**fields))
+        _send(to, text["subject"].format(**fields), text["body"].format(**fields))
     except (OSError, smtplib.SMTPException) as exc:
         log.error("could not send the %s e-mail to %s: %s", kind, to, exc)
 
 
-def send_login_link(to: str, link: str, lang: str, minutes: int) -> None:
-    send_mail("login", to, lang, link=link, minutes=minutes)
+def send_login_link(to: str, link: str, lang: str, minutes: int, code: str) -> None:
+    send_mail("login", to, lang, link=link, minutes=minutes, code=code)
 
 
 if __name__ == "__main__":

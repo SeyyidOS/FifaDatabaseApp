@@ -429,6 +429,11 @@ def v14_account_photos(cur: RealDictCursor) -> None:
     cur.execute("ALTER TABLE users ADD COLUMN photo VARCHAR(40)")
 
 
+# A sign-in e-mail also carries a six-digit code (accounts.py), kept as a keyed hash; wrong guesses are counted.
+def v15_sign_in_codes(cur: RealDictCursor) -> None:
+    cur.execute("ALTER TABLE login_links ADD COLUMN code_hash TEXT, ADD COLUMN attempts INT NOT NULL DEFAULT 0")
+
+
 MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (1, v1_legacy),
     (2, v2_boards),
@@ -444,6 +449,7 @@ MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (12, v12_passwordless),
     (13, v13_email_changes),
     (14, v14_account_photos),
+    (15, v15_sign_in_codes),
 ]
 
 
