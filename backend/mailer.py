@@ -1,4 +1,4 @@
-"""The few e-mails the app sends: for now, sign-in links.
+"""The few e-mails the app sends: sign-in links, and the two about moving an account to a new address.
 
 With SMTP_HOST set they go out over SMTP (STARTTLS on port 587, the default, checked against the server's
 certificate; SMTP_USER and SMTP_PASSWORD if the server wants them; MAIL_FROM as the sender). SMTP_RELAY
@@ -20,18 +20,47 @@ from email.message import EmailMessage
 
 log = logging.getLogger("fifa.mail")
 
-LOGIN_MAIL = {
-    "en": {
-        "subject": "Your Matchnight sign-in link",
-        "body": "Tap the link to sign in to Matchnight:\n\n{link}\n\n"
-        "It works once, for {minutes} minutes. If you didn't ask for it, ignore this e-mail.\n",
+MAILS = {
+    "login": {
+        "en": {
+            "subject": "Your Matchnight sign-in link",
+            "body": "Tap the link to sign in to Matchnight:\n\n{link}\n\n"
+            "It works once, for {minutes} minutes. If you didn't ask for it, ignore this e-mail.\n",
+        },
+        "tr": {
+            "subject": "Matchnight giriş linkin",
+            "body": "Matchnight'a girmek için linke dokun:\n\n{link}\n\n"
+            "Link bir kez ve {minutes} dakika geçerli. Sen istemediysen bu e-postayı yok say.\n",
+        },
     },
-    "tr": {
-        "subject": "Matchnight giriş linkin",
-        "body": "Matchnight'a girmek için linke dokun:\n\n{link}\n\n"
-        "Link bir kez ve {minutes} dakika geçerli. Sen istemediysen bu e-postayı yok say.\n",
+    # to the new address
+    "change": {
+        "en": {
+            "subject": "Confirm your new Matchnight e-mail",
+            "body": "Tap the link to sign in to Matchnight with this address from now on:\n\n{link}\n\n"
+            "It works once, for {minutes} minutes. If you didn't ask for it, ignore this e-mail: nothing changes.\n",
+        },
+        "tr": {
+            "subject": "Matchnight için yeni e-postanı onayla",
+            "body": "Bundan sonra Matchnight'a bu adresle girmek için linke dokun:\n\n{link}\n\n"
+            "Link bir kez ve {minutes} dakika geçerli. Sen istemediysen bu e-postayı yok say: hiçbir şey değişmez.\n",
+        },
+    },
+    # to the old address, once it is done
+    "changed": {
+        "en": {
+            "subject": "Your Matchnight e-mail changed",
+            "body": "Your Matchnight account now signs in with {email}, not this address.\n\n"
+            "If you didn't do this, tell whoever runs your league.\n",
+        },
+        "tr": {
+            "subject": "Matchnight e-postan değişti",
+            "body": "Matchnight hesabına artık bu adresle değil, {email} ile giriliyor.\n\n"
+            "Bunu sen yapmadıysan ligini yöneten kişiye haber ver.\n",
+        },
     },
 }
+LOG_LABEL = {"login": "sign-in", "change": "e-mail change"}
 
 
 def can_send() -> bool:
@@ -69,16 +98,21 @@ def _send(to: str, subject: str, body: str) -> None:
         smtp.send_message(message)
 
 
-def send_login_link(to: str, link: str, lang: str, minutes: int) -> None:
-    text = LOGIN_MAIL.get(lang, LOGIN_MAIL["en"])
+def send_mail(kind: str, to: str, lang: str, **fields) -> None:
+    """Sends one of MAILS; logs, rather than raises, when it can't (it runs after the reply has gone)."""
+    text = MAILS[kind].get(lang, MAILS[kind]["en"])
     if not os.getenv("SMTP_HOST"):
         if os.getenv("MAIL_LOG_LINKS") == "1":
-            log.warning("MAIL_LOG_LINKS: sign-in link for %s: %s", to, link)
+            log.warning("MAIL_LOG_LINKS: %s link for %s: %s", LOG_LABEL.get(kind, kind), to, fields.get("link", "-"))
         return
     try:
-        _send(to, text["subject"], text["body"].format(link=link, minutes=minutes))
+        _send(to, text["subject"], text["body"].format(**fields))
     except (OSError, smtplib.SMTPException) as exc:
-        log.error("could not send the sign-in link to %s: %s", to, exc)
+        log.error("could not send the %s e-mail to %s: %s", kind, to, exc)
+
+
+def send_login_link(to: str, link: str, lang: str, minutes: int) -> None:
+    send_mail("login", to, lang, link=link, minutes=minutes)
 
 
 if __name__ == "__main__":

@@ -238,6 +238,28 @@ def update_member(
     return {"role": body.role}
 
 
+@router.post("/boards/{slug}/members/{user_id}/owner")
+def hand_over(slug: str, user_id: int, request: Request, authorization: str | None = Header(default=None)):
+    """The owner hands the board to another member and stays on as an admin."""
+    user, board, membership = _manager(request, slug, authorization)
+    if membership["role"] != "owner":
+        raise HTTPException(status_code=403, detail="Only the board's owner can hand it over")
+    if user_id == user["id"]:
+        raise HTTPException(status_code=422, detail="You own it already")
+    with request.app.state.db.transaction() as cur:
+        # one owner per board: step down first
+        cur.execute(
+            "UPDATE memberships SET role = 'admin' WHERE board_id = %s AND user_id = %s", (board["id"], user["id"])
+        )
+        cur.execute(
+            "UPDATE memberships SET role = 'owner' WHERE board_id = %s AND user_id = %s RETURNING user_id",
+            (board["id"], user_id),
+        )
+        if cur.fetchone() is None:
+            raise HTTPException(status_code=404, detail="No such member")
+    return {"owner": user_id}
+
+
 @router.delete("/boards/{slug}/members/{user_id}")
 def remove_member(slug: str, user_id: int, request: Request, authorization: str | None = Header(default=None)):
     """Out of the board; their player and matches stay, without an account. Admins remove players only."""

@@ -404,6 +404,26 @@ def v12_passwordless(cur: RealDictCursor) -> None:
     cur.execute(V12_PASSWORDLESS)
 
 
+# Moving an account to a new e-mail address (accounts.py): a one-time link to the new address, stored
+# as a hash like a sign-in link; lang is for the note to the old address.
+V13_EMAIL_CHANGES = """
+CREATE TABLE email_changes (
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    email VARCHAR(254) NOT NULL,
+    lang VARCHAR(2) NOT NULL,
+    token_hash CHAR(64) UNIQUE NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ
+);
+"""
+
+
+def v13_email_changes(cur: RealDictCursor) -> None:
+    cur.execute(V13_EMAIL_CHANGES)
+
+
 MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (1, v1_legacy),
     (2, v2_boards),
@@ -417,6 +437,7 @@ MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (10, v10_memberships),
     (11, v11_invites),
     (12, v12_passwordless),
+    (13, v13_email_changes),
 ]
 
 

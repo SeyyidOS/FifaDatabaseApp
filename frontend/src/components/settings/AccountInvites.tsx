@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Link2, PartyPopper, RefreshCw, Send, UserCheck, Users, X } from "lucide-react";
-import { useState } from "react";
+import { Check, Copy, Crown, Link2, MoreHorizontal, PartyPopper, RefreshCw, Send, UserCheck, UserMinus, Users } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAccount } from "../../hooks/useAccount";
 import { useAnalytics } from "../../hooks/useAnalytics";
@@ -11,6 +11,7 @@ import { cn } from "../../lib/cn";
 import { displayName } from "../../lib/format";
 import { defineMessages } from "../../lib/i18n";
 import type { Membership } from "../../lib/types";
+import { ConfirmDialog } from "../ui/Dialog";
 import { Avatar } from "../ui/Identity";
 import { Button, Panel, Pill } from "../ui/primitives";
 
@@ -46,7 +47,11 @@ const m = defineMessages({
     player: "Player",
     makeAdmin: "Make admin",
     makePlayer: "Make player",
-    remove: "Remove {name}",
+    remove: "Remove from the league",
+    makeOwner: "Make owner",
+    options: "Options for {name}",
+    handOverTitle: "Make {name} the owner?",
+    handOverText: "They'll run the league, roles included; you stay on as an admin. Only they can make you the owner again.",
     noName: "No name yet",
   },
   tr: {
@@ -80,7 +85,11 @@ const m = defineMessages({
     player: "Oyuncu",
     makeAdmin: "Yönetici yap",
     makePlayer: "Oyuncu yap",
-    remove: "Çıkar: {name}",
+    remove: "Ligden çıkar",
+    makeOwner: "Sahibi yap",
+    options: "{name} için seçenekler",
+    handOverTitle: "{name} ligin sahibi olsun mu?",
+    handOverText: "Rolleri de o yönetir; sen yönetici olarak kalırsın. Seni yeniden sahip yapabilecek tek kişi o olur.",
     noName: "Henüz adı yok",
   },
 });
@@ -198,13 +207,66 @@ export function AccountInvites({ welcome }: { welcome: boolean }) {
   );
 }
 
-/** Join requests to confirm, and who has an account here; the owner also makes admins. */
+type MenuItem = { label: string; icon: typeof Crown; run: () => void; danger?: boolean };
+
+/** One member's actions behind a "⋯", so a row stays a name, a role and one button. */
+function MemberMenu({ label, items }: { label: string; items: MenuItem[] }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => root.current && !root.current.contains(e.target as Node) && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  return (
+    <div ref={root} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-label={label}
+        aria-expanded={open}
+        className="grid size-8 place-items-center rounded-lg text-faint hover:bg-surface-2 hover:text-fg"
+      >
+        <MoreHorizontal className="size-4" />
+      </button>
+      {open && (
+        <div role="menu" className="card absolute top-full right-0 z-20 mt-1 min-w-48 p-1.5 shadow-2xl">
+          {items.map((item) => (
+            <button
+              key={item.label}
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                item.run();
+              }}
+              className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-surface-3 ${
+                item.danger ? "text-loss" : ""
+              }`}
+            >
+              <item.icon className="size-4 shrink-0" />
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Join requests to confirm, and who has an account here; the owner also makes admins and hands it over. */
 export function Members({ role }: { role: Membership["role"] }) {
   const t = useT(m);
   const { slug } = useBoard();
   const account = useAccount()!;
   const qc = useQueryClient();
   const members = useQuery({ queryKey: ["members", slug], queryFn: () => accountApi.members(account.token, slug) });
+  const [handOver, setHandOver] = useState<{ userId: number; name: string } | null>(null);
+  const [handing, setHanding] = useState(false);
 
   const act = async (run: () => Promise<unknown>) => {
     try {
@@ -254,39 +316,56 @@ export function Members({ role }: { role: Membership["role"] }) {
       <ul className="space-y-1">
         {data?.members.map((mb) => {
           const canRemove = mb.role !== "owner" && (role === "owner" || mb.role === "player") && mb.userId !== account.user.id;
+          const name = mb.name || t("noName");
+          const items: MenuItem[] = [];
+          if (role === "owner" && mb.role !== "owner")
+            items.push(
+              {
+                label: mb.role === "admin" ? t("makePlayer") : t("makeAdmin"),
+                icon: Users,
+                run: () => act(() => accountApi.setRole(account.token, slug, mb.userId, mb.role === "admin" ? "player" : "admin")),
+              },
+              { label: t("makeOwner"), icon: Crown, run: () => setHandOver({ userId: mb.userId, name }) },
+            );
+          if (canRemove)
+            items.push({
+              label: t("remove"),
+              icon: UserMinus,
+              danger: true,
+              run: () => act(() => accountApi.removeMember(account.token, slug, mb.userId)),
+            });
           return (
             <li key={mb.userId} className="flex items-center gap-3 rounded-xl px-2 py-2">
               <Avatar name={mb.name || "?"} size="sm" />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold">{mb.name || t("noName")}</span>
+                <span className="block truncate text-sm font-semibold">{name}</span>
                 {/* the player they are, when it isn't already their name */}
                 {mb.player && displayName(mb.player.name) !== mb.name && (
                   <span className="block truncate text-xs text-muted">{displayName(mb.player.name)}</span>
                 )}
               </span>
               <Pill tone={mb.role === "owner" ? "accent" : "neutral"}>{t(mb.role)}</Pill>
-              {role === "owner" && mb.role !== "owner" && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => act(() => accountApi.setRole(account.token, slug, mb.userId, mb.role === "admin" ? "player" : "admin"))}
-                >
-                  {mb.role === "admin" ? t("makePlayer") : t("makeAdmin")}
-                </Button>
-              )}
-              {canRemove && (
-                <button
-                  onClick={() => act(() => accountApi.removeMember(account.token, slug, mb.userId))}
-                  className="grid size-8 place-items-center rounded-lg text-faint hover:bg-surface-2 hover:text-loss"
-                  aria-label={t("remove", { name: mb.name || "?" })}
-                >
-                  <X className="size-4" />
-                </button>
-              )}
+              {items.length > 0 ? <MemberMenu label={t("options", { name })} items={items} /> : <span className="size-8" />}
             </li>
           );
         })}
       </ul>
+      <ConfirmDialog
+        open={!!handOver}
+        onClose={() => setHandOver(null)}
+        tone="accent"
+        title={t("handOverTitle", { name: handOver?.name ?? "" })}
+        description={t("handOverText")}
+        confirmLabel={t("makeOwner")}
+        loading={handing}
+        onConfirm={async () => {
+          if (!handOver) return;
+          setHanding(true);
+          await act(() => accountApi.handOver(account.token, slug, handOver.userId));
+          setHanding(false);
+          setHandOver(null);
+        }}
+      />
     </Panel>
   );
 }

@@ -139,6 +139,40 @@ def test_roles_and_removal(api, mail, board):
     assert "ozgun" in [p["name"] for p in api.get(board.url("/players"), headers=board.member).json()]
 
 
+def test_the_owner_hands_the_board_over(api, mail, board):
+    owner, ids = owned_board(api, mail, board)
+    code = api.post(board.url("/invites"), json={"playerId": ids["ozgun"]}, headers=bearer(owner["token"])).json()[
+        "code"
+    ]
+    ozgun = sign_in(api, mail, "ozgun@example.com")
+    api.post(f"/invites/{code}/accept", json={}, headers=bearer(ozgun["token"]))
+    me, oz = owner["user"]["id"], ozgun["user"]["id"]
+
+    assert api.post(board.url(f"/members/{me}/owner"), headers=bearer(ozgun["token"])).status_code == 403
+    assert api.post(board.url(f"/members/{me}/owner"), headers=bearer(owner["token"])).status_code == 422
+    # someone who isn't in the board: nothing changes
+    assert api.post(board.url("/members/9999/owner"), headers=bearer(owner["token"])).status_code == 404
+    roles = {
+        m["userId"]: m["role"] for m in api.get(board.url("/members"), headers=bearer(owner["token"])).json()["members"]
+    }
+    assert roles == {me: "owner", oz: "player"}
+
+    assert api.post(board.url(f"/members/{oz}/owner"), headers=bearer(owner["token"])).status_code == 200
+    roles = {
+        m["userId"]: m["role"] for m in api.get(board.url("/members"), headers=bearer(ozgun["token"])).json()["members"]
+    }
+    assert roles == {me: "admin", oz: "owner"}
+    # the new owner decides roles now; the old one, an admin, can't
+    assert (
+        api.patch(board.url(f"/members/{oz}"), json={"role": "player"}, headers=bearer(owner["token"])).status_code
+        == 403
+    )
+    assert (
+        api.patch(board.url(f"/members/{me}"), json={"role": "player"}, headers=bearer(ozgun["token"])).status_code
+        == 200
+    )
+
+
 def test_only_owners_and_admins_make_links(api, mail, board):
     owned_board(api, mail, board)
     stranger = sign_in(api, mail, "stranger@example.com")

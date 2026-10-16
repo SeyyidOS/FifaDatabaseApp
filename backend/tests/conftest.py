@@ -103,8 +103,8 @@ def mail(api, monkeypatch):
     monkeypatch.setenv("MAIL_LOG_LINKS", "1")
     monkeypatch.setattr(
         mailer,
-        "send_login_link",
-        lambda to, link, lang, minutes: sent.append({"to": to, "link": link, "lang": lang, "minutes": minutes}),
+        "send_mail",
+        lambda kind, to, lang, **fields: sent.append({"kind": kind, "to": to, "lang": lang, **fields}),
     )
     return sent
 
