@@ -22,11 +22,17 @@ def _db(request: Request):
 
 # ----------- Players -----------
 PLAYER_COLUMNS = "id, name, archived_at IS NOT NULL AS archived"
+# a player linked to an account shows its photo (avatars.py)
+PLAYER_PHOTO = (
+    "(SELECT u.photo FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.player_id = players.id) AS photo"
+)
 
 
 @router.get("/players")
 def list_players(request: Request, access: BoardAccess = Depends(board_access)):
-    return _db(request).fetch_all(f"SELECT {PLAYER_COLUMNS} FROM players WHERE board_id = %s ORDER BY id", (access.id,))
+    return _db(request).fetch_all(
+        f"SELECT {PLAYER_COLUMNS}, {PLAYER_PHOTO} FROM players WHERE board_id = %s ORDER BY id", (access.id,)
+    )
 
 
 def _name_taken(request: Request, board_id: int, name: str) -> HTTPException:

@@ -27,7 +27,7 @@ def test_sign_in_with_a_link(api, mail):
 
     token = mail[0]["link"].split("token=")[1]
     first = api.post("/auth/email/verify", json={"token": token}).json()
-    assert first["user"] == {"id": 1, "email": "kerem@example.com", "name": None}
+    assert first["user"] == {"id": 1, "email": "kerem@example.com", "name": None, "photo": None}
     assert api.get("/auth/me", headers=bearer(first["token"])).json()["email"] == "kerem@example.com"
 
     # one use only
@@ -103,7 +103,12 @@ def test_moving_the_account_to_a_new_address(api, mail):
 
     moved = api.post("/auth/me/email/verify", json={"token": token})
     assert moved.status_code == 200, moved.text
-    assert moved.json()["user"] == {"id": me["user"]["id"], "email": "kerem@new.example.com", "name": None}
+    assert moved.json()["user"] == {
+        "id": me["user"]["id"],
+        "email": "kerem@new.example.com",
+        "name": None,
+        "photo": None,
+    }
     # the old address hears about it
     assert (mail[-1]["kind"], mail[-1]["to"], mail[-1]["email"]) == (
         "changed",

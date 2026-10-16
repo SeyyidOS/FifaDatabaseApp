@@ -424,6 +424,11 @@ def v13_email_changes(cur: RealDictCursor) -> None:
     cur.execute(V13_EMAIL_CHANGES)
 
 
+# An account's photo (avatars.py): the name of its file in PHOTO_DIR/avatars, which changes with each upload.
+def v14_account_photos(cur: RealDictCursor) -> None:
+    cur.execute("ALTER TABLE users ADD COLUMN photo VARCHAR(40)")
+
+
 MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (1, v1_legacy),
     (2, v2_boards),
@@ -438,6 +443,7 @@ MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (11, v11_invites),
     (12, v12_passwordless),
     (13, v13_email_changes),
+    (14, v14_account_photos),
 ]
 
 

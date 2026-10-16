@@ -30,6 +30,9 @@ const messages = defineMessages({
 
 export const API_URL = (import.meta.env.VITE_API_URL ?? "/api").replace(/\/$/, "");
 
+/** Where an account's photo is served (backend/avatars.py); the name changes with every new photo. */
+export const photoUrl = (name: string) => `${API_URL}/avatars/${encodeURIComponent(name)}`;
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -160,6 +163,9 @@ export const accountApi = {
   requestLink: (email: string, lang: Lang) => request<{ sent: boolean }>("/auth/email", json("POST", { email, lang })),
   verify: (token: string) => request<{ token: string; user: Account }>("/auth/email/verify", json("POST", { token })),
   me: (token: string) => request<Account>("/auth/me", {}, token),
+  /** A square photo (the app crops it) for the account and, wherever it plays, its player. */
+  setPhoto: (token: string, image: Blob) => request<Account>("/auth/me/photo", { method: "PUT", body: image }, token),
+  removePhoto: (token: string) => request<Account>("/auth/me/photo", json("DELETE"), token),
   /** Mails a link to the new address; opening it moves the account there (confirmEmail). */
   changeEmail: (token: string, email: string, lang: Lang) =>
     request<{ sent: boolean }>("/auth/me/email", json("POST", { email, lang }), token),

@@ -8,13 +8,14 @@ unless accounts are on.
 """
 
 import math
+import os
 
 import psycopg2.errors
 from fastapi import APIRouter, Header, HTTPException, Request
 
 from accounts import current_user
 from auth import BOARD_ROLE, client_ip, failed_logins, issue_token, verify_password
-from elo import board_ratings
+from elo import compute_ratings
 from schemas import BoardClaim, MembershipPlayer
 
 router = APIRouter(tags=["memberships"])
@@ -52,25 +53,65 @@ def add_owner(cur, user_id: int, board_id: int) -> None:
 
 
 def standing(request: Request, board: dict, player_id: int) -> dict:
-    """A player's rating, matches and rank on a board, ranked the way the app ranks them."""
+    """A player's rating and rank on a board (ranked the way the app ranks them), record, last five results
+    (oldest first) and their latest match night: the day it began, its record and the Elo it won or lost.
+    A night runs past midnight: like the app, its day is the local date six hours earlier."""
     db = request.app.state.db
-    ratings = board_ratings(db, board["id"], board["k_factor"])
-    rows = db.fetch_all(
-        """
-        SELECT p.id, p.archived_at IS NOT NULL AS archived, COUNT(mp.match_id) AS played
-        FROM players p LEFT JOIN match_players mp ON mp.player_id = p.id
-        WHERE p.board_id = %s GROUP BY p.id ORDER BY p.id
-        """,
-        (board["id"],),
+    players = db.fetch_all(
+        "SELECT id, archived_at IS NOT NULL AS archived FROM players WHERE board_id = %s ORDER BY id", (board["id"],)
     )
-    active = [r for r in rows if not r["archived"]]
-    need = ranked_games(max((r["played"] for r in active), default=0))
-    ranked = sorted((r for r in active if r["played"] >= need), key=lambda r: -ratings.get(r["id"], 1000))
-    mine = next((r for r in rows if r["id"] == player_id), None)
+    matches = db.fetch_all(
+        """
+        SELECT m.club_a_elo, m.club_b_elo, m.club_weight, m.score_a, m.score_b,
+               (((m.time AT TIME ZONE 'UTC') AT TIME ZONE %(tz)s) - INTERVAL '6 hours')::date AS night,
+               ARRAY_AGG(mp.player_id ORDER BY mp.slot) FILTER (WHERE mp.side = 'A') AS team_a,
+               ARRAY_AGG(mp.player_id ORDER BY mp.slot) FILTER (WHERE mp.side = 'B') AS team_b
+        FROM matches m LEFT JOIN match_players mp ON mp.match_id = m.id
+        WHERE m.board_id = %(board)s
+        GROUP BY m.id ORDER BY m.time, m.id
+        """,
+        {"tz": os.getenv("APP_TIMEZONE", "Europe/Istanbul"), "board": board["id"]},
+    )
+    ids = [p["id"] for p in players]
+    ratings = compute_ratings(ids, matches, board["k_factor"])
+
+    played: dict[int, int] = {}
+    results = []  # this player's, oldest first: (night, result, goals for)
+    for m in matches:
+        for pid in (m["team_a"] or []) + (m["team_b"] or []):
+            played[pid] = played.get(pid, 0) + 1
+        side = "A" if player_id in (m["team_a"] or []) else "B" if player_id in (m["team_b"] or []) else None
+        if side:
+            mine, theirs = (m["score_a"], m["score_b"]) if side == "A" else (m["score_b"], m["score_a"])
+            results.append((m["night"], "W" if mine > theirs else "D" if mine == theirs else "L", mine))
+
+    active = [p for p in players if not p["archived"]]
+    need = ranked_games(max((played.get(p["id"], 0) for p in active), default=0))
+    ranked = sorted((p for p in active if played.get(p["id"], 0) >= need), key=lambda p: -ratings.get(p["id"], 1000))
+    last_night = None
+    if results:
+        night = results[-1][0]
+        tonight = [r for n, r, _ in results if n == night]
+        before = compute_ratings(ids, [m for m in matches if m["night"] < night], board["k_factor"])
+        last_night = {
+            "day": night.isoformat(),
+            "played": len(tonight),
+            "wins": tonight.count("W"),
+            "draws": tonight.count("D"),
+            "losses": tonight.count("L"),
+            "delta": ratings.get(player_id, 1000) - before.get(player_id, 1000),
+        }
+    outcomes = [r for _, r, _ in results]
     return {
         "elo": round(ratings.get(player_id, 1000)),
-        "played": mine["played"] if mine else 0,
-        "rank": next((i + 1 for i, r in enumerate(ranked) if r["id"] == player_id), 0),
+        "played": len(results),
+        "rank": next((i + 1 for i, p in enumerate(ranked) if p["id"] == player_id), 0),
+        "wins": outcomes.count("W"),
+        "draws": outcomes.count("D"),
+        "losses": outcomes.count("L"),
+        "goals": sum(g for _, _, g in results),
+        "form": outcomes[-5:],
+        "lastNight": last_night,
     }
 
 

@@ -11,6 +11,7 @@ import {
   type AnalyticsState,
   type RankedPlayer,
 } from "./analytics-context";
+import { PlayerPhotosContext } from "./player-photos";
 import { useMatches, useMe, usePlayers, useSeasons } from "./useData";
 
 export function AnalyticsProvider({ children }: { children: ReactNode }) {
@@ -110,5 +111,15 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     },
   };
 
-  return <AnalyticsContext.Provider value={value}>{children}</AnalyticsContext.Provider>;
+  // players with an account's photo: every Avatar of theirs shows it
+  const photos = useMemo(
+    () => new Map((players.data ?? []).filter((p) => p.photo).map((p) => [cleanName(p.name), p.photo!])),
+    [players.data],
+  );
+
+  return (
+    <AnalyticsContext.Provider value={value}>
+      <PlayerPhotosContext.Provider value={photos}>{children}</PlayerPhotosContext.Provider>
+    </AnalyticsContext.Provider>
+  );
 }

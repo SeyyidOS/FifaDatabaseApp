@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import type { Membership } from "../lib/types";
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { useSessions } from "./useBoard";
-import { getAccount, subscribeAccount } from "../lib/account";
-import { accountApi } from "../lib/api";
+import { getAccount, saveAccount, signOutAccount, subscribeAccount } from "../lib/account";
+import { accountApi, ApiError } from "../lib/api";
 
 /** The account signed in on this device, if any. */
 export const useAccount = () => useSyncExternalStore(subscribeAccount, getAccount, getAccount);
@@ -24,6 +24,30 @@ export function useShowsAccount() {
   const enabled = useAccountsEnabled();
   const account = useAccount();
   return enabled && !!account;
+}
+
+/**
+ * Keeps this device's copy of the account (name, photo, e-mail) as the server has it, since another device
+ * may have changed it; a token the server no longer takes signs this device out.
+ */
+export function useAccountSync() {
+  const enabled = useAccountsEnabled();
+  const account = useAccount();
+  const me = useQuery({
+    queryKey: ["auth-me", account?.user.id],
+    queryFn: () => accountApi.me(account!.token),
+    enabled: enabled && !!account,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  useEffect(() => {
+    const current = getAccount();
+    if (me.data && current?.user.id === me.data.id && JSON.stringify(me.data) !== JSON.stringify(current.user))
+      saveAccount({ token: current.token, user: me.data });
+  }, [me.data]);
+  useEffect(() => {
+    if (me.error instanceof ApiError && me.error.status === 401) signOutAccount();
+  }, [me.error]);
 }
 
 /** The boards the signed-in account is a member of (empty when signed out or accounts are off). */

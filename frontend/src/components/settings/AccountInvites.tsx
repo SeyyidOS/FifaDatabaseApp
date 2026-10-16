@@ -336,7 +336,7 @@ export function Members({ role }: { role: Membership["role"] }) {
             });
           return (
             <li key={mb.userId} className="flex items-center gap-3 rounded-xl px-2 py-2">
-              <Avatar name={mb.name || "?"} size="sm" />
+              <Avatar name={mb.name || "?"} photo={mb.photo} size="sm" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold">{name}</span>
                 {/* the player they are, when it isn't already their name */}

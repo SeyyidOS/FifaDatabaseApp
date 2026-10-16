@@ -78,7 +78,7 @@ export function AccountMenu() {
   return (
     <>
       <button onClick={toggle} aria-label={t("account")} aria-expanded={open} className="rounded-full">
-        <Avatar name={label} size="md" />
+        <Avatar name={label} photo={account.user.photo} size="md" />
       </button>
       {createPortal(
         <AnimatePresence>
@@ -103,7 +103,7 @@ export function AccountMenu() {
               >
                 <span aria-hidden className="mx-auto mb-3 block h-1.5 w-10 rounded-full bg-line-strong lg:hidden" />
                 <div className="flex items-center gap-3.5 px-3 pb-4">
-                  <Avatar name={label} size="lg" />
+                  <Avatar name={label} photo={account.user.photo} size="lg" />
                   <span className="min-w-0">
                     <span lang={nameLang(label)} className="display block truncate text-2xl">
                       {label}

@@ -143,7 +143,7 @@ def list_members(slug: str, request: Request, authorization: str | None = Header
     db = request.app.state.db
     members = db.fetch_all(
         """
-        SELECT m.user_id, u.name, m.role, m.player_id, p.name AS player_name
+        SELECT m.user_id, u.name, u.photo, m.role, m.player_id, p.name AS player_name
         FROM memberships m JOIN users u ON u.id = m.user_id LEFT JOIN players p ON p.id = m.player_id
         WHERE m.board_id = %s
         ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END, m.created_at
@@ -152,7 +152,7 @@ def list_members(slug: str, request: Request, authorization: str | None = Header
     )
     requests_ = db.fetch_all(
         """
-        SELECT r.id, u.name, u.email, r.player_id, p.name AS player_name, r.new_name, r.created_at
+        SELECT r.id, u.name, u.email, u.photo, r.player_id, p.name AS player_name, r.new_name, r.created_at
         FROM join_requests r JOIN users u ON u.id = r.user_id LEFT JOIN players p ON p.id = r.player_id
         WHERE r.board_id = %s ORDER BY r.created_at
         """,
@@ -163,6 +163,7 @@ def list_members(slug: str, request: Request, authorization: str | None = Header
             {
                 "userId": m["user_id"],
                 "name": m["name"],
+                "photo": m["photo"],
                 "role": m["role"],
                 "player": {"id": m["player_id"], "name": m["player_name"]} if m["player_id"] else None,
             }
@@ -173,6 +174,7 @@ def list_members(slug: str, request: Request, authorization: str | None = Header
                 "id": r["id"],
                 "name": r["name"],
                 "email": r["email"],
+                "photo": r["photo"],
                 "player": {"id": r["player_id"], "name": r["player_name"]} if r["player_id"] else None,
                 "newName": r["new_name"],
             }

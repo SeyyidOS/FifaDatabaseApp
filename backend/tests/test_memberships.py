@@ -89,6 +89,10 @@ def test_saying_which_player_you_are(api, mail, board):
     assert mine["player"]["played"] == 3
     assert mine["player"]["rank"] in (1, 2)  # kerem and ozgun won the same matches
     assert mine["player"]["elo"] > 1000
+    me_ = mine["player"]
+    assert (me_["wins"], me_["draws"], me_["losses"], me_["goals"], me_["form"]) == (3, 0, 0, 9, ["W", "W", "W"])
+    night = me_["lastNight"]
+    assert (night["played"], night["wins"], night["delta"]) == (3, 3, me_["elo"] - 1000)
 
     # a player belongs to one account; only owners and admins link themselves for now
     other = sign_in(api, mail, "ozgun@example.com")
@@ -113,3 +117,27 @@ def test_off_without_accounts(api, mail, board, monkeypatch):
     monkeypatch.setenv("ACCOUNTS", "off")
     assert api.post(board.url("/claim"), json={"password": ADMIN_PW}, headers=bearer(me["token"])).status_code == 404
     assert api.get("/auth/boards", headers=bearer(me["token"])).status_code == 404
+
+
+def test_the_last_night_is_the_players_latest(api, mail, board):
+    db = api.app.state.db
+    board.add_players("kerem", "ozgun", "seyyid", "bedirhan")
+    board.add_match(["kerem", "ozgun"], ["seyyid", "bedirhan"], 3, 1)
+    # stored as UTC: 01:30 in Istanbul, so it belongs to the evening before
+    db.execute("UPDATE matches SET time = '2026-10-03 22:30:00'")
+    ids = {p["name"]: p["id"] for p in api.get(board.url("/players"), headers=board.member).json()}
+    me = sign_in(api, mail)
+    api.post(board.url("/claim"), json={"password": ADMIN_PW}, headers=bearer(me["token"]))
+    api.put(board.url("/membership/player"), json={"playerId": ids["kerem"]}, headers=bearer(me["token"]))
+    first = api.get("/auth/boards", headers=bearer(me["token"])).json()[0]["player"]
+    assert first["lastNight"]["day"] == "2026-10-03"
+
+    board.add_match(["kerem", "ozgun"], ["seyyid", "bedirhan"], 0, 2)
+    board.add_match(["kerem", "seyyid"], ["ozgun", "bedirhan"], 1, 1)
+    db.execute("UPDATE matches SET time = '2026-10-10 18:00:00' WHERE time > '2026-10-05'")
+    now = api.get("/auth/boards", headers=bearer(me["token"])).json()[0]["player"]
+    assert now["form"] == ["W", "L", "D"]
+    night = now["lastNight"]
+    assert (night["day"], night["played"], night["wins"], night["draws"], night["losses"]) == ("2026-10-10", 2, 0, 1, 1)
+    # only that night's Elo
+    assert night["delta"] == now["elo"] - first["elo"]
