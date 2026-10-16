@@ -11,5 +11,8 @@ RUN npx tsc -b && npx vite build --base=/
 FROM nginx:1.27-alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
+COPY nginx/smtp-relay.conf.stream-template /etc/nginx/templates/smtp-relay.conf.stream-template
+# the mail server the relay passes connections to (compose sets the real one)
+ENV SMTP_UPSTREAM=localhost:587
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s CMD wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1

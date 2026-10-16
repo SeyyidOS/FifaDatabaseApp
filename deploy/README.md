@@ -5,7 +5,7 @@ Runs Matchnight on this server behind the shared Caddy proxy (the one that serve
 
 | Container  | What it is                                                     | Networks                      |
 |------------|-----------------------------------------------------------------|-------------------------------|
-| `fifa_web` | nginx: the built React app and the `/api` proxy                 | `mlflow_net`, `fifa_internal` |
+| `fifa_web` | nginx: the built React app, the `/api` proxy, and the API's way out for e-mail | `mlflow_net`, `fifa_internal` |
 | `fifa_api` | the FastAPI backend (`backend/`); match photos in `/root/programs/fifa-app/photos` | `fifa_internal` (no internet) |
 | `fifa_db`  | Postgres 16, data in `/root/programs/fifa-app/pgdata`           | `fifa_internal` (no internet) |
 
@@ -14,6 +14,7 @@ deploy/deploy.sh                 # publish or update by hand (backs up first; sa
 deploy/deploy.sh --backup        # gzipped SQL dump into /root/programs/fifa-app/backups
 deploy/deploy.sh --passwords     # first passwords of the "main" board (the original group)
 deploy/deploy.sh --admin-key     # server admin key: works as admin on every board
+deploy/deploy.sh --test-mail TO  # send a test e-mail with the mail settings below
 deploy/deploy.sh --import FILE   # first run only: load a plain SQL dump into the empty database
 deploy/deploy.sh --remove        # unpublish; containers go, data stays
 ```
@@ -43,6 +44,21 @@ The data from before boards existed lives in the board `main` (`#/b/main`); old 
 | `ADMIN_KEY`                    | server admin key (`X-Admin-Key` header), admin on every board  |
 | `LEGACY_BOARD_PASSWORD`        | first board password of `main` (used once, by the migration)   |
 | `LEGACY_BOARD_ADMIN_PASSWORD`  | first admin password of `main` (used once, by the migration)   |
+
+Optional, for accounts and a domain of your own (none of them is generated; a deploy picks up changes):
+
+| Variable        | Purpose                                                                          |
+|-----------------|----------------------------------------------------------------------------------|
+| `APP_DOMAIN`    | a second address for the site, e.g. `matchnight.example.com`: served next to the sslip.io one once its A record points at this server with no proxy in between (until then the deploy leaves it out and says so) |
+| `APP_URL`       | where sign-in links point, e.g. `https://matchnight.example.com/`               |
+| `ACCOUNTS`      | `on` to offer accounts (backend/README.md, "Accounts"); needs `APP_URL` and mail |
+| `SMTP_HOST`     | the mail server, e.g. `smtp.resend.com`; `SMTP_PORT` (587), `SMTP_USER`, `SMTP_PASSWORD` |
+| `MAIL_FROM`     | the sender, in quotes when it has a name: `MAIL_FROM="Matchnight <giris@mail.example.com>"` |
+
+The API has no internet. It sends mail through `fifa_web`, which passes the connection on to `SMTP_HOST`
+untouched (`frontend/nginx/smtp-relay.conf.stream-template`); TLS runs between the API and the mail server
+and is checked against `SMTP_HOST`'s certificate. Quote any value with spaces: the file is read by both
+the shell and Docker Compose.
 
 ## Continuous deployment
 

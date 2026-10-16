@@ -1,0 +1,15 @@
+# Rendered at container start like default.conf.template (only ${SMTP_UPSTREAM} is substituted), into
+# nginx's stream block. The API has no internet (deploy/compose.public.yml), so it sends mail through this
+# port, which passes the connection on to the mail server untouched. TLS runs between the API and that
+# server and is checked against the server's own name (backend/mailer.py): nothing here can read or
+# change a message.
+resolver 127.0.0.11 valid=300s ipv6=off;
+
+server {
+    listen 2587;
+    # resolved per connection, not at start: the site comes up even when DNS doesn't
+    set $smtp_upstream ${SMTP_UPSTREAM};
+    proxy_pass $smtp_upstream;
+    proxy_connect_timeout 10s;
+    proxy_timeout 60s;
+}
