@@ -1,6 +1,8 @@
-import { useId, useState } from "react";
+import { useContext, useId, useState } from "react";
+import { PlayerPhotosContext } from "../../hooks/player-photos";
+import { photoUrl } from "../../lib/api";
 import { cn } from "../../lib/cn";
-import { displayName } from "../../lib/format";
+import { cleanName, displayName } from "../../lib/format";
 import { crestFor } from "../../lib/crests";
 import { clubIdentity, initials, playerGradient } from "../../lib/identity";
 import { useT } from "../../hooks/useI18n";
@@ -13,6 +15,7 @@ const AVATAR_SIZES = {
   lg: "size-12 text-lg",
   xl: "size-20 text-3xl",
   "2xl": "size-28 text-5xl",
+  "3xl": "size-36 text-6xl",
 } as const;
 
 const RINGS = {
@@ -21,18 +24,29 @@ const RINGS = {
   accent: "ring-2 ring-accent ring-offset-2 ring-offset-surface",
 } as const;
 
+/**
+ * A person's (or league's) badge: their photo when there is one, else their initials on a gradient made
+ * from the name. Without a `photo`, a player's comes from the league (PlayerPhotosContext); null means none.
+ */
 export function Avatar({
   name,
   size = "md",
   ring,
+  photo,
   className,
 }: {
   name: string;
   size?: keyof typeof AVATAR_SIZES;
   ring?: keyof typeof RINGS;
+  photo?: string | null;
   className?: string;
 }) {
   const [c1, c2] = playerGradient(name);
+  const photos = useContext(PlayerPhotosContext);
+  const file = photo === undefined ? photos?.get(cleanName(name)) : photo;
+  // a photo that won't load (deleted since) falls back to the initials
+  const [broken, setBroken] = useState<string | null>(null);
+  const src = file && file !== broken ? photoUrl(file) : null;
   return (
     <span
       aria-hidden
@@ -45,9 +59,20 @@ export function Avatar({
       )}
       style={{ background: `linear-gradient(140deg, ${c1}, ${c2})` }}
     >
-      <span className="translate-y-[0.03em] drop-shadow-[0_1px_1px_rgba(0,0,0,.35)]">
-        {initials(displayName(name))}
-      </span>
+      {src ? (
+        <img
+          src={src}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onError={() => setBroken(file!)}
+          className="size-full rounded-[inherit] object-cover"
+        />
+      ) : (
+        <span className="translate-y-[0.03em] drop-shadow-[0_1px_1px_rgba(0,0,0,.35)]">
+          {initials(displayName(name))}
+        </span>
+      )}
     </span>
   );
 }

@@ -3,6 +3,8 @@ export interface Player {
   name: string;
   /** Archived players left the roster; their matches still count. */
   archived: boolean;
+  /** the photo of the account this player belongs to (photoUrl), if it has one */
+  photo?: string | null;
 }
 
 export interface Club {
@@ -156,9 +158,25 @@ export interface Membership {
   role: "owner" | "admin" | "player";
   /** join requests waiting for an owner or admin (0 for players) */
   pending: number;
-  player: { id: number; name: string; elo: number; rank: number; played: number } | null;
+  player: (Standing & { id: number; name: string }) | null;
   /** the player this account asked to be (or the new one it asked to start as), until an owner or admin answers */
   asked: { name: string; new: boolean } | null;
+}
+
+/** A player's place in a league, for the account's own card. */
+export interface Standing {
+  elo: number;
+  /** 0 while still new (not enough matches to be ranked) */
+  rank: number;
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goals: number;
+  /** the last five results, oldest first */
+  form: Outcome[];
+  /** their latest match night: the day it began (a night key), its record and the Elo it won or lost */
+  lastNight: { day: string; played: number; wins: number; draws: number; losses: number; delta: number } | null;
 }
 
 /** What an invite link leads to, shown before signing in. */
@@ -178,8 +196,14 @@ export interface BoardInvites {
 }
 
 export interface BoardMembers {
-  members: { userId: number; name: string | null; role: Membership["role"]; player: { id: number; name: string } | null }[];
-  requests: { id: number; name: string | null; email: string; player: { id: number; name: string } | null; newName: string | null }[];
+  members: {
+    userId: number;
+    name: string | null;
+    photo: string | null;
+    role: Membership["role"];
+    player: { id: number; name: string } | null;
+  }[];
+  requests: { id: number; name: string | null; email: string; photo: string | null; player: { id: number; name: string } | null; newName: string | null }[];
 }
 
 /** A person who signs in with a link sent to their e-mail (not a board sign-in). */
@@ -187,6 +211,8 @@ export interface Account {
   id: number;
   email: string;
   name: string | null;
+  /** its photo (photoUrl), if it has one */
+  photo: string | null;
 }
 
 /** One match of the night's plan; matchId is set once it has been played. */

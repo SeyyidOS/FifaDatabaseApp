@@ -1,9 +1,9 @@
 # FIFA Manager — public site. Managed by fifa-app/deploy/deploy.sh; run it with --remove to unpublish.
 fifa.173.249.40.69.sslip.io {
 	encode gzip zstd
-	# small bodies everywhere except a match photo upload (backend/photos.py)
-	@photo path_regexp ^/api/boards/[^/]+/matches/[0-9]+/photos$
-	@other not path_regexp ^/api/boards/[^/]+/matches/[0-9]+/photos$
+	# small bodies everywhere except photo uploads: a match's (backend/photos.py) and an account's (backend/avatars.py)
+	@photo path_regexp ^/api/(boards/[^/]+/matches/[0-9]+/photos|auth/me/photo)$
+	@other not path_regexp ^/api/(boards/[^/]+/matches/[0-9]+/photos|auth/me/photo)$
 	request_body @photo {
 		max_size 12MB
 	}

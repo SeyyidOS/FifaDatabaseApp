@@ -11,7 +11,7 @@ import { defineMessages } from "../../lib/i18n";
 import { linkTarget } from "../../lib/links";
 import { saveSession } from "../../lib/session";
 import { Field, TextInput } from "../ui/form";
-import { Button, Segmented } from "../ui/primitives";
+import { Button } from "../ui/primitives";
 
 const m = defineMessages({
   en: {
@@ -24,8 +24,6 @@ const m = defineMessages({
     invitePlaceholder: "Paste the link you were sent",
     open: "Open",
     notInvite: "That isn't an invite link",
-    inviteTab: "Invite link",
-    newTab: "New league",
     leagueName: "League name",
     namePlaceholder: "e.g. Friday Night League",
     newHint: "No passwords: you invite people with links, and they come in with their own account.",
@@ -43,8 +41,6 @@ const m = defineMessages({
     invitePlaceholder: "Sana gelen linki yapıştır",
     open: "Aç",
     notInvite: "Bu bir davet linki değil",
-    inviteTab: "Davet linki",
-    newTab: "Yeni lig",
     leagueName: "Lig adı",
     namePlaceholder: "ör. Cuma Gecesi Ligi",
     newHint: "Şifre yok: insanları linkle davet edersin, kendi hesaplarıyla girerler.",
@@ -54,7 +50,7 @@ const m = defineMessages({
   },
 });
 
-function InviteLinkForm({ autoFocus }: { autoFocus?: boolean }) {
+export function InviteLinkForm({ autoFocus }: { autoFocus?: boolean }) {
   const t = useT(m);
   const navigate = useNavigate();
   const [link, setLink] = useState("");
@@ -123,7 +119,7 @@ export function SignedOutForms() {
   );
 }
 
-function NewLeagueForm({ account }: { account: AccountSession }) {
+export function NewLeagueForm({ account }: { account: AccountSession }) {
   const t = useT(m);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -163,24 +159,5 @@ function NewLeagueForm({ account }: { account: AccountSession }) {
         <Plus className="size-4" /> {t("start")}
       </Button>
     </form>
-  );
-}
-
-/** Profilim's way into more leagues: an invite link, or a new league of your own. */
-export function LeagueForms({ account }: { account: AccountSession }) {
-  const t = useT(m);
-  const [tab, setTab] = useState<"invite" | "new">("invite");
-  return (
-    <section className="card space-y-5 p-6 sm:p-8">
-      <Segmented
-        value={tab}
-        onChange={setTab}
-        options={[
-          { value: "invite", label: t("inviteTab") },
-          { value: "new", label: t("newTab") },
-        ]}
-      />
-      {tab === "invite" ? <InviteLinkForm /> : <NewLeagueForm account={account} />}
-    </section>
   );
 }

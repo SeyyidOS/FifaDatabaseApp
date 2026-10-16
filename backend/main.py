@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 import accounts
+import avatars
 import board_data
 import boards
 import fixtures
@@ -64,6 +65,7 @@ def health(request: Request):
 app.include_router(accounts.router)
 app.include_router(memberships.router)
 app.include_router(invites.router)
+app.include_router(avatars.router)
 app.include_router(boards.router)
 app.include_router(board_data.router)
 app.include_router(seasons.router)

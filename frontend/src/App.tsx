@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { PageSkeleton } from "./components/DataGate";
 import { ThemedToaster } from "./components/layout/ThemedToaster";
+import { useAccountSync } from "./hooks/useAccount";
 
 /** The board that data from before boards existed was moved into (backend/migrations.py). */
 const LEGACY_BOARD = "main";
@@ -19,6 +20,11 @@ function LegacyRedirect() {
   return <Navigate to={`/b/${LEGACY_BOARD}${page}${search}`} replace />;
 }
 
+function AccountSync() {
+  useAccountSync();
+  return null;
+}
+
 export default function App() {
   return (
     <>
@@ -32,6 +38,7 @@ export default function App() {
           <Route path="*" element={<LegacyRedirect />} />
         </Routes>
       </Suspense>
+      <AccountSync />
       <ThemedToaster />
     </>
   );

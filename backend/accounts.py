@@ -36,7 +36,7 @@ def _hash(token: str) -> str:
 
 
 def _public(user: dict) -> dict:
-    return {"id": user["id"], "email": user["email"], "name": user["name"]}
+    return {"id": user["id"], "email": user["email"], "name": user["name"], "photo": user["photo"]}
 
 
 def current_user(request: Request, authorization: str | None) -> dict:

@@ -12,12 +12,13 @@ standings, K-factor and club ratings. On startup the API applies pending schema 
 | `seasons.py`     | a board's seasons and their club ratings (by hand or from a card model)     |
 | `fixtures.py`    | the night's plan: who plays with and against whom, in order                 |
 | `photos.py`      | photos of a match (the stats screens), stored as files in `PHOTO_DIR`       |
+| `avatars.py`     | an account's photo, shown wherever its player appears (also in `PHOTO_DIR`)  |
 | `accounts.py`    | accounts: sign in with a one-time link sent by e-mail (off by default)      |
 | `mailer.py`      | the e-mails the app sends (sign-in links), over SMTP                        |
 | `memberships.py` | which accounts are in which board, with what role (off with accounts)      |
 | `invites.py`     | invite links, join requests and managing members (off with accounts)        |
 | `auth.py`        | password hashing, signed device tokens, rate limits, access checks          |
-| `migrations.py`  | versioned schema changes (v2 boards … v12 passwordless leagues, v13 e-mail changes) |
+| `migrations.py`  | versioned schema changes (v2 boards … v13 e-mail changes, v14 account photos) |
 | `db.py`          | connection pool (recovers after database restarts) and transactions         |
 | `schemas.py`     | request validation                                                          |
 | `elo.py`         | Elo replay (mirrored in `frontend/src/lib/elo.ts`)                          |
@@ -129,6 +130,20 @@ season: every club keeps its EA id, the model's rating and an admin's correction
 `lib/fixture.ts`; anyone on the board may make one, and a new plan closes the previous one). When a
 match is recorded, the first unplayed, unskipped planned match with the same two sides is ticked off;
 deleting the match opens it again.
+
+## Account photos
+
+`PUT /auth/me/photo` takes one picture as the request body (JPEG, PNG or WebP, up to 5 MB; the app crops it
+to a square first). It is turned upright, cut to its middle square if it isn't one, stripped of its
+metadata and stored as a 512 px WebP in `PHOTO_DIR/avatars` under a random name, which changes with every
+new photo; `DELETE /auth/me/photo` removes it. The account (`/auth/me`), the league's player list (`photo`
+on each player linked to an account) and the members list carry that name, and `GET /avatars/{name}`
+serves the file, cached for good. Only those given the name can fetch it: the account and the leagues its
+player is in.
+
+`GET /auth/boards` gives the account's player in each league its standing: Elo and rank, record, goals,
+the last five results and its latest match night (the day it began, its record and the Elo won or lost).
+A night runs past midnight: its day is the local date six hours earlier, as in the app.
 
 ## Match photos
 

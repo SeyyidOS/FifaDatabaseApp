@@ -25,7 +25,7 @@ function AccountChip() {
       aria-label={t("account")}
       className="ml-1 flex min-h-10 items-center gap-2 rounded-xl px-2 text-sm font-semibold hover:bg-surface-2"
     >
-      <Avatar name={account.user.name || account.user.email} size="sm" />
+      <Avatar name={account.user.name || account.user.email} photo={account.user.photo} size="sm" />
       <span className="max-w-32 truncate max-sm:hidden">{account.user.name || account.user.email}</span>
     </Link>
   ) : (
