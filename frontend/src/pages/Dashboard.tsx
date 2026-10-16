@@ -167,14 +167,14 @@ function LastNight({ data }: { data: Analytics }) {
   const glow = (club: string, at: string) => (
     <span
       aria-hidden
-      className={cn("pointer-events-none absolute -top-20 size-72 rounded-full opacity-25 blur-3xl", at)}
-      style={{ background: clubIdentity(club).primary }}
+      className={cn("glow -top-34 size-[25rem] opacity-25", at)}
+      style={{ ["--glow" as string]: clubIdentity(club).primary }}
     />
   );
   return (
     <motion.section {...fade(0)} className="card overflow-hidden">
-      {glow(best.clubA, "-left-20")}
-      {glow(best.clubB, "-right-20")}
+      {glow(best.clubA, "-left-34")}
+      {glow(best.clubB, "-right-34")}
       <div className="relative flex items-center justify-between gap-3 px-5 pt-5 sm:px-6">
         <span className="label truncate text-accent-text">
           {t("lastNight")} · <span className="sm:hidden">{formatDayShort(dayFromKey(day.key))}</span>

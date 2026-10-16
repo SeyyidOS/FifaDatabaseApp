@@ -366,7 +366,7 @@ function FrontPage({ r, t }: { r: Recap; t: T }) {
       animate={{ opacity: 1, y: 0 }}
       className="card relative overflow-hidden p-5 sm:p-8"
     >
-      <div className="pointer-events-none absolute -top-24 -right-24 size-72 rounded-full bg-accent opacity-10 blur-3xl" />
+      <div className="glow -top-38 -right-38 size-[25rem] opacity-10" style={{ ["--glow" as string]: "var(--accent)" }} />
       <header className="border-b-2 border-fg/80 pb-3 text-center">
         <p className="display text-4xl tracking-wide uppercase sm:text-6xl">{t("paper")}</p>
         <p className="mt-1 flex flex-wrap justify-center gap-x-3 text-xs text-muted">
@@ -478,8 +478,8 @@ function AwardTile({ a, t, total, index }: { a: NightAward; t: T; total: number;
       className="card card-hover relative flex flex-col overflow-hidden p-5"
     >
       <div
-        className="pointer-events-none absolute -top-12 -right-12 size-36 rounded-full blur-3xl"
-        style={{ background: a.roast ? "var(--loss)" : "var(--accent)", opacity: 0.12 }}
+        className="glow -top-20 -right-20 size-52"
+        style={{ ["--glow" as string]: a.roast ? "var(--loss)" : "var(--accent)", opacity: 0.12 }}
       />
       <div className="flex items-center gap-2.5">
         <span

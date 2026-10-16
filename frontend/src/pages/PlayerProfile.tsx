@@ -287,10 +287,7 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
 
       {/* Hero */}
       <section className="card relative overflow-hidden">
-        <div
-          className="pointer-events-none absolute -top-28 -left-28 size-96 rounded-full opacity-25 blur-3xl"
-          style={{ background: glow }}
-        />
+        <div className="glow -top-44 -left-44 size-[32rem] opacity-25" style={{ ["--glow" as string]: glow }} />
         <div className="relative flex flex-col gap-6 p-5 sm:p-8 lg:flex-row lg:items-center lg:gap-10">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-4 sm:gap-6">

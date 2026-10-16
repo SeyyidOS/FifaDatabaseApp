@@ -182,8 +182,8 @@ function Fighter({ p, side }: { p?: RankedPlayer; side: "A" | "B" }) {
     >
       <div className="relative">
         <div
-          className="absolute inset-0 rounded-full blur-2xl"
-          style={{ background: side === "A" ? "var(--team-a)" : "var(--team-b)", opacity: 0.35 }}
+          className="glow -inset-8"
+          style={{ ["--glow" as string]: side === "A" ? "var(--team-a)" : "var(--team-b)", opacity: 0.35 }}
         />
         <Avatar name={p.name} size="2xl" ring={side === "A" ? "a" : "b"} />
       </div>
