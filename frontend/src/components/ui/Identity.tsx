@@ -66,7 +66,8 @@ export function Avatar({
           loading="lazy"
           decoding="async"
           onError={() => setBroken(file!)}
-          className="size-full rounded-[inherit] object-cover"
+          // clipped, not just rounded: Safari can drop an image's rounding inside a moving (transformed) parent
+          className="size-full rounded-full object-cover [clip-path:circle(50%)]"
         />
       ) : (
         <span className="translate-y-[0.03em] drop-shadow-[0_1px_1px_rgba(0,0,0,.35)]">
