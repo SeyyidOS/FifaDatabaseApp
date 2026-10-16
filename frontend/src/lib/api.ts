@@ -169,9 +169,6 @@ export const accountApi = {
   createLeague: (token: string, name: string) => request<SignIn>("/boards", json("POST", { name }), token),
   rename: (token: string, name: string) => request<Account>("/auth/me", json("PATCH", { name }), token),
   boards: (token: string) => request<Membership[]>("/auth/boards", {}, token),
-  /** Take over a board that has no owner yet, with its admin password. */
-  claim: (token: string, slug: string, password: string) =>
-    request<{ slug: string; name: string; role: string }>(`/boards/${encodeURIComponent(slug)}/claim`, json("POST", { password }), token),
   /** A board token for a board the account is a member of. */
   session: (token: string, slug: string) => request<SignIn>(`/boards/${encodeURIComponent(slug)}/session`, json("POST"), token),
   linkPlayer: (token: string, slug: string, playerId: number | null) =>

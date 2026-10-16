@@ -1,5 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
-import { motion } from "motion/react";
 import { ChevronRight, MailCheck, UserCheck } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
@@ -13,7 +11,7 @@ import { cn } from "../../lib/cn";
 import { displayName, nameLang } from "../../lib/format";
 import { defineMessages } from "../../lib/i18n";
 import type { Membership } from "../../lib/types";
-import { PasswordInput, TextInput } from "../ui/form";
+import { TextInput } from "../ui/form";
 import { Avatar } from "../ui/Identity";
 import { Button, Pill } from "../ui/primitives";
 import { LeagueForms } from "./LeagueForms";
@@ -45,10 +43,7 @@ const m = defineMessages({
     askedNew: "You asked to join as {name}",
     forYou: "Waiting for you",
     requests: "{n} join request|{n} join requests",
-    device: "On this device · not on your account yet",
-    claim: "Make it mine",
-    claimHint: "The board's admin password makes you its owner.",
-    claimed: "The board is on your account",
+    device: "On this device only · ask whoever runs it for an invite to add it to your account",
   },
   tr: {
     rename: "Adı değiştir",
@@ -76,10 +71,7 @@ const m = defineMessages({
     askedNew: "{name} adıyla katılmak istedin",
     forYou: "Senden bekleyen",
     requests: "{n} katılma isteği|{n} katılma isteği",
-    device: "Bu cihazda · henüz hesabında değil",
-    claim: "Sahiplen",
-    claimHint: "Board'un admin şifresi seni sahibi yapar.",
-    claimed: "Board artık hesabında",
+    device: "Yalnızca bu cihazda · hesabına eklemek için yöneteninden davet linki iste",
   },
 });
 
@@ -239,66 +231,18 @@ function LeagueRow({ membership: mb }: { membership: Membership }) {
   );
 }
 
-/** A board this device opened with its password; its admin password moves it onto the account. */
-function DeviceRow({ slug, name, token }: { slug: string; name: string; token: string }) {
+/** A board this device opened with its password: it opens from here; onto the account it comes with an invite. */
+function DeviceRow({ slug, name }: { slug: string; name: string }) {
   const t = useT(m);
-  const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const claim = async (e: FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      await accountApi.claim(token, slug, password);
-      await queryClient.invalidateQueries({ queryKey: ["auth-boards"] });
-      toast.success(t("claimed"));
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
-    <div className="px-4 py-3.5">
-      <div className="flex items-center gap-3">
-        <Link to={`/b/${slug}`} className="flex min-w-0 flex-1 items-center gap-3">
-          <Avatar name={name} size="lg" className="rounded-2xl opacity-80" />
-          <span className="min-w-0">
-            <span className="block truncate font-semibold">{name}</span>
-            <span className="mt-0.5 block truncate text-xs text-muted">{t("device")}</span>
-          </span>
-        </Link>
-        {!open && (
-          <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
-            {t("claim")}
-          </Button>
-        )}
-      </div>
-      {open && (
-        <motion.form
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          onSubmit={claim}
-          className="mt-3 space-y-2 overflow-hidden"
-        >
-          <p className="text-xs text-muted">{t("claimHint")}</p>
-          <div className="flex gap-2">
-            <div className="min-w-0 flex-1">
-              <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" autoFocus />
-            </div>
-            <Button type="submit" variant="primary" loading={busy} disabled={!password}>
-              {t("claim")}
-            </Button>
-          </div>
-          {error && <p className="text-xs text-loss">{error}</p>}
-        </motion.form>
-      )}
-    </div>
+    <Link to={`/b/${slug}`} className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-surface-2">
+      <Avatar name={name} size="lg" className="rounded-2xl opacity-80" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-semibold">{name}</span>
+        <span className="mt-0.5 block text-xs text-muted">{t("device")}</span>
+      </span>
+      <ChevronRight className="size-4 shrink-0 text-faint" />
+    </Link>
   );
 }
 
@@ -352,7 +296,7 @@ export function AccountHome({ account }: { account: AccountSession }) {
             <LeagueRow key={mb.slug} membership={mb} />
           ))}
           {unlinked.map((s) => (
-            <DeviceRow key={s.slug} slug={s.slug} name={s.name} token={account.token} />
+            <DeviceRow key={s.slug} slug={s.slug} name={s.name} />
           ))}
           {memberships.isSuccess && !mine.length && !unlinked.length && (
             <p className="px-4 py-6 text-center text-sm text-muted">{t("none")}</p>
