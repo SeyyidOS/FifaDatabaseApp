@@ -1,12 +1,10 @@
 import { motion } from "motion/react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowRight, KeyRound } from "lucide-react";
 import { Checkbox, Field, PasswordInput, TextInput } from "../ui/form";
 import { Button, Segmented } from "../ui/primitives";
-import { useAccount } from "../../hooks/useAccount";
 import { ApiError, publicApi } from "../../lib/api";
 import { useT } from "../../hooks/useI18n";
 import { defineMessages } from "../../lib/i18n";
@@ -16,7 +14,7 @@ const m = defineMessages({
   en: {
     wrongPassword: "Wrong password",
     noBoard: "No board with that code",
-    codeLabel: "Board code or invite link",
+    codeLabel: "Board code or link",
     codeHint: "Ask whoever runs the board for the link.",
     codePlaceholder: "e.g. friday-night",
     password: "Password",
@@ -44,7 +42,7 @@ const m = defineMessages({
   tr: {
     wrongPassword: "Şifre yanlış",
     noBoard: "Bu kodla bir board yok",
-    codeLabel: "Board kodu ya da davet linki",
+    codeLabel: "Board kodu ya da linki",
     codeHint: "Linki board'u yöneten kişiden iste.",
     codePlaceholder: "ör. cuma-gecesi",
     password: "Şifre",
@@ -71,7 +69,7 @@ const m = defineMessages({
   },
 });
 
-/** Accepts a board code ("kerems-crew") or a pasted invite link (".../#/b/kerems-crew/…"). */
+/** Accepts a board code ("kerems-crew") or a pasted board link (".../#/b/kerems-crew/…"). */
 function boardCode(input: string): string {
   const fromLink = input.match(/\/b\/([^/?#\s]+)/);
   return (fromLink ? fromLink[1] : input).trim().toLowerCase();
@@ -80,7 +78,8 @@ function boardCode(input: string): string {
 const errorText = (e: unknown, wrongPassword: string) =>
   e instanceof ApiError && e.status === 401 ? wrongPassword : (e as Error).message;
 
-function JoinForm() {
+/** Into a board with its code and password (boards from before accounts; leagues started with one have none). */
+export function JoinForm() {
   const t = useT(m);
   const navigate = useNavigate();
   const [code, setCode] = useState("");
@@ -140,8 +139,6 @@ function JoinForm() {
 function CreateForm() {
   const t = useT(m);
   const navigate = useNavigate();
-  const account = useAccount();
-  const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
@@ -164,9 +161,8 @@ function CreateForm() {
     if (problem) return;
     setBusy(true);
     try {
-      const signIn = await publicApi.createBoard({ name: name.trim(), password, adminPassword }, account?.token);
+      const signIn = await publicApi.createBoard({ name: name.trim(), password, adminPassword });
       saveSession(signIn, remember);
-      if (account) queryClient.invalidateQueries({ queryKey: ["auth-boards"] });
       toast.success(t("ready", { name: signIn.name }), { description: t("readyHint") });
       navigate(`/b/${signIn.slug}/settings?welcome=1`);
     } catch (err) {
@@ -214,7 +210,7 @@ function CreateForm() {
   );
 }
 
-/** Join a board with its code and password, or start one. */
+/** Join a board with its code and password, or start one: the home page while accounts are off. */
 export function BoardForms() {
   const t = useT(m);
   const [tab, setTab] = useState<"join" | "create">("join");

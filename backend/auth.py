@@ -46,7 +46,9 @@ def hash_password(password: str) -> str:
     return f"scrypt${SCRYPT['n']}${SCRYPT['r']}${SCRYPT['p']}${_b64(salt)}${_b64(digest)}"
 
 
-def verify_password(password: str, stored: str) -> bool:
+def verify_password(password: str, stored: str | None) -> bool:
+    if not stored:  # a board without passwords (invite-only)
+        return False
     try:
         scheme, n, r, p, salt, digest = stored.split("$")
         if scheme != "scrypt":

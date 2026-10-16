@@ -1,7 +1,7 @@
 import { removeSession } from "./session";
 import type {
   Account,
-  BoardInfo,
+  BoardPublic,
   BoardInvites,
   BoardMembers,
   InvitePreview,
@@ -79,10 +79,10 @@ const json = (method: string, body?: unknown): RequestInit => ({
 export const publicApi = {
   /** "version" is the short commit hash that is live */
   health: () => request<{ ok: boolean; version: string }>("/health"),
-  board: (slug: string) => request<BoardInfo>(`/boards/${encodeURIComponent(slug)}`),
-  /** With an account token (accounts on), the account owns the new board. */
-  createBoard: (body: { name: string; password: string; adminPassword: string }, accountToken?: string) =>
-    request<SignIn>("/boards", json("POST", body), accountToken),
+  board: (slug: string) => request<BoardPublic>(`/boards/${encodeURIComponent(slug)}`),
+  /** A board with passwords (accounts off; with them on, accountApi.createLeague). */
+  createBoard: (body: { name: string; password: string; adminPassword: string }) =>
+    request<SignIn>("/boards", json("POST", body)),
   signIn: (slug: string, password: string) =>
     request<SignIn>(`/boards/${encodeURIComponent(slug)}/login`, json("POST", { password })),
 };
@@ -160,6 +160,8 @@ export const accountApi = {
   requestLink: (email: string, lang: Lang) => request<{ sent: boolean }>("/auth/email", json("POST", { email, lang })),
   verify: (token: string) => request<{ token: string; user: Account }>("/auth/email/verify", json("POST", { token })),
   me: (token: string) => request<Account>("/auth/me", {}, token),
+  /** A league owned by the account, with no passwords: people come in with invites. */
+  createLeague: (token: string, name: string) => request<SignIn>("/boards", json("POST", { name }), token),
   rename: (token: string, name: string) => request<Account>("/auth/me", json("PATCH", { name }), token),
   boards: (token: string) => request<Membership[]>("/auth/boards", {}, token),
   /** Take over a board that has no owner yet, with its admin password. */

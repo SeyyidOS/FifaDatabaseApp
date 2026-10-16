@@ -17,7 +17,7 @@ standings, K-factor and club ratings. On startup the API applies pending schema 
 | `memberships.py` | which accounts are in which board, with what role (off with accounts)      |
 | `invites.py`     | invite links, join requests and managing members (off with accounts)        |
 | `auth.py`        | password hashing, signed device tokens, rate limits, access checks          |
-| `migrations.py`  | versioned schema changes (v2 boards … v10 memberships, v11 invites)         |
+| `migrations.py`  | versioned schema changes (v2 boards … v11 invites, v12 passwordless leagues) |
 | `db.py`          | connection pool (recovers after database restarts) and transactions         |
 | `schemas.py`     | request validation                                                          |
 | `elo.py`         | Elo replay (mirrored in `frontend/src/lib/elo.ts`)                          |
@@ -31,6 +31,11 @@ password** (role `admin`: archive/rename/delete players, delete matches, setting
 `SECRET_KEY`; send it as `Authorization: Bearer <token>`. Changing a password bumps that role's
 version, which invalidates its old tokens. Players with matches are archived, never deleted, so
 history and everyone's ratings stay put.
+
+With accounts on (below), a new league has **no passwords**: `POST /boards` needs a signed-in account,
+which becomes its owner, and people come in with invites. Its login answers 403, `GET /boards/{slug}`
+and `/me` say `"passwordLogin": false`, and setting a password is refused. (The server `ADMIN_KEY` can
+still make a board with passwords, for scripts and tests.) Boards from before keep their passwords.
 
 ## Accounts
 

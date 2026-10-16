@@ -391,6 +391,19 @@ def v11_invites(cur: RealDictCursor) -> None:
     cur.execute(V11_INVITES)
 
 
+# Leagues started with an account have no passwords: people come in with invites. Both or neither.
+V12_PASSWORDLESS = """
+ALTER TABLE boards ALTER COLUMN password_hash DROP NOT NULL;
+ALTER TABLE boards ALTER COLUMN admin_password_hash DROP NOT NULL;
+ALTER TABLE boards ADD CONSTRAINT boards_passwords_together
+    CHECK ((password_hash IS NULL) = (admin_password_hash IS NULL));
+"""
+
+
+def v12_passwordless(cur: RealDictCursor) -> None:
+    cur.execute(V12_PASSWORDLESS)
+
+
 MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (1, v1_legacy),
     (2, v2_boards),
@@ -403,6 +416,7 @@ MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (9, v9_accounts),
     (10, v10_memberships),
     (11, v11_invites),
+    (12, v12_passwordless),
 ]
 
 

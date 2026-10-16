@@ -33,7 +33,7 @@ import { Button, Delta, Panel, Pill, RankMove } from "../components/ui/primitive
 import type { Analytics } from "../hooks/analytics-context";
 import { useMemberships } from "../hooks/useAccount";
 import { useBoard } from "../hooks/useBoard";
-import { useDeleteMatch, useDeletePlayer, useUpdateBoard, useUpdatePlayer } from "../hooks/useData";
+import { useDeleteMatch, useDeletePlayer, useMe, useUpdateBoard, useUpdatePlayer } from "../hooks/useData";
 import { ApiError, publicApi } from "../lib/api";
 import { cn } from "../lib/cn";
 import { runElo } from "../lib/elo";
@@ -144,6 +144,9 @@ const msg = defineMessages({
     clubsHeavy: "2 · clubs heavy",
     board: "Board",
     boardSub: "Name and passwords",
+    boardSubName: "Its name",
+    managed: "Run by its owner and admins",
+    managedSub: "Want someone in? Ask them for an invite link.",
     version: "Live version {version}",
     versionTip: "The commit this site runs; opens it on GitHub",
   },
@@ -245,6 +248,9 @@ const msg = defineMessages({
     clubsHeavy: "2 · kulüp ağır",
     board: "Board",
     boardSub: "Ad ve şifreler",
+    boardSubName: "Adı",
+    managed: "Ligi sahibi ve yöneticileri yönetir",
+    managedSub: "Birini getirmek mi istiyorsun? Onlardan davet linki iste.",
     version: "Canlıdaki sürüm {version}",
     versionTip: "Sitenin çalıştırdığı commit; GitHub'da açar",
   },
@@ -835,6 +841,8 @@ export default function Settings() {
   const { slug, role, name, viaAccount } = useBoard();
   // an owner or admin by account invites and manages people with accounts; otherwise the board link and password
   const manager = useMemberships().data?.find((mb) => mb.slug === slug && mb.role !== "player");
+  // a league started with an account has no passwords: nothing to share, unlock or change here
+  const passwords = useMe().data?.passwordLogin;
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -868,6 +876,10 @@ export default function Settings() {
               <Section>
                 {manager ? (
                   <AccountInvites welcome={params.get("welcome") === "1"} />
+                ) : passwords === false ? (
+                  <Panel title={t("managed")} icon={<Lock className="size-4" />}>
+                    <p className="text-sm text-muted">{t("managedSub")}</p>
+                  </Panel>
                 ) : (
                   <Invite welcome={params.get("welcome") === "1"} />
                 )}
@@ -879,9 +891,11 @@ export default function Settings() {
               )}
               <AnimatePresence mode="wait">
                 {role !== "admin" ? (
-                  <Section key="locked" delay={0.05}>
-                    <AdminUnlock />
-                  </Section>
+                  passwords && (
+                    <Section key="locked" delay={0.05}>
+                      <AdminUnlock />
+                    </Section>
+                  )
                 ) : (
                   <Section key="board" delay={0.05}>
                     <div className="space-y-6">
@@ -909,12 +923,21 @@ export default function Settings() {
             {role === "admin" && (
               <div className="min-w-0 space-y-6 xl:col-span-5">
                 <Section delay={0.05}>
-                  <Panel title={t("board")} subtitle={t("boardSub")} icon={<KeyRound className="size-4" />} bodyClassName="space-y-5 p-5">
+                  <Panel
+                    title={t("board")}
+                    subtitle={passwords === false ? t("boardSubName") : t("boardSub")}
+                    icon={<KeyRound className="size-4" />}
+                    bodyClassName="space-y-5 p-5"
+                  >
                     <Field label={t("boardName")}>
                       <BoardName />
                     </Field>
-                    <PasswordChange kind="password" />
-                    <PasswordChange kind="adminPassword" />
+                    {passwords && (
+                      <>
+                        <PasswordChange kind="password" />
+                        <PasswordChange kind="adminPassword" />
+                      </>
+                    )}
                   </Panel>
                 </Section>
                 <Section delay={0.1}>

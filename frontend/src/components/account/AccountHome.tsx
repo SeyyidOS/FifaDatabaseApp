@@ -13,10 +13,10 @@ import { cn } from "../../lib/cn";
 import { displayName, nameLang } from "../../lib/format";
 import { defineMessages } from "../../lib/i18n";
 import type { Membership } from "../../lib/types";
-import { BoardForms } from "../board/BoardForms";
 import { PasswordInput, TextInput } from "../ui/form";
 import { Avatar } from "../ui/Identity";
 import { Button, Pill } from "../ui/primitives";
+import { LeagueForms } from "./LeagueForms";
 
 const m = defineMessages({
   en: {
@@ -286,7 +286,7 @@ export function AccountHome({ account }: { account: AccountSession }) {
           {memberships.isLoading && <div className="skeleton m-4 h-14" />}
         </div>
       </section>
-      <BoardForms />
+      <LeagueForms account={account} />
     </div>
   );
 }

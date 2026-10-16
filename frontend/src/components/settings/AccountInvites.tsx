@@ -3,6 +3,7 @@ import { Check, Copy, Link2, PartyPopper, RefreshCw, Send, UserCheck, Users, X }
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAccount } from "../../hooks/useAccount";
+import { useAnalytics } from "../../hooks/useAnalytics";
 import { useBoard } from "../../hooks/useBoard";
 import { useT } from "../../hooks/useI18n";
 import { accountApi, ApiError, inviteLink } from "../../lib/api";
@@ -27,6 +28,7 @@ const m = defineMessages({
     personal: "Personal links",
     personalHint: "A link for one player: it goes straight to them, no approval. One use, a week.",
     everyoneIn: "Everyone who plays here has an account.",
+    noPlayersYet: "No players yet. Whoever comes by the group link picks “I'm not on the list” and joins with their name.",
     played: "{n} matches",
     send: "Invite",
     copyAgain: "Copy link",
@@ -60,6 +62,7 @@ const m = defineMessages({
     personal: "Kişiye özel linkler",
     personalHint: "Tek bir oyuncu için link: doğrudan ona bağlanır, onay gerekmez. Bir kez, bir hafta geçerli.",
     everyoneIn: "Burada oynayan herkesin hesabı var.",
+    noPlayersYet: "Henüz oyuncu yok. Grup linkiyle gelen “Listede yokum” der ve adıyla katılır.",
     played: "{n} maç",
     send: "Davet et",
     copyAgain: "Linki kopyala",
@@ -107,6 +110,7 @@ export function AccountInvites({ welcome }: { welcome: boolean }) {
   const invites = useQuery({ queryKey: ["invites", slug], queryFn: () => accountApi.invites(account.token, slug) });
   const [sent, setSent] = useState<number | null>(null);
   const text = t("shareText", { board: name });
+  const empty = useAnalytics().data?.players.length === 0;
 
   const group = async (reset = false) => {
     try {
@@ -171,22 +175,24 @@ export function AccountInvites({ welcome }: { welcome: boolean }) {
       <div className="space-y-2">
         <p className="text-sm font-semibold">{t("personal")}</p>
         <p className="text-xs text-muted">{t("personalHint")}</p>
-        {data && !data.players.length && <p className="text-sm text-muted">{t("everyoneIn")}</p>}
-        <ul className="divide-y divide-line rounded-2xl border border-line">
-          {data?.players.map((p) => (
-            <li key={p.id} className="flex items-center gap-3 px-3 py-2.5">
-              <Avatar name={p.name} size="sm" />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold">{displayName(p.name)}</span>
-                <span className="tabular block text-xs text-muted">{t("played", { n: p.played })}</span>
-              </span>
-              <Button variant={p.code ? "secondary" : "outline"} size="sm" onClick={() => personal(p.id)}>
-                {sent === p.id ? <Check className="size-3.5 text-win" /> : p.code ? <Copy className="size-3.5" /> : <Send className="size-3.5" />}
-                {p.code ? t("copyAgain") : t("send")}
-              </Button>
-            </li>
-          ))}
-        </ul>
+        {data && !data.players.length && <p className="text-sm text-muted">{empty ? t("noPlayersYet") : t("everyoneIn")}</p>}
+        {!!data?.players.length && (
+          <ul className="divide-y divide-line rounded-2xl border border-line">
+            {data.players.map((p) => (
+              <li key={p.id} className="flex items-center gap-3 px-3 py-2.5">
+                <Avatar name={p.name} size="sm" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">{displayName(p.name)}</span>
+                  <span className="tabular block text-xs text-muted">{t("played", { n: p.played })}</span>
+                </span>
+                <Button variant={p.code ? "secondary" : "outline"} size="sm" onClick={() => personal(p.id)}>
+                  {sent === p.id ? <Check className="size-3.5 text-win" /> : p.code ? <Copy className="size-3.5" /> : <Send className="size-3.5" />}
+                  {p.code ? t("copyAgain") : t("send")}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </Panel>
   );
