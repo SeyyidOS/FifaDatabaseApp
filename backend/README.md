@@ -76,10 +76,12 @@ account the owner of a board that has none yet, a way for boards from before acc
 (the app no longer offers it: on this server Main Board was given to its owner's account directly, and
 its passwords removed, so people now come in with invites).
 `POST /boards/{slug}/session` trades membership for an ordinary board token (owners and admins get the
-admin role, players the member role), so the rest of the API is unchanged and a new admin password
-signs those tokens out like any device. Such a token also names the account, and works only while the
-account is in the board with that role: removing someone, or changing their role, ends it (401), and the
-app opens the board again with whatever the account has now. `PUT /boards/{slug}/membership/player` links an owner or admin to
+admin role, players with their player linked the member role, and players without one the `viewer`
+role: every GET, and 403 for anything that changes the board), so the rest of the API is unchanged and a
+new admin password signs those tokens out like any device. Such a token also names the account, and
+works only while the account has that role in the board: removing someone, changing their role, or
+linking their player (an approved join request) ends it (401), and the app opens the board again with
+whatever the account has now. `PUT /boards/{slug}/membership/player` links an owner or admin to
 their player; `GET /auth/boards` lists the account's boards with its player's Elo, matches and rank, the
 player it asked to be while that waits for an answer (`asked`), and for owners and admins how many join
 requests wait for them (`pending`).
@@ -95,7 +97,8 @@ Owners and admins invite people with two kinds of links, made with `POST /boards
   it. Whoever opens it joins as a player and says which player they are, or gives a name to start as a new
   one. That is a join request, because anyone with the link could pick anyone: an owner or admin sees it
   with the asker's e-mail and approves it (`POST …/requests/{id}/approve`, which links the player or
-  creates it) or rejects it (they stay in the board without a player).
+  creates it) or rejects it (they stay in the board without a player). Until a player is linked they only
+  look (`viewer`), so a forwarded group link can't log matches or add players.
 
 `GET /invites/{code}` previews a link without signing in (the board, and the player it is for or the
 players still free to pick); `POST /invites/{code}/accept` joins with it. `GET /boards/{slug}/invites`

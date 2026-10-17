@@ -1,6 +1,7 @@
 import { BarChart3, Camera, ChevronLeft, ChevronRight, ExternalLink, ImagePlus, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import { useCanEdit } from "../../hooks/useBoard";
 import { useDeletePhoto, usePhotoBlob, useUploadPhotos } from "../../hooks/useData";
 import { useT } from "../../hooks/useI18n";
 import { cn } from "../../lib/cn";
@@ -102,6 +103,7 @@ function Viewer({
   const { data, isError } = usePhotoBlob(id, "full");
   const url = useObjectUrl(data);
   const del = useDeletePhoto();
+  const canEdit = useCanEdit();
   const [armed, setArmed] = useState(false);
   useEffect(() => setArmed(false), [id]);
 
@@ -161,9 +163,11 @@ function Viewer({
             <ExternalLink className="size-3.5" /> {t("original")}
           </a>
         )}
-        <Button variant={armed ? "danger" : "ghost"} size="sm" loading={del.isPending} onClick={remove}>
-          <Trash2 className="size-3.5" /> {armed ? t("removeSure") : t("remove")}
-        </Button>
+        {canEdit && (
+          <Button variant={armed ? "danger" : "ghost"} size="sm" loading={del.isPending} onClick={remove}>
+            <Trash2 className="size-3.5" /> {armed ? t("removeSure") : t("remove")}
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -177,6 +181,7 @@ function MatchDialog({ match, open, onClose, tab, onTab }: { match: ParsedMatch;
   const t = useT(m);
   const [index, setIndex] = useState<number | null>(null);
   const { upload, progress } = useUploadPhotos();
+  const canEdit = useCanEdit();
   const ids = match.photos;
   const room = MAX_PHOTOS - ids.length;
 
@@ -246,7 +251,7 @@ function MatchDialog({ match, open, onClose, tab, onTab }: { match: ParsedMatch;
             {ids.map((id, i) => (
               <Thumb key={id} id={id} onClick={() => setIndex(i)} />
             ))}
-            {room > 0 && (
+            {canEdit && room > 0 && (
               <PickButton
                 onPick={add}
                 disabled={!!progress}
@@ -259,7 +264,7 @@ function MatchDialog({ match, open, onClose, tab, onTab }: { match: ParsedMatch;
               </PickButton>
             )}
           </div>
-          {!ids.length && <p className="mt-3 text-center text-xs text-muted">{t("noneHint")}</p>}
+          {!ids.length && canEdit && <p className="mt-3 text-center text-xs text-muted">{t("noneHint")}</p>}
         </>
       )}
     </Modal>

@@ -8,5 +8,8 @@ export function useBoard() {
   return ctx;
 }
 
+/** Whether this device may change the board's data (log matches, add players, photos…): not a viewer. */
+export const useCanEdit = () => useBoard().role !== "viewer";
+
 /** Every board this device is signed in to, most recent first. */
 export const useSessions = () => useSyncExternalStore(subscribeSessions, listSessions, listSessions);

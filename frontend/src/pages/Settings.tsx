@@ -130,6 +130,7 @@ const msg = defineMessages({
     eyebrow: "Settings",
     adminDesc: "You're an admin on this device: invite people, tune ratings and tidy up players and matches.",
     memberDesc: "You're signed in as a member on this device.",
+    viewerDesc: "You can look around this league; logging matches opens once an owner or admin confirms who you are.",
     ratings: "Ratings",
     ratingsSub: "The K-factor sets how far ratings move per match",
     clubWeight: "Club weight",
@@ -234,6 +235,7 @@ const msg = defineMessages({
     eyebrow: "Ayarlar",
     adminDesc: "Bu cihazda yöneticisin: insanları davet et, puanları ayarla, oyuncuları ve maçları düzenle.",
     memberDesc: "Bu cihazda üye olarak girişlisin.",
+    viewerDesc: "Bu lige göz atabilirsin; bir sahip ya da yönetici kim olduğunu onaylayınca maç da girebilirsin.",
     ratings: "Puanlama",
     ratingsSub: "K-faktörü, puanların maç başına ne kadar değişeceğini belirler",
     clubWeight: "Kulüp ağırlığı",
@@ -860,7 +862,7 @@ export default function Settings() {
             eyebrow={t("eyebrow")}
             title={name}
             description={
-              role === "admin" ? t("adminDesc") : t("memberDesc")
+              role === "admin" ? t("adminDesc") : role === "viewer" ? t("viewerDesc") : t("memberDesc")
             }
             actions={
               // opened with an account, signing out is the account's (its menu)
@@ -876,7 +878,7 @@ export default function Settings() {
               <Section>
                 {manager ? (
                   <AccountInvites welcome={params.get("welcome") === "1"} />
-                ) : passwords === false ? (
+                ) : passwords === false || role === "viewer" ? (
                   <Panel title={t("managed")} icon={<Lock className="size-4" />}>
                     <p className="text-sm text-muted">{t("managedSub")}</p>
                   </Panel>

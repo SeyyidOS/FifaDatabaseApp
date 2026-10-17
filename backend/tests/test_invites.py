@@ -80,6 +80,69 @@ def test_the_group_link_asks_for_approval(api, mail, board):
     assert reset != code and api.get(f"/invites/{code}").status_code == 404
 
 
+def test_until_approved_you_only_look(api, mail, board):
+    owner, ids = owned_board(api, mail, board)
+    code = api.post(board.url("/invites"), json={}, headers=bearer(owner["token"])).json()["code"]
+    seyyid = sign_in(api, mail, "seyyid@example.com")
+    api.post(f"/invites/{code}/accept", json={"playerId": ids["seyyid"]}, headers=bearer(seyyid["token"]))
+    session = api.post(board.url("/session"), headers=bearer(seyyid["token"])).json()
+    assert session["role"] == "viewer"
+    viewer = bearer(session["token"])
+
+    for path in ("/me", "/players", "/matches", "/fixture", "/seasons"):
+        assert api.get(board.url(path), headers=viewer).status_code == 200, path
+    match_id = api.get(board.url("/matches"), headers=viewer).json()[0]["id"]
+    match = {"clubA": "Arsenal", "clubB": "Chelsea", "teamA": ["seyyid"], "teamB": ["ozgun"], "scoreA": 9, "scoreB": 0}
+    writes = {
+        "add player": api.post(board.url("/players"), json={"name": "ghost"}, headers=viewer),
+        "log match": api.post(board.url("/matches"), json=match, headers=viewer),
+        "plan": api.put(
+            board.url("/fixture"),
+            json={"rules": {"minPer": 3}, "matches": [{"teamA": ["seyyid"], "teamB": ["ozgun"]}]},
+            headers=viewer,
+        ),
+        "close plan": api.delete(board.url("/fixture"), headers=viewer),
+        "stats": api.put(board.url(f"/matches/{match_id}/stats"), json={"A": {}, "B": {}}, headers=viewer),
+        "drop stats": api.delete(board.url(f"/matches/{match_id}/stats"), headers=viewer),
+        "photo": api.post(board.url(f"/matches/{match_id}/photos"), content=b"x", headers=viewer),
+    }
+    assert {k: r.status_code for k, r in writes.items()} == {k: 403 for k in writes}
+    assert len(api.get(board.url("/matches"), headers=board.member).json()) == 1
+    assert "ghost" not in [p["name"] for p in api.get(board.url("/players"), headers=board.member).json()]
+
+    # approved: the look-only token gives way to a member's, which can log matches
+    [req] = api.get(board.url("/members"), headers=bearer(owner["token"])).json()["requests"]
+    api.post(board.url(f"/requests/{req['id']}/approve"), headers=bearer(owner["token"]))
+    assert api.get(board.url("/players"), headers=viewer).status_code == 401
+    session = api.post(board.url("/session"), headers=bearer(seyyid["token"])).json()
+    assert session["role"] == "member"
+    assert api.post(board.url("/matches"), json=match, headers=bearer(session["token"])).status_code == 201
+
+
+def test_without_a_player_you_only_look(api, mail, board):
+    owner, ids = owned_board(api, mail, board)
+    code = api.post(board.url("/invites"), json={}, headers=bearer(owner["token"])).json()["code"]
+    # in by the group link without saying who you are, or turned down: in the board, looking
+    arda = sign_in(api, mail, "arda@example.com")
+    assert api.post(f"/invites/{code}/accept", json={}, headers=bearer(arda["token"])).json()["status"] == "joined"
+    deniz = sign_in(api, mail, "deniz@example.com")
+    api.post(f"/invites/{code}/accept", json={"newName": "Deniz"}, headers=bearer(deniz["token"]))
+    [req] = api.get(board.url("/members"), headers=bearer(owner["token"])).json()["requests"]
+    api.post(board.url(f"/requests/{req['id']}/reject"), headers=bearer(owner["token"]))
+    for person in (arda, deniz):
+        session = api.post(board.url("/session"), headers=bearer(person["token"])).json()
+        assert session["role"] == "viewer"
+        assert api.post(board.url("/players"), json={"name": "x"}, headers=bearer(session["token"])).status_code == 403
+
+    # a personal link later makes arda a player
+    personal = api.post(board.url("/invites"), json={"playerId": ids["bedirhan"]}, headers=bearer(owner["token"]))
+    api.post(f"/invites/{personal.json()['code']}/accept", json={}, headers=bearer(arda["token"]))
+    assert api.post(board.url("/session"), headers=bearer(arda["token"])).json()["role"] == "member"
+    # owners and admins run the board with or without a player of their own
+    api.put(board.url("/membership/player"), json={"playerId": None}, headers=bearer(owner["token"]))
+    assert api.post(board.url("/session"), headers=bearer(owner["token"])).json()["role"] == "admin"
+
+
 def test_a_taken_player_cant_be_picked_or_approved_twice(api, mail, board):
     owner, ids = owned_board(api, mail, board)
     code = api.post(board.url("/invites"), json={}, headers=bearer(owner["token"])).json()["code"]

@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { AddPlayer } from "../components/AddPlayer";
+import { Watching } from "../components/board/Watching";
 import { ClubForm } from "../components/clubs/ClubForm";
 import { SquadsPreview } from "../components/clubs/SquadsPreview";
 import { NightPlan } from "../components/fixture/NightPlan";
@@ -33,7 +34,7 @@ import { Avatar, ClubCrest } from "../components/ui/Identity";
 import { Button, EmptyState, Panel, Pill, Segmented, Switch } from "../components/ui/primitives";
 import type { Analytics } from "../hooks/analytics-context";
 import { useAddMatch, useUploadPhotos } from "../hooks/useData";
-import { useBoard } from "../hooks/useBoard";
+import { useBoard, useCanEdit } from "../hooks/useBoard";
 import { useSessionState } from "../hooks/useSessionState";
 import { choiceName, type ClubChoice } from "../lib/clubChoice";
 import { clubRecord } from "../lib/clubs";
@@ -949,5 +950,7 @@ function StepDot({ n, done }: { n: number; done: boolean }) {
 }
 
 export default function MatchCenter() {
+  const canEdit = useCanEdit();
+  if (!canEdit) return <Watching />;
   return <DataGate>{(data) => <MatchCenterInner data={data} />}</DataGate>;
 }
