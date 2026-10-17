@@ -41,6 +41,13 @@ server {
         add_header Cache-Control "public, max-age=31536000, immutable";
         try_files $uri =404;
     }
+    # the home-screen app's manifest (index.html links it); nginx's own types don't know the extension
+    location = /manifest.webmanifest {
+        default_type application/manifest+json;
+        add_header Cache-Control "no-cache";
+        try_files $uri =404;
+    }
+
     location /crests/ {
         add_header Cache-Control "public, max-age=604800";
         try_files $uri =404;
