@@ -1,6 +1,7 @@
 import { BarChart3, Camera, PencilLine, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useCanEdit } from "../../hooks/useBoard";
 import { useDeleteStats, useSaveStats } from "../../hooks/useData";
 import { useT } from "../../hooks/useI18n";
 import { cn } from "../../lib/cn";
@@ -82,6 +83,7 @@ export function MatchStatsPanel({ match, onShowPhoto }: { match: ParsedMatch; on
   const ts = useT(statMessages);
   const save = useSaveStats();
   const del = useDeleteStats();
+  const canEdit = useCanEdit();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [armed, setArmed] = useState(false);
   const stats = match.stats;
@@ -154,10 +156,14 @@ export function MatchStatsPanel({ match, onShowPhoto }: { match: ParsedMatch; on
       <div className="grid place-items-center gap-2 py-8 text-center">
         <BarChart3 className="size-6 text-faint" />
         <p className="text-sm font-semibold">{t("noStats")}</p>
-        <p className="max-w-sm text-xs text-muted">{t("noStatsHint")}</p>
-        <Button variant="secondary" size="sm" className="mt-2" onClick={() => setDraft(toDraft(null))}>
-          <PencilLine className="size-3.5" /> {t("enter")}
-        </Button>
+        {canEdit && (
+          <>
+            <p className="max-w-sm text-xs text-muted">{t("noStatsHint")}</p>
+            <Button variant="secondary" size="sm" className="mt-2" onClick={() => setDraft(toDraft(null))}>
+              <PencilLine className="size-3.5" /> {t("enter")}
+            </Button>
+          </>
+        )}
       </div>
     );
   }
@@ -179,12 +185,16 @@ export function MatchStatsPanel({ match, onShowPhoto }: { match: ParsedMatch; on
           </Button>
         )}
         <span className="flex-1" />
-        <Button variant={armed ? "danger" : "ghost"} size="sm" loading={del.isPending} onClick={remove}>
-          <Trash2 className="size-3.5" /> {armed ? t("removeSure") : t("remove")}
-        </Button>
-        <Button variant="secondary" size="sm" onClick={() => setDraft(toDraft(stats))}>
-          <PencilLine className="size-3.5" /> {t("edit")}
-        </Button>
+        {canEdit && (
+          <>
+            <Button variant={armed ? "danger" : "ghost"} size="sm" loading={del.isPending} onClick={remove}>
+              <Trash2 className="size-3.5" /> {armed ? t("removeSure") : t("remove")}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setDraft(toDraft(stats))}>
+              <PencilLine className="size-3.5" /> {t("edit")}
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );

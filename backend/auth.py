@@ -4,6 +4,8 @@ A board has two passwords. The board password (shared with the group) gives the 
 everything, add players, log matches. The admin password gives the "admin" role: archive and delete,
 change settings and passwords. Logging in returns a signed token that the browser keeps, so a device
 stays signed in; changing a password bumps that role's version, which invalidates its old tokens.
+An account opens a board by its membership instead (`board_role`), which can also be "viewer": it sees
+everything and changes nothing, until an owner or admin confirms which player the account is.
 """
 
 import base64
@@ -23,7 +25,7 @@ from typing import Literal
 
 from fastapi import Depends, Header, HTTPException, Request
 
-Role = Literal["member", "admin"]
+Role = Literal["viewer", "member", "admin"]
 TOKEN_TTL = 365 * 24 * 3600
 SCRYPT = {"n": 2**14, "r": 8, "p": 1}
 
@@ -73,8 +75,13 @@ def _sign(body: str) -> str:
     return _b64(hmac.new(_secret(), body.encode(), hashlib.sha256).digest())
 
 
-# the board role a membership's role gives
-BOARD_ROLE: dict[str, Role] = {"owner": "admin", "admin": "admin", "player": "member"}
+def board_role(membership: dict) -> Role:
+    """What a membership may do in its board. Owners and admins run it; a player whose player is linked (by a
+    personal invite, or once an owner or admin approved their request) logs matches, adds players and so on;
+    anyone else, e.g. in by the group link and not confirmed yet, only looks."""
+    if membership["role"] in ("owner", "admin"):
+        return "admin"
+    return "member" if membership["player_id"] is not None else "viewer"
 
 
 def issue_token(board_id: int, role: Role, version: int, user_id: int | None = None) -> str:
@@ -103,7 +110,7 @@ def _decode(token: str) -> dict | None:
 
 def read_token(token: str) -> dict | None:
     payload = _decode(token)
-    return payload if payload and payload.get("r") in ("member", "admin") else None
+    return payload if payload and payload.get("r") in ("viewer", "member", "admin") else None
 
 
 def issue_user_token(user_id: int, version: int) -> str:
@@ -210,10 +217,13 @@ def board_access(
         raise HTTPException(status_code=401, detail="The board password changed; sign in again")
     if "u" in payload:
         membership = request.app.state.db.fetch_one(
-            "SELECT role FROM memberships WHERE user_id = %s AND board_id = %s", (payload["u"], board["id"])
+            "SELECT role, player_id FROM memberships WHERE user_id = %s AND board_id = %s", (payload["u"], board["id"])
         )
-        if membership is None or BOARD_ROLE[membership["role"]] != payload["r"]:
+        if membership is None or board_role(membership) != payload["r"]:
             raise HTTPException(status_code=401, detail="Your place in this board changed; open it again")
+    # every change to a board goes through here, so a viewer is stopped here once, for all of them
+    if payload["r"] == "viewer" and request.method not in ("GET", "HEAD"):
+        raise HTTPException(status_code=403, detail="You can look around until an owner or admin confirms who you are")
     return access(payload["r"])
 
 

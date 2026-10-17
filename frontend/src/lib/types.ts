@@ -124,7 +124,8 @@ export type PlayerStanding = StandingStats & { name: string };
 export type ClubStanding = StandingStats & { club: string };
 export type DuoStanding = StandingStats & { duo: string };
 
-export type Role = "member" | "admin";
+/** viewer: in by the group link and not confirmed yet (or without a player); sees everything, changes nothing */
+export type Role = "viewer" | "member" | "admin";
 
 export interface BoardInfo {
   slug: string;

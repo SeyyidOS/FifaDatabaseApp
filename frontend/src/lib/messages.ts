@@ -5,6 +5,7 @@ export const common = defineMessages({
   en: {
     admin: "Admin",
     member: "Member",
+    viewer: "Viewer",
     cancel: "Cancel",
     delete: "Delete",
     save: "Save",
@@ -28,6 +29,7 @@ export const common = defineMessages({
   tr: {
     admin: "Yönetici",
     member: "Üye",
+    viewer: "İzleyici",
     cancel: "Vazgeç",
     delete: "Sil",
     save: "Kaydet",

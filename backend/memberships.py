@@ -14,7 +14,7 @@ import psycopg2.errors
 from fastapi import APIRouter, Header, HTTPException, Request
 
 from accounts import current_user
-from auth import BOARD_ROLE, client_ip, failed_logins, issue_token, verify_password
+from auth import board_role, client_ip, failed_logins, issue_token, verify_password
 from elo import compute_ratings
 from schemas import BoardClaim, MembershipPlayer
 
@@ -180,7 +180,7 @@ def session(slug: str, request: Request, authorization: str | None = Header(defa
     membership = _membership(request, user["id"], board["id"])
     if membership is None:
         raise HTTPException(status_code=403, detail="You are not a member of this board")
-    role = BOARD_ROLE[membership["role"]]
+    role = board_role(membership)
     version = board["admin_version"] if role == "admin" else board["member_version"]
     return {
         "slug": board["slug"],

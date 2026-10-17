@@ -8,7 +8,7 @@ import { MatchCard } from "../components/match/MatchCard";
 import { Avatar } from "../components/ui/Identity";
 import { Button, Delta, EmptyState, Pill, Segmented } from "../components/ui/primitives";
 import type { Analytics } from "../hooks/analytics-context";
-import { useBoard } from "../hooks/useBoard";
+import { useBoard, useCanEdit } from "../hooks/useBoard";
 import { useSessionState } from "../hooks/useSessionState";
 import { cn } from "../lib/cn";
 import { dayFromKey, displayName, formatWeekday, relativeTime } from "../lib/format";
@@ -63,6 +63,7 @@ const msg = defineMessages({
 function MatchesInner({ data }: { data: Analytics }) {
   const t = useT(msg);
   const { slug } = useBoard();
+  const canEdit = useCanEdit();
   const [player, setPlayer] = useSessionState<string | null>(`${slug}:mh-player`, null);
   const [query, setQuery] = useState("");
   const [from, setFrom] = useSessionState(`${slug}:mh-from`, "");
@@ -207,7 +208,7 @@ function MatchesInner({ data }: { data: Analytics }) {
                 </div>
                 <div className="space-y-2">
                   {day.matches.map((m) => (
-                    <MatchCard key={m.id} match={m} elo={data.engine.perMatch.get(m.id)} perspective={player ?? undefined} canAddPhotos />
+                    <MatchCard key={m.id} match={m} elo={data.engine.perMatch.get(m.id)} perspective={player ?? undefined} canAddPhotos={canEdit} />
                   ))}
                 </div>
               </motion.section>
