@@ -41,26 +41,8 @@ install_caddyfile() {  # $1 = candidate content
 
 random_text() { openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | cut -c1-"$1"; }
 
-ip_of() { getent ahostsv4 "$1" | awk '{print $1; exit}'; }
-
-# Sets BLOCK to the site block, which also answers on APP_DOMAIN (secrets.env) once that name points at
-# this server (then SERVED_APP_DOMAIN too). Until then it is left out, so Caddy doesn't keep failing to get
-# a certificate for it.
-SERVED_APP_DOMAIN=""
-site_block() {
-    local extra=""
-    if [ -n "${APP_DOMAIN:-}" ]; then
-        local here
-        here=$(ip_of "$DOMAIN")
-        if [ -n "$here" ] && [ "$(ip_of "$APP_DOMAIN")" = "$here" ]; then
-            extra=", $APP_DOMAIN"
-            SERVED_APP_DOMAIN=$APP_DOMAIN
-        else
-            echo "==> $APP_DOMAIN does not point at $here (an A record, DNS only), so it is left out for now" >&2
-        fi
-    fi
-    BLOCK=$(awk -v d="$DOMAIN" -v x="$extra" '!done && $0 == d " {" { print d x " {"; done = 1; next } { print }' "$HERE/Caddyfile.fifa")
-}
+# The site's one address is the first in Caddyfile.fifa; the others there only send people on to it.
+OTHER_DOMAINS=$(awk '/^[^#[:space:]].*\{$/ {print $1}' "$HERE/Caddyfile.fifa" | tail -n +2)
 
 ensure_secret() {  # $1 = name, $2 = value to store if it is missing
     grep -q "^$1=" "$SECRETS" 2>/dev/null && return 0
@@ -119,6 +101,16 @@ smoke_test() {  # $1 = domain
     done
     echo "https://$domain is not answering yet; check: docker logs --tail 50 $CADDY"
     return 1
+}
+
+redirect_test() {  # $1 = an old address, which must send people on to $DOMAIN (only warns)
+    local got
+    got=$(curl -s -o /dev/null --max-time 10 -w '%{http_code} %{redirect_url}' "https://$1/api/health" || true)
+    if [ "$got" = "308 https://$DOMAIN/api/health" ]; then
+        echo "Moved: https://$1 → https://$DOMAIN"
+    else
+        echo "warning: https://$1 answered \"$got\" instead of moving to https://$DOMAIN"
+    fi
 }
 
 IMPORT=""
@@ -190,16 +182,13 @@ echo "==> building images and (re)starting fifa_db, fifa_api, fifa_web"
 wait_healthy fifa_api
 wait_healthy fifa_web
 
-site_block
-echo "==> installing the Caddy site block for $DOMAIN${SERVED_APP_DOMAIN:+ and $SERVED_APP_DOMAIN}"
+echo "==> installing the Caddy site block for $DOMAIN"
 install_caddyfile "$(without_block)
 
 $BEGIN
-$BLOCK
+$(cat "$HERE/Caddyfile.fifa")
 $END"
 
 smoke_test "$DOMAIN"
-# the second address only warns: a certificate that is slow to come must not undo the deploy
-if [ -n "$SERVED_APP_DOMAIN" ]; then
-    smoke_test "$SERVED_APP_DOMAIN" || echo "warning: https://$SERVED_APP_DOMAIN is not answering yet"
-fi
+# the old addresses only warn: a redirect that is slow to come must not undo the deploy
+for old in $OTHER_DOMAINS; do redirect_test "$old"; done

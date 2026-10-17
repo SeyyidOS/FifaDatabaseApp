@@ -1,5 +1,7 @@
-# FIFA Manager — public site. Managed by fifa-app/deploy/deploy.sh; run it with --remove to unpublish.
-fifa.173.249.40.69.sslip.io {
+# Matchnight — public site. Managed by fifa-app/deploy/deploy.sh; run it with --remove to unpublish.
+# The first address is the site's one address: deploy.sh smoke-tests it, match-stats.py sends stats to it,
+# and APP_URL in secrets.env (the links in sign-in e-mails) must point at it too.
+matchnight.hotspotkeeper.com {
 	encode gzip zstd
 	# small bodies everywhere except photo uploads: a match's (backend/photos.py) and an account's (backend/avatars.py)
 	@photo path_regexp ^/api/(boards/[^/]+/matches/[0-9]+/photos|auth/me/photo)$
@@ -18,4 +20,10 @@ fifa.173.249.40.69.sslip.io {
 		-Server
 	}
 	reverse_proxy fifa_web:8080
+}
+
+# The old address only sends people on, to the same path (browsers keep the #/… part of a link), so sign-ins
+# and invites all live on one address: browsers keep them per address.
+fifa.173.249.40.69.sslip.io {
+	redir https://matchnight.hotspotkeeper.com{uri} 308
 }
