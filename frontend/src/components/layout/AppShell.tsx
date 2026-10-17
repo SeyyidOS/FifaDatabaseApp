@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useIsFetching, useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronsUpDown, LayoutGrid, LogOut, Menu, Plus, Search, X } from "lucide-react";
+import { Check, ChevronsUpDown, LayoutGrid, LogOut, Plus, Search } from "lucide-react";
 import { useAnalytics } from "../../hooks/useAnalytics";
 import { useLeagues, usePending, useShowsAccount } from "../../hooks/useAccount";
 import { AccountMenu } from "../account/AccountMenu";
@@ -33,6 +33,7 @@ const m = defineMessages({
     search: "Search players, pages…",
     newMatch: "New match",
     matchCenter: "Match center",
+    league: "League",
   },
   tr: {
     offline: "Sunucuya ulaşılamıyor",
@@ -45,6 +46,7 @@ const m = defineMessages({
     search: "Oyuncu, sayfa ara…",
     newMatch: "Yeni maç",
     matchCenter: "Maç merkezi",
+    league: "Lig",
   },
 });
 
@@ -253,19 +255,10 @@ function Sidebar() {
 
 function TopBar({ onSearch }: { onSearch: () => void }) {
   const t = useT(m);
-  const tc = useT(common);
-  const tn = useT(navMessages);
   const navigate = useNavigate();
-  const { path, name, slug, viaAccount } = useBoard();
-  const pending = usePending(slug);
-  const signOut = useSignOut();
+  const { path } = useBoard();
   // signed in: the account menu has the way to your leagues, signing out, and on phones language and theme
   const showsAccount = useShowsAccount();
-  const [menu, setMenu] = useState(false);
-  const location = useLocation();
-  useEffect(() => {
-    setMenu(false);
-  }, [location.pathname]);
 
   return (
     <header className="sticky top-0 z-20 border-b border-line/70 bg-bg/70 backdrop-blur-xl">
@@ -299,108 +292,158 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
               {t("newMatch")}
             </Button>
           </span>
-          <span className="lg:hidden">
-            <Button variant="ghost" size="icon" onClick={() => setMenu((m) => !m)} aria-label={t("menu")}>
-              {menu ? <X className="size-5" /> : <Menu className="size-5" />}
-            </Button>
-          </span>
           {showsAccount && <AccountMenu />}
         </div>
       </div>
-      {menu && (
-        <motion.nav
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="border-t border-line px-4 py-4 lg:hidden"
-        >
-          <p lang={nameLang(name)} className="label mb-3 truncate">
-            {name}
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {[...navGroup("more"), ...navGroup("settings")].map((n) => (
-              <NavLink
-                key={n.to}
-                to={path(n.to)}
-                end={n.to === ""}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-2.5 rounded-xl border px-3 py-3 text-sm font-medium",
-                    isActive ? "border-line-strong bg-surface-2 text-fg" : "border-line text-muted",
-                  )
-                }
-              >
-                <n.icon className="size-4" />
-                {tn(n.key)}
-                {n.group === "settings" && pending > 0 && (
-                  <span className="tabular ml-auto rounded-md bg-team-b/15 px-1.5 py-0.5 text-[11px] font-bold text-team-b">{pending}</span>
-                )}
-              </NavLink>
-            ))}
-            {!showsAccount && (
-              <Link to="/" className="flex items-center gap-2.5 rounded-xl border border-line px-3 py-3 text-sm font-medium text-muted">
-                <LayoutGrid className="size-4" /> {tc("allBoards")}
-              </Link>
-            )}
-            {!viaAccount && (
-              <button
-                onClick={signOut}
-                className="flex items-center gap-2.5 rounded-xl border border-line px-3 py-3 text-left text-sm font-medium text-loss"
-              >
-                <LogOut className="size-4" /> {tc("signOut")}
-              </button>
-            )}
-          </div>
-        </motion.nav>
-      )}
     </header>
   );
 }
 
-/** Phones: the four tabs on a floating glass bar, with the match center as the gem in the middle. */
+/**
+ * Phones: three tabs, the match center as the gem in the middle, and League for the rest of the league's
+ * pages (players, clubs, compare, insights, settings) in a sheet above the bar.
+ */
 function BottomNav() {
   const t = useT(m);
+  const tc = useT(common);
   const tn = useT(navMessages);
-  const { path } = useBoard();
+  const { path, name, slug, viaAccount } = useBoard();
+  const showsAccount = useShowsAccount();
+  const pending = usePending(slug);
+  const signOut = useSignOut();
   const { pathname } = useLocation();
-  const tabs = navGroup("tab");
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  const [overview, standings, matches, ...restTabs] = navGroup("tab");
+  const sheet = [...restTabs, ...navGroup("more"), ...navGroup("settings")];
   const onPlay = pathname === path("/play");
+  // on one of the sheet's pages, League is the tab you are on
+  const inSheet = sheet.some((n) => pathname === path(n.to) || pathname.startsWith(`${path(n.to)}/`));
+  const tab = "flex h-full flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors";
   const cell = (n: NavItem) => (
     <NavLink
       key={n.to}
       to={path(n.to)}
       end={n.to === ""}
-      className={({ isActive }) =>
-        cn(
-          "flex h-full flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors",
-          isActive ? "text-accent-text" : "text-faint hover:text-muted",
-        )
-      }
+      className={({ isActive }) => cn(tab, isActive && !open ? "text-accent-text" : "text-faint hover:text-muted")}
     >
       <n.icon className="size-[22px]" strokeWidth={1.9} />
       {tn(`${n.key}Short`)}
     </NavLink>
   );
+  const row = "flex min-h-12 w-full items-center gap-3 rounded-2xl px-3 text-left text-sm font-semibold hover:bg-surface-2";
   return (
-    <nav
-      aria-label={t("menu")}
-      className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-30 lg:hidden"
-    >
-      <div className="mx-auto grid h-[68px] max-w-md grid-cols-5 items-center rounded-3xl border border-line bg-bg-elev/80 shadow-[0_20px_40px_-16px_rgba(0,0,0,0.6)] backdrop-blur-xl backdrop-saturate-150">
-        {tabs.slice(0, 2).map(cell)}
-        <Link
-          to={path("/play")}
-          aria-label={t("matchCenter")}
-          aria-current={onPlay ? "page" : undefined}
-          className={cn(
-            "accent-gem mx-auto grid size-[52px] rotate-45 place-items-center rounded-2xl transition-transform active:scale-95",
-            onPlay && "ring-2 ring-accent/60 ring-offset-2 ring-offset-bg-elev",
-          )}
-        >
-          <Plus className="size-6 -rotate-45" strokeWidth={2.6} />
-        </Link>
-        {tabs.slice(2).map(cell)}
-      </div>
-    </nav>
+    <>
+      <AnimatePresence>
+        {open && (
+          <>
+            <motion.div
+              className="fixed inset-0 z-[25] bg-black/60 backdrop-blur-sm lg:hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setOpen(false)}
+            />
+            <motion.div
+              id="league-sheet"
+              role="dialog"
+              aria-label={name}
+              className="card fixed inset-x-2.5 bottom-[calc(0.75rem+env(safe-area-inset-bottom)+68px+0.625rem)] z-[26] mx-auto max-w-md rounded-[28px] p-2 pt-4 shadow-2xl lg:hidden"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 14 }}
+              transition={{ type: "spring", bounce: 0.12, duration: 0.35 }}
+            >
+              <p lang={nameLang(name)} className="label truncate px-3 pb-3">
+                {name}
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {sheet.map((n) => (
+                  <NavLink
+                    key={n.to}
+                    to={path(n.to)}
+                    className={({ isActive }) =>
+                      cn(
+                        "relative flex flex-col items-center gap-2 rounded-2xl border px-1 py-3.5 text-[13px] font-semibold transition-colors",
+                        isActive ? "border-line-strong bg-surface-2 text-fg" : "border-line text-muted hover:text-fg",
+                      )
+                    }
+                  >
+                    <span className="grid size-10 place-items-center rounded-xl bg-surface-2">
+                      <n.icon className="size-5" />
+                    </span>
+                    {tn(n.key)}
+                    {n.group === "settings" && pending > 0 && (
+                      <span className="tabular absolute top-2 right-2 rounded-md bg-team-b/15 px-1.5 py-0.5 text-[11px] font-bold text-team-b">
+                        {pending}
+                      </span>
+                    )}
+                  </NavLink>
+                ))}
+              </div>
+              {/* a board opened with its password, without an account: the way back to the board list and out */}
+              {(!showsAccount || !viaAccount) && (
+                <div className="mt-2 border-t border-line pt-1.5">
+                  {!showsAccount && (
+                    <Link to="/" className={row}>
+                      <LayoutGrid className="size-4 text-muted" /> {tc("allBoards")}
+                    </Link>
+                  )}
+                  {!viaAccount && (
+                    <button onClick={signOut} className={cn(row, "text-loss")}>
+                      <LogOut className="size-4" /> {tc("signOut")}
+                    </button>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+      <nav
+        aria-label={t("menu")}
+        className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-30 lg:hidden"
+      >
+        <div className="mx-auto grid h-[68px] max-w-md grid-cols-5 items-center rounded-3xl border border-line bg-bg-elev/80 shadow-[0_20px_40px_-16px_rgba(0,0,0,0.6)] backdrop-blur-xl backdrop-saturate-150">
+          {cell(overview)}
+          {cell(standings)}
+          <Link
+            to={path("/play")}
+            aria-label={t("matchCenter")}
+            aria-current={onPlay ? "page" : undefined}
+            className={cn(
+              "accent-gem mx-auto grid size-[52px] rotate-45 place-items-center rounded-2xl transition-transform active:scale-95",
+              onPlay && "ring-2 ring-accent/60 ring-offset-2 ring-offset-bg-elev",
+            )}
+          >
+            <Plus className="size-6 -rotate-45" strokeWidth={2.6} />
+          </Link>
+          {cell(matches)}
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            aria-controls="league-sheet"
+            className={cn(tab, open || inSheet ? "text-accent-text" : "text-faint hover:text-muted")}
+          >
+            <span className="relative">
+              <LayoutGrid className="size-[22px]" strokeWidth={1.9} />
+              {pending > 0 && <span className="absolute -top-0.5 -right-1 size-2.5 rounded-full bg-team-b ring-2 ring-bg-elev" />}
+            </span>
+            {t("league")}
+          </button>
+        </div>
+      </nav>
+    </>
   );
 }
 
