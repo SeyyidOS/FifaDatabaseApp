@@ -1,4 +1,5 @@
 import { cn } from "../../lib/cn";
+import { BrandMark } from "./BrandMark";
 import { useT } from "../../hooks/useI18n";
 import { defineMessages } from "../../lib/i18n";
 
@@ -11,12 +12,8 @@ export function Logo({ className, compact }: { className?: string; compact?: boo
   const t = useT(m);
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
-      <span className="relative grid size-9 place-items-center rounded-xl bg-accent text-accent-ink shadow-[0_8px_24px_-8px_var(--accent)]">
-        <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8">
-          <circle cx="12" cy="12" r="9" />
-          <path d="m12 7.2 3.6 2.6-1.4 4.2H9.8L8.4 9.8Z" fill="currentColor" stroke="none" />
-          <path d="M12 7.2V3.3M15.6 9.8l3.7-1.2M14.2 14l2.3 3.2M9.8 14l-2.3 3.2M8.4 9.8 4.7 8.6" strokeLinecap="round" />
-        </svg>
+      <span className="size-9 shrink-0 overflow-hidden rounded-xl shadow-[0_8px_22px_-10px_rgba(40,170,80,0.8)] ring-1 ring-white/10">
+        <BrandMark className="block size-full" />
       </span>
       {!compact && (
         <span className="leading-none">
