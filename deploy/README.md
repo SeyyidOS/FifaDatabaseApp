@@ -1,7 +1,12 @@
 # Self-hosted deployment
 
 Runs Matchnight on this server behind the shared Caddy proxy (the one that serves MLflow), at
-**https://fifa.173.249.40.69.sslip.io**. Caddy handles HTTPS; this folder only adds a site block.
+**https://matchnight.hotspotkeeper.com**. Caddy handles HTTPS; this folder only adds a site block
+(`Caddyfile.fifa`). Its first address is the site's one address; the old
+`fifa.173.249.40.69.sslip.io` only redirects there (308, same path), because browsers keep sign-ins
+and invites per address. To move to another domain, point its A record at this server (DNS only, no
+proxy), put it first in `Caddyfile.fifa`, add the current one to the redirect block, and change
+`APP_URL` in secrets.env to match.
 
 | Container  | What it is                                                     | Networks                      |
 |------------|-----------------------------------------------------------------|-------------------------------|
@@ -11,7 +16,7 @@ Runs Matchnight on this server behind the shared Caddy proxy (the one that serve
 
 ```bash
 deploy/deploy.sh                 # publish or update by hand (backs up first; safe to re-run); normally auto-deploy.sh does it
-deploy/deploy.sh --backup        # gzipped SQL dump into /root/programs/fifa-app/backups
+deploy/deploy.sh --backup        # gzipped SQL dump into /root/programs/fifa-app/backups (root's crontab runs it nightly at 04:07)
 deploy/deploy.sh --passwords     # first passwords of the "main" board (the original group)
 deploy/deploy.sh --admin-key     # server admin key: works as admin on every board
 deploy/deploy.sh --test-mail TO  # send a test e-mail with the mail settings below
@@ -47,12 +52,11 @@ The data from before boards existed lives in the board `main` (`#/b/main`); old 
 | `LEGACY_BOARD_PASSWORD`        | first board password of `main` (used once, by the migration)   |
 | `LEGACY_BOARD_ADMIN_PASSWORD`  | first admin password of `main` (used once, by the migration)   |
 
-Optional, for accounts and a domain of your own (none of them is generated; a deploy picks up changes):
+Optional, for accounts (none of them is generated; a deploy picks up changes):
 
 | Variable        | Purpose                                                                          |
 |-----------------|----------------------------------------------------------------------------------|
-| `APP_DOMAIN`    | a second address for the site, e.g. `matchnight.example.com`: served next to the sslip.io one once its A record points at this server with no proxy in between (until then the deploy leaves it out and says so) |
-| `APP_URL`       | where sign-in links point, e.g. `https://matchnight.example.com/`               |
+| `APP_URL`       | where sign-in links point: the first address in `Caddyfile.fifa`, e.g. `https://matchnight.example.com/` |
 | `ACCOUNTS`      | `on` to offer accounts (backend/README.md, "Accounts"); needs `APP_URL` and mail |
 | `SMTP_HOST`     | the mail server, e.g. `smtp.resend.com`; `SMTP_PORT` (587), `SMTP_USER`, `SMTP_PASSWORD` |
 | `MAIL_FROM`     | the sender, in quotes when it has a name: `MAIL_FROM="Matchnight <giris@mail.example.com>"` |
