@@ -157,12 +157,9 @@ export function LivePanel({
         <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-loss/12 text-loss">
           <Play className="size-4 fill-current" />
         </span>
-        <div className="min-w-0">
-          <p className="font-semibold">
-            {t("title")} <span className="font-medium text-faint">· {live.length}</span>
-          </p>
-          <p className="text-xs text-muted">{t("sub")}</p>
-        </div>
+        <p className="min-w-0 font-semibold">
+          {t("title")} <span className="font-medium text-faint">· {live.length}</span>
+        </p>
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
         {live.map((m) => (
