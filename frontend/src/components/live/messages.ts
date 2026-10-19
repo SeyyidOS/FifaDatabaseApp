@@ -3,7 +3,6 @@ import { defineMessages } from "../../lib/i18n";
 export const liveMessages = defineMessages({
   en: {
     title: "Being played",
-    sub: "Enter the result from any device; it leaves here once saved",
     live: "Live",
     justStarted: "just started",
     minutes: "{n} min in",
@@ -31,7 +30,6 @@ export const liveMessages = defineMessages({
   },
   tr: {
     title: "Şu an oynanıyor",
-    sub: "Herhangi bir cihazdan sonucu gir; kaydedince buradan kalkar",
     live: "Canlı",
     justStarted: "yeni başladı",
     minutes: "{n} dk'dır oynanıyor",
