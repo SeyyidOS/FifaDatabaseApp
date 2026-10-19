@@ -106,6 +106,17 @@ The stats of a match (possession, shots, xG, …) are read from photos of the ga
 Claude Code on this server, with the server owner's Claude subscription (no API key, no cost per
 photo). `deploy/match-stats.py pending` lists the photos of recent matches without stats, each with
 the match (clubs, score, players by side) and a JPEG copy to read; `deploy/match-stats.py submit FILE`
-saves what was read through the API with the server admin key (the key never leaves the script). A
-scheduled Claude Code routine runs this every morning; it can also be asked for at any time.
+saves what was read through the API with the server admin key (the key never leaves the script).
+
+Photos are read soon after they are uploaded. Root's crontab runs `deploy/match-stats-watch.sh` every 10
+minutes:
+
+    */10 * * * * /root/programs/fifa-app/repo/deploy/match-stats-watch.sh
+
+It asks the database whether photos no read has tried yet are waiting (`match-stats.py count --new --ids`,
+a quarter of a second). Only then does it start `claude -p` with `deploy/match-stats-prompt.md`, outside any
+project, with just the tools it needs. Each photo is tried once, saved or skipped
+(`/root/programs/fifa-app/stats-ocr-tried`), so an unreadable one doesn't cost a read every 10 minutes.
+A night's stats, and so its Night Post, are complete minutes after its last photo. What each read did is
+in `/root/programs/fifa-app/stats-ocr.log`. A read can also be asked for at any time.
 
