@@ -11,6 +11,7 @@ standings, K-factor and club ratings. On startup the API applies pending schema 
 | `board_data.py`  | a board's players, matches, ratings and standings                           |
 | `seasons.py`     | a board's seasons and their club ratings (by hand or from a card model)     |
 | `fixtures.py`    | the night's plan: who plays with and against whom, in order                 |
+| `live.py`        | matches being played now: started on one device, finished on any            |
 | `photos.py`      | photos of a match (the stats screens), stored as files in `PHOTO_DIR`       |
 | `avatars.py`     | an account's photo, shown wherever its player appears (also in `PHOTO_DIR`)  |
 | `accounts.py`    | accounts: sign in with a one-time link sent by e-mail (off by default)      |
@@ -138,6 +139,14 @@ season: every club keeps its EA id, the model's rating and an admin's correction
 `lib/fixture.ts`; anyone on the board may make one, and a new plan closes the previous one). When a
 match is recorded, the first unplayed, unskipped planned match with the same two sides is ticked off;
 deleting the match opens it again.
+
+A match can be **started before its result is known** (`live.py`), so the result can be entered on
+another device (teams and clubs picked on a computer, score and photo on a phone). `POST
+/boards/{slug}/live` takes `{teamA, teamB, clubA, clubB}`; it answers 409 when a player is already in a
+match being played, unless `force` is set. `replaces` takes over from one being changed. `startedAt`
+keeps the start of one brought back. `GET …/live` lists them, oldest first, and `DELETE …/live/{id}`
+cancels one without keeping anything. Saving a match ends the oldest one between the same two sides.
+Several can run at once, and one forgotten for 3 hours is dropped.
 
 A wrong score is put right with `PATCH /boards/{slug}/matches/{id}` (`{scoreA, scoreB}`) or taken back
 with `DELETE`: by anyone on the board for 15 minutes after it was logged, by admins any time. A match keeps

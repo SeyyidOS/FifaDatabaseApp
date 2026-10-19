@@ -7,6 +7,7 @@ import { useAnalytics } from "../../hooks/useAnalytics";
 import { useLeagues, usePending, useShowsAccount } from "../../hooks/useAccount";
 import { AccountMenu } from "../account/AccountMenu";
 import { useBoard } from "../../hooks/useBoard";
+import { useLive } from "../../hooks/useData";
 import { cn } from "../../lib/cn";
 import { nameLang } from "../../lib/format";
 import { defineMessages } from "../../lib/i18n";
@@ -310,6 +311,8 @@ function BottomNav() {
   const { path, name, slug, viaAccount } = useBoard();
   const showsAccount = useShowsAccount();
   const pending = usePending(slug);
+  // matches being played now (backend/live.py), counted on the match center's gem
+  const playing = useLive().data?.length ?? 0;
   const signOut = useSignOut();
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
@@ -421,11 +424,16 @@ function BottomNav() {
             aria-label={t("matchCenter")}
             aria-current={onPlay ? "page" : undefined}
             className={cn(
-              "accent-gem mx-auto grid size-[52px] rotate-45 place-items-center rounded-2xl transition-transform active:scale-95",
+              "accent-gem relative mx-auto grid size-[52px] rotate-45 place-items-center rounded-2xl transition-transform active:scale-95",
               onPlay && "ring-2 ring-accent/60 ring-offset-2 ring-offset-bg-elev",
             )}
           >
             <Plus className="size-6 -rotate-45" strokeWidth={2.6} />
+            {playing > 0 && (
+              <span className="tabular absolute -top-2 -right-2 grid h-5 min-w-5 -rotate-45 place-items-center rounded-full bg-loss px-1 text-[11px] font-extrabold text-white ring-2 ring-bg-elev">
+                {playing}
+              </span>
+            )}
           </Link>
           {cell(matches)}
           <button
