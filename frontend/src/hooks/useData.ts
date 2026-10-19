@@ -130,6 +130,14 @@ export function useDeleteMatch() {
   return useBoardMutation((id: number) => api.deleteMatch(id), ["matches", "leaderboard", "seasons", "plan"]);
 }
 
+export function useFixScore() {
+  const { api } = useBoard();
+  return useBoardMutation(
+    ({ id, scoreA, scoreB }: { id: number; scoreA: number; scoreB: number }) => api.fixScore(id, scoreA, scoreB),
+    ["matches", "leaderboard", "seasons"],
+  );
+}
+
 /**
  * Shrinks and sends photos to a match one at a time (phones on a slow link), then refreshes the matches
  * once. Resolves with how many were stored and the first error, if any.

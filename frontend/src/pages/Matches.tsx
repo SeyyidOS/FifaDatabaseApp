@@ -208,7 +208,7 @@ function MatchesInner({ data }: { data: Analytics }) {
                 </div>
                 <div className="space-y-2">
                   {day.matches.map((m) => (
-                    <MatchCard key={m.id} match={m} elo={data.engine.perMatch.get(m.id)} perspective={player ?? undefined} canAddPhotos={canEdit} />
+                    <MatchCard key={m.id} match={m} elo={data.engine.perMatch.get(m.id)} perspective={player ?? undefined} canAddPhotos={canEdit} fixable />
                   ))}
                 </div>
               </motion.section>

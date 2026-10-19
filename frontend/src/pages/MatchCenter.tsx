@@ -33,7 +33,7 @@ import { ClubPicker } from "../components/ui/ClubPicker";
 import { Avatar, ClubCrest } from "../components/ui/Identity";
 import { Button, EmptyState, Panel, Pill, Segmented, Switch } from "../components/ui/primitives";
 import type { Analytics } from "../hooks/analytics-context";
-import { useAddMatch, useUploadPhotos } from "../hooks/useData";
+import { useAddMatch, useDeleteMatch, useUploadPhotos } from "../hooks/useData";
 import { useBoard, useCanEdit } from "../hooks/useBoard";
 import { useSessionState } from "../hooks/useSessionState";
 import { choiceName, type ClubChoice } from "../lib/clubChoice";
@@ -84,6 +84,8 @@ const msg = defineMessages({
     drawScore: "Draw {a}–{b}",
     swing: "Elo swing: {delta} per player",
     saveFailed: "Couldn't save the result",
+    undo: "Undo",
+    undone: "Taken back: fix it and save again",
     eyebrow: "Match center",
     title: "Kick-off",
     description: "Draft fair teams, pick balanced clubs and log the result. Elo updates the moment you hit save.",
@@ -144,6 +146,8 @@ const msg = defineMessages({
     drawScore: "Beraberlik {a}–{b}",
     swing: "Elo değişimi: oyuncu başı {delta}",
     saveFailed: "Sonuç kaydedilemedi",
+    undo: "Geri al",
+    undone: "Geri alındı: düzeltip yeniden kaydet",
     eyebrow: "Maç merkezi",
     title: "Başlama Düdüğü",
     description: "Adil takımlar kur, dengeli kulüpler seç ve sonucu gir. Kaydettiğin anda Elo güncellenir.",
@@ -465,6 +469,7 @@ function MatchCenterInner({ data }: { data: Analytics }) {
   const tp = useT(planMessages);
   const tph = useT(photoMessages);
   const addMatch = useAddMatch();
+  const deleteMatch = useDeleteMatch();
   const { upload: uploadPhotos, progress: photoProgress } = useUploadPhotos();
 
   const teamA = teamARaw.filter((n) => allNames.includes(n));
@@ -593,7 +598,23 @@ function MatchCenterInner({ data }: { data: Analytics }) {
         winners
           ? t("sideWins", { names: winners.map(displayName).join(" & "), hi: Math.max(scoreA, scoreB), lo: Math.min(scoreA, scoreB) })
           : t("drawScore", { a: scoreA, b: scoreB }),
-        { description: d !== null ? t("swing", { delta: `${d >= 0 ? "+" : "−"}${Math.abs(Math.round(d))}` }) : undefined },
+        {
+          description: d !== null ? t("swing", { delta: `${d >= 0 ? "+" : "−"}${Math.abs(Math.round(d))}` }) : undefined,
+          // a wrong score is usually seen at once: take it back, with the score as it was typed, to fix and save again
+          duration: 10_000,
+          action: {
+            label: t("undo"),
+            onClick: () =>
+              deleteMatch.mutate(saved.id, {
+                onSuccess: () => {
+                  setScoreA(scoreA);
+                  setScoreB(scoreB);
+                  toast(t("undone"));
+                },
+                onError: (e) => toast.error((e as Error).message),
+              }),
+          },
+        },
       );
       setScoreA(0);
       setScoreB(0);
@@ -917,7 +938,7 @@ function MatchCenterInner({ data }: { data: Analytics }) {
               {tonight.length ? (
                 <div className="space-y-2">
                   {tonight.map((m) => (
-                    <MatchCard key={m.id} match={m} elo={data.engine.perMatch.get(m.id)} className="shadow-none" canAddPhotos />
+                    <MatchCard key={m.id} match={m} elo={data.engine.perMatch.get(m.id)} className="shadow-none" canAddPhotos fixable />
                   ))}
                 </div>
               ) : (

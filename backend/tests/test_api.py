@@ -85,9 +85,15 @@ def test_server_admin_key_works_on_every_board(board):
     assert board.api.get(board.url("/me"), headers={"X-Admin-Key": ADMIN_KEY}).json()["role"] == "admin"
 
 
+def older(board, minutes):
+    """Every match on the test database, logged that many minutes earlier."""
+    board.api.app.state.db.execute("UPDATE matches SET time = time - %s * INTERVAL '1 minute'", (minutes,))
+
+
 def test_members_cannot_use_admin_actions(board):
     board.add_players("a", "b")
     board.add_match(["a"], ["b"], 1, 0)
+    older(board, 60)
     assert board.api.delete(board.url("/matches/1"), headers=board.member).status_code == 403
     assert board.api.patch(board.url("/players/1"), json={"archived": True}, headers=board.member).status_code == 403
     assert board.api.patch(board.url(""), json={"kFactor": 30}, headers=board.member).status_code == 403
@@ -193,6 +199,43 @@ def test_matches_keep_team_order_and_stay_inside_their_board(api, board):
     assert api.get(other.url("/matches"), headers=other.member).json() == []
     assert api.delete(other.url(f"/matches/{match_id}"), headers=other.admin).status_code == 404
     assert api.delete(board.url(f"/matches/{match_id}"), headers=board.admin).status_code == 200
+
+
+def test_a_wrong_score_is_put_right_soon_after(board):
+    board.add_players("a", "b", "c", "d")
+    match_id = board.add_match(["a", "b"], ["c", "d"], 3, 1).json()["id"]
+    url = board.url(f"/matches/{match_id}")
+    # sides swapped by mistake: anyone on the board fixes it
+    assert board.api.patch(url, json={"scoreA": 1, "scoreB": 3}, headers=board.member).status_code == 200
+    [stored] = board.api.get(board.url("/matches"), headers=board.member).json()
+    assert (stored["score_a"], stored["score_b"]) == (1, 3)
+    assert board.api.patch(url, json={"scoreA": -1, "scoreB": 3}, headers=board.member).status_code == 422
+
+    # or takes the match back to log it again
+    assert board.api.delete(url, headers=board.member).status_code == 200
+    assert board.api.get(board.url("/matches"), headers=board.member).json() == []
+
+    # another board can't touch it
+    mine = board.add_match(["a"], ["c"], 1, 0).json()["id"]
+    other = Board(board.api, "Other Crew")
+    score = {"scoreA": 0, "scoreB": 1}
+    assert board.api.patch(other.url(f"/matches/{mine}"), json=score, headers=other.admin).status_code == 404
+    assert board.api.delete(other.url(f"/matches/{mine}"), headers=other.admin).status_code == 404
+
+
+def test_after_15_minutes_only_admins_change_a_match(board):
+    board.add_players("a", "b")
+    match_id = board.add_match(["a"], ["b"], 2, 2).json()["id"]
+    url = board.url(f"/matches/{match_id}")
+    older(board, 14)
+    assert board.api.patch(url, json={"scoreA": 2, "scoreB": 1}, headers=board.member).status_code == 200
+    older(board, 2)
+    assert board.api.patch(url, json={"scoreA": 3, "scoreB": 1}, headers=board.member).status_code == 403
+    assert board.api.delete(url, headers=board.member).status_code == 403
+    assert board.api.patch(url, json={"scoreA": 3, "scoreB": 1}, headers=board.admin).status_code == 200
+    [stored] = board.api.get(board.url("/matches"), headers=board.member).json()
+    assert (stored["score_a"], stored["score_b"]) == (3, 1)
+    assert board.api.delete(url, headers=board.admin).status_code == 200
 
 
 def test_leaderboards(board):

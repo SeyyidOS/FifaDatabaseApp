@@ -118,6 +118,8 @@ export function boardApi(slug: string, token: string) {
     matches: () => call<Match[]>("/matches"),
     addMatch: (match: NewMatch) => call<{ message: string; id: number }>("/matches", json("POST", match)),
     deleteMatch: (id: number) => call<{ message: string }>(`/matches/${id}`, json("DELETE")),
+    fixScore: (id: number, scoreA: number, scoreB: number) =>
+      call<{ scoreA: number; scoreB: number }>(`/matches/${id}`, json("PATCH", { scoreA, scoreB })),
     addPhoto: (matchId: number, image: Blob) =>
       call<MatchPhoto>(`/matches/${matchId}/photos`, { method: "POST", body: image }),
     /** the image itself; it needs this device's token, so it can't be a plain <img src> */

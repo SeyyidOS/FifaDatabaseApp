@@ -228,6 +228,13 @@ class MatchIn(BaseModel):
         return self
 
 
+class MatchScore(BaseModel):
+    """A logged match's score, put right."""
+
+    scoreA: Score
+    scoreB: Score
+
+
 # ----------- Match stats -----------
 Count = Annotated[int, Field(ge=0, le=999)]
 Percent = Annotated[int, Field(ge=0, le=100)]
