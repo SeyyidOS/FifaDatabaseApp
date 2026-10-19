@@ -23,6 +23,7 @@ const m = defineMessages({
     owner: "owner",
     admin: "admin",
     player: "player",
+    privacy: "Privacy",
   },
   tr: {
     account: "Hesabın",
@@ -32,6 +33,7 @@ const m = defineMessages({
     owner: "sahip",
     admin: "yönetici",
     player: "oyuncu",
+    privacy: "Gizlilik",
   },
 });
 
@@ -135,9 +137,14 @@ export function AccountMenu() {
                     {t("signOut")}
                   </button>
                 </div>
-                <div className="mt-1.5 flex items-center justify-end border-t border-line pt-1.5 lg:hidden">
-                  <LanguageButton />
-                  <ThemeButton />
+                <div className="mt-1.5 flex items-center border-t border-line pt-1.5">
+                  <Link to="/privacy" className="px-3 py-2 text-xs text-faint hover:text-muted">
+                    {t("privacy")}
+                  </Link>
+                  <span className="ml-auto flex items-center lg:hidden">
+                    <LanguageButton />
+                    <ThemeButton />
+                  </span>
                 </div>
               </motion.div>
             </div>

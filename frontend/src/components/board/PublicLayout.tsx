@@ -9,8 +9,8 @@ import { ThemeButton } from "../layout/ThemeButton";
 import { Avatar } from "../ui/Identity";
 
 const m = defineMessages({
-  en: { signIn: "Sign in", account: "Your account" },
-  tr: { signIn: "Giriş yap", account: "Hesabın" },
+  en: { signIn: "Sign in", account: "Your account", privacy: "Privacy" },
+  tr: { signIn: "Giriş yap", account: "Hesabın", privacy: "Gizlilik" },
 });
 
 /** The account signed in on this device, or a way to sign in; only once the server offers accounts. */
@@ -40,6 +40,7 @@ function AccountChip() {
 
 /** Pages outside a board: the board list and the sign-in screens. */
 export function PublicLayout({ children }: { children: ReactNode }) {
+  const t = useT(m);
   return (
     <div className="min-h-dvh">
       <div className="app-ambient" />
@@ -53,7 +54,12 @@ export function PublicLayout({ children }: { children: ReactNode }) {
           <AccountChip />
         </span>
       </header>
-      <main className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 pb-12 sm:px-6">{children}</main>
+      <footer className="mx-auto max-w-6xl px-4 pb-10 text-xs text-faint sm:px-6">
+        <Link to="/privacy" className="hover:text-muted">
+          {t("privacy")}
+        </Link>
+      </footer>
     </div>
   );
 }
