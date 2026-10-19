@@ -434,6 +434,33 @@ def v15_sign_in_codes(cur: RealDictCursor) -> None:
     cur.execute("ALTER TABLE login_links ADD COLUMN code_hash TEXT, ADD COLUMN attempts INT NOT NULL DEFAULT 0")
 
 
+# Who logged a match (board_data.py), and each fix or take-back after it: who, as what, the score before and
+# after, and for a take-back the match itself, which is gone from matches. Not shown in the app; for settling
+# "who changed that?". No user means a board password or the server admin key.
+V16_MATCH_LOG = """
+ALTER TABLE matches ADD COLUMN logged_by INT REFERENCES users (id) ON DELETE SET NULL;
+CREATE TABLE match_changes (
+    id SERIAL PRIMARY KEY,
+    board_id INT NOT NULL REFERENCES boards (id) ON DELETE CASCADE,
+    match_id INT NOT NULL,
+    action VARCHAR(10) NOT NULL CHECK (action IN ('fix', 'delete')),
+    user_id INT REFERENCES users (id) ON DELETE SET NULL,
+    role VARCHAR(10) NOT NULL,
+    score_a INT NOT NULL,
+    score_b INT NOT NULL,
+    new_score_a INT,
+    new_score_b INT,
+    match JSONB,
+    at TIMESTAMP NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC')
+);
+CREATE INDEX match_changes_match_idx ON match_changes (match_id);
+"""
+
+
+def v16_match_log(cur: RealDictCursor) -> None:
+    cur.execute(V16_MATCH_LOG)
+
+
 MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (1, v1_legacy),
     (2, v2_boards),
@@ -450,6 +477,7 @@ MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (13, v13_email_changes),
     (14, v14_account_photos),
     (15, v15_sign_in_codes),
+    (16, v16_match_log),
 ]
 
 

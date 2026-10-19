@@ -188,6 +188,8 @@ class BoardAccess:
     k_factor: int
     club_weight: float
     role: Role
+    # the account behind the token; None for a board password or the server admin key
+    user_id: int | None = None
 
 
 BOARD_COLUMNS = "id, slug, name, k_factor, club_weight, member_version, admin_version"
@@ -203,8 +205,10 @@ def board_access(
     if board is None:
         raise HTTPException(status_code=404, detail="Board not found")
 
-    def access(role: Role) -> BoardAccess:
-        return BoardAccess(board["id"], board["slug"], board["name"], board["k_factor"], board["club_weight"], role)
+    def access(role: Role, user_id: int | None = None) -> BoardAccess:
+        return BoardAccess(
+            board["id"], board["slug"], board["name"], board["k_factor"], board["club_weight"], role, user_id
+        )
 
     if server_admin_key_matches(x_admin_key):
         return access("admin")
@@ -224,7 +228,7 @@ def board_access(
     # every change to a board goes through here, so a viewer is stopped here once, for all of them
     if payload["r"] == "viewer" and request.method not in ("GET", "HEAD"):
         raise HTTPException(status_code=403, detail="You can look around until an owner or admin confirms who you are")
-    return access(payload["r"])
+    return access(payload["r"], payload.get("u"))
 
 
 def board_admin(access: BoardAccess = Depends(board_access)) -> BoardAccess:

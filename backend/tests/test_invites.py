@@ -143,6 +143,32 @@ def test_without_a_player_you_only_look(api, mail, board):
     assert api.post(board.url("/session"), headers=bearer(owner["token"])).json()["role"] == "admin"
 
 
+def test_who_logged_and_changed_a_match_is_kept(api, mail, board):
+    owner, _ = owned_board(api, mail, board)  # its one match came from the board password
+    me = owner["user"]["id"]
+    as_owner = bearer(api.post(board.url("/session"), headers=bearer(owner["token"])).json()["token"])
+    match = {"clubA": "Arsenal", "clubB": "Chelsea", "teamA": ["kerem"], "teamB": ["ozgun"], "scoreA": 2, "scoreB": 0}
+    mine = api.post(board.url("/matches"), json=match, headers=as_owner).json()["id"]
+    db = api.app.state.db
+    assert {r["id"]: r["logged_by"] for r in db.fetch_all("SELECT id, logged_by FROM matches")} == {1: None, mine: me}
+
+    # a fix by the owner, then a take-back from a device on the board password
+    api.patch(board.url(f"/matches/{mine}"), json={"scoreA": 0, "scoreB": 2}, headers=as_owner)
+    assert api.delete(board.url(f"/matches/{mine}"), headers=board.member).status_code == 200
+    changes = db.fetch_all(
+        "SELECT action, user_id, role, score_a, score_b, new_score_a, new_score_b, match FROM match_changes "
+        "WHERE match_id = %s ORDER BY id",
+        (mine,),
+    )
+    assert [tuple(c.values())[:7] for c in changes] == [
+        ("fix", me, "admin", 2, 0, 0, 2),
+        ("delete", None, "member", 0, 2, None, None),
+    ]
+    # the match is gone, but what it was is kept
+    gone = changes[1]["match"]
+    assert (gone["clubA"], gone["teamA"], gone["teamB"], gone["loggedBy"]) == ("Arsenal", ["kerem"], ["ozgun"], me)
+
+
 def test_a_taken_player_cant_be_picked_or_approved_twice(api, mail, board):
     owner, ids = owned_board(api, mail, board)
     code = api.post(board.url("/invites"), json={}, headers=bearer(owner["token"])).json()["code"]
