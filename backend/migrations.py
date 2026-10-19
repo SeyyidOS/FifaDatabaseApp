@@ -461,6 +461,27 @@ def v16_match_log(cur: RealDictCursor) -> None:
     cur.execute(V16_MATCH_LOG)
 
 
+# Matches being played now (live.py): who (player ids, in order) and which clubs, until a result comes in or
+# they are cancelled. Several per board, one per console.
+V17_LIVE_MATCHES = """
+CREATE TABLE live_matches (
+    id SERIAL PRIMARY KEY,
+    board_id INT NOT NULL REFERENCES boards (id) ON DELETE CASCADE,
+    team_a INT[] NOT NULL,
+    team_b INT[] NOT NULL,
+    club_a VARCHAR(100) NOT NULL,
+    club_b VARCHAR(100) NOT NULL,
+    started_at TIMESTAMP NOT NULL,
+    started_by INT REFERENCES users (id) ON DELETE SET NULL
+);
+CREATE INDEX live_matches_board_idx ON live_matches (board_id);
+"""
+
+
+def v17_live_matches(cur: RealDictCursor) -> None:
+    cur.execute(V17_LIVE_MATCHES)
+
+
 MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (1, v1_legacy),
     (2, v2_boards),
@@ -478,6 +499,7 @@ MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (14, v14_account_photos),
     (15, v15_sign_in_codes),
     (16, v16_match_log),
+    (17, v17_live_matches),
 ]
 
 

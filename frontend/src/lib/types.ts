@@ -225,6 +225,17 @@ export interface PlannedMatch {
   skipped: boolean;
 }
 
+/** A match being played now: started on one device, its result entered on any (backend/live.py). */
+export interface LiveMatch {
+  id: number;
+  teamA: string[];
+  teamB: string[];
+  clubA: string;
+  clubB: string;
+  /** UTC, as the API sends times (parseApiTime) */
+  startedAt: string;
+}
+
 /** The board's open plan for the night. */
 export interface NightPlan {
   id: number;

@@ -2,6 +2,7 @@
 
 import json
 import re
+from datetime import datetime
 from typing import Annotated, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints, model_validator
@@ -209,16 +210,16 @@ class FixtureMatchUpdate(BaseModel):
     skipped: bool
 
 
-class MatchIn(BaseModel):
+class MatchSides(BaseModel):
+    """Who plays whom, with which clubs."""
+
     clubA: ClubName
     clubB: ClubName
     teamA: list[PlayerName] = Field(min_length=1, max_length=3)
     teamB: list[PlayerName] = Field(min_length=1, max_length=3)
-    scoreA: Score
-    scoreB: Score
 
     @model_validator(mode="after")
-    def distinct_players(self) -> "MatchIn":
+    def distinct_players(self) -> "MatchSides":
         for team in (self.teamA, self.teamB):
             if len(set(team)) != len(team):
                 raise ValueError("a player is listed twice in the same team")
@@ -226,6 +227,21 @@ class MatchIn(BaseModel):
         if both:
             raise ValueError(f"players on both sides: {', '.join(sorted(both))}")
         return self
+
+
+class MatchIn(MatchSides):
+    scoreA: Score
+    scoreB: Score
+
+
+class LiveMatchIn(MatchSides):
+    """A match started now (live.py). `replaces` is one being played that this one takes over from (its teams
+    or clubs changed); `force` starts it although a player is in another match being played; `startedAt`
+    keeps the start of one brought back (a saved result taken back)."""
+
+    replaces: int | None = None
+    force: bool = False
+    startedAt: datetime | None = None
 
 
 class MatchScore(BaseModel):

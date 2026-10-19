@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import type { NewLiveMatch } from "../lib/api";
 import type { CardSet } from "../lib/clubModel";
 import { shrinkPhoto } from "../lib/photos";
 import { updateSession } from "../lib/session";
@@ -39,6 +40,22 @@ export function useCards(game: string | null | undefined) {
 }
 
 /** The night's plan is shared by everyone on the board, so keep it fresh. */
+/** Matches being played now, on any device; kept fresh so a phone sees the one a computer started. */
+export function useLive() {
+  const { slug, api } = useBoard();
+  return useQuery({ queryKey: boardKey(slug, "live"), queryFn: api.live, refetchInterval: 15_000 });
+}
+
+export function useStartLive() {
+  const { api } = useBoard();
+  return useBoardMutation((body: NewLiveMatch) => api.startLive(body), ["live"]);
+}
+
+export function useCancelLive() {
+  const { api } = useBoard();
+  return useBoardMutation((id: number) => api.cancelLive(id), ["live"]);
+}
+
 export function usePlan() {
   const { slug, api } = useBoard();
   return useQuery({ queryKey: boardKey(slug, "plan"), queryFn: api.plan, refetchInterval: 20_000 });
@@ -122,7 +139,8 @@ export function useDeletePlayer() {
 
 export function useAddMatch() {
   const { api } = useBoard();
-  return useBoardMutation((m: NewMatch) => api.addMatch(m), ["matches", "leaderboard", "seasons", "plan"]);
+  // a result also ends the match being played between the same sides
+  return useBoardMutation((m: NewMatch) => api.addMatch(m), ["matches", "leaderboard", "seasons", "plan", "live"]);
 }
 
 export function useDeleteMatch() {

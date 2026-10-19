@@ -130,12 +130,11 @@ def list_matches(request: Request, access: BoardAccess = Depends(board_access)):
     )
 
 
-@router.post("/matches", status_code=201)
-def add_match(match: MatchIn, request: Request, access: BoardAccess = Depends(board_access)):
-    names = match.teamA + match.teamB
+def players_for(request: Request, board_id: int, names: list[str]) -> dict[str, dict]:
+    """The board's players with these names, all of whom must exist and not be archived (422 otherwise)."""
     rows = _db(request).fetch_all(
         "SELECT id, name, archived_at IS NOT NULL AS archived FROM players WHERE board_id = %s AND name = ANY(%s)",
-        (access.id, names),
+        (board_id, names),
     )
     found = {r["name"]: r for r in rows}
     unknown = [n for n in names if n not in found]
@@ -144,6 +143,28 @@ def add_match(match: MatchIn, request: Request, access: BoardAccess = Depends(bo
     archived = [n for n in names if found[n]["archived"]]
     if archived:
         raise HTTPException(status_code=422, detail=f"Archived players can't play: {', '.join(archived)}")
+    return found
+
+
+def _end_live(cur, board_id: int, team_a: list[int], team_b: list[int]) -> None:
+    """A result came in: the oldest match being played (live.py) between these two sides is over."""
+    cur.execute(
+        """
+        DELETE FROM live_matches WHERE id = (
+            SELECT id FROM live_matches
+            WHERE board_id = %s AND (
+                (team_a <@ %s::int[] AND team_a @> %s::int[] AND team_b <@ %s::int[] AND team_b @> %s::int[])
+                OR (team_a <@ %s::int[] AND team_a @> %s::int[] AND team_b <@ %s::int[] AND team_b @> %s::int[]))
+            ORDER BY started_at, id LIMIT 1
+        )
+        """,
+        (board_id, team_a, team_a, team_b, team_b, team_b, team_b, team_a, team_a),
+    )
+
+
+@router.post("/matches", status_code=201)
+def add_match(match: MatchIn, request: Request, access: BoardAccess = Depends(board_access)):
+    found = players_for(request, access.id, match.teamA + match.teamB)
 
     with _db(request).transaction() as cur:
         # the active season's clubs, matched case-insensitively; other names are custom clubs
@@ -184,6 +205,7 @@ def add_match(match: MatchIn, request: Request, access: BoardAccess = Depends(bo
         )
         ids = [[found[n]["id"] for n in team] for team in (match.teamA, match.teamB)]
         fixtures.tick_off(cur, access.id, match_id, *ids)
+        _end_live(cur, access.id, *ids)
     return {"message": "Match added successfully.", "id": match_id}
 
 

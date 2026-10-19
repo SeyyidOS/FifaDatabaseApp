@@ -3,10 +3,12 @@ import { AnimatePresence, LayoutGroup, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
+  AlertTriangle,
   ArrowLeftRight,
   ChevronRight,
   Dices,
   Minus,
+  Play,
   Plus,
   RotateCcw,
   Scale,
@@ -18,6 +20,10 @@ import {
   X,
 } from "lucide-react";
 import { AddPlayer } from "../components/AddPlayer";
+import { LiveBadge, LivePanel, LiveSides } from "../components/live/LiveMatches";
+import { liveMessages } from "../components/live/messages";
+import { common } from "../lib/messages";
+import { Modal } from "../components/ui/Dialog";
 import { Watching } from "../components/board/Watching";
 import { ClubForm } from "../components/clubs/ClubForm";
 import { SquadsPreview } from "../components/clubs/SquadsPreview";
@@ -33,7 +39,7 @@ import { ClubPicker } from "../components/ui/ClubPicker";
 import { Avatar, ClubCrest } from "../components/ui/Identity";
 import { Button, EmptyState, Panel, Pill, Segmented, Switch } from "../components/ui/primitives";
 import type { Analytics } from "../hooks/analytics-context";
-import { useAddMatch, useDeleteMatch, useUploadPhotos } from "../hooks/useData";
+import { useAddMatch, useCancelLive, useDeleteMatch, useLive, useStartLive, useUploadPhotos } from "../hooks/useData";
 import { useBoard, useCanEdit } from "../hooks/useBoard";
 import { useSessionState } from "../hooks/useSessionState";
 import { choiceName, type ClubChoice } from "../lib/clubChoice";
@@ -49,7 +55,8 @@ import {
   teamAverage,
   type TeamMode,
 } from "../lib/matchmaking";
-import type { Side } from "../lib/types";
+import type { LiveMatch, Side } from "../lib/types";
+import { ApiError } from "../lib/api";
 import { useT } from "../hooks/useI18n";
 import { defineMessages, locale } from "../lib/i18n";
 
@@ -462,23 +469,45 @@ function MatchCenterInner({ data }: { data: Analytics }) {
   const [margin, setMargin] = useSessionState(`${slug}:mc-margin`, 75);
   const [scoreA, setScoreA] = useSessionState(`${slug}:mc-score-a`, 0);
   const [scoreB, setScoreB] = useSessionState(`${slug}:mc-score-b`, 0);
+  // the match being played (backend/live.py) this form was loaded from, to finish or to change
+  const [liveFrom, setLiveFrom] = useSessionState<LiveMatch | null>(`${slug}:mc-live`, null);
+  // starting it would put someone in two matches being played: which one they are in
+  const [busyWith, setBusyWith] = useState<LiveMatch | null>(null);
   const [clubHint, setClubHint] = useState<string | null>(null);
   const [squads, setSquads] = useState(false);
   // photos picked for the result being entered; sent once the match is saved
   const [photos, setPhotos] = useState<File[]>([]);
   const tp = useT(planMessages);
   const tph = useT(photoMessages);
+  const tl = useT(liveMessages);
+  const tc = useT(common);
   const addMatch = useAddMatch();
   const deleteMatch = useDeleteMatch();
+  const liveQuery = useLive();
+  const live = useMemo(() => liveQuery.data ?? [], [liveQuery.data]);
+  const startLive = useStartLive();
+  const cancelLive = useCancelLive();
   const { upload: uploadPhotos, progress: photoProgress } = useUploadPhotos();
 
   const teamA = teamARaw.filter((n) => allNames.includes(n));
   const teamB = teamBRaw.filter((n) => allNames.includes(n));
   const present = allNames.filter((n) => !absent.includes(n));
   const sideOf = (n: string): Side | null => (teamA.includes(n) ? "A" : teamB.includes(n) ? "B" : null);
+  // the one this form came from, while it is still being played
+  const liveNow = liveFrom ? (live.find((m) => m.id === liveFrom.id) ?? null) : null;
+  // players in the other matches being played
+  const busy = live.filter((m) => m.id !== liveNow?.id).flatMap((m) => [...m.teamA, ...m.teamB]);
 
   const clubAName = choiceName(clubA, data.clubs);
   const clubBName = choiceName(clubB, data.clubs);
+  const sameSide = (a: string[], b: string[]) => a.length === b.length && a.every((n) => b.includes(n));
+  // the form still holds that match unchanged: nothing to start, its result is what's left
+  const sameAsLive =
+    !!liveNow &&
+    sameSide(teamA, liveNow.teamA) &&
+    sameSide(teamB, liveNow.teamB) &&
+    clubAName.toLowerCase() === liveNow.clubA.toLowerCase() &&
+    clubBName.toLowerCase() === liveNow.clubB.toLowerCase();
   // both picked from the season's list: their squads can be shown
   const seasonClubs: [string, string] | null =
     clubA?.kind === "club" && clubB?.kind === "club" && clubAName && clubBName ? [clubAName, clubBName] : null;
@@ -553,6 +582,60 @@ function MatchCenterInner({ data }: { data: Analytics }) {
     setScoreB(scoreA);
   };
 
+  /** A club by its name: the season's own when it is listed, otherwise a custom one. */
+  const choiceFor = (name: string): ClubChoice => {
+    const club = data.clubs.find((c) => c.name.toLowerCase() === name.toLowerCase());
+    return club ? { kind: "club", id: club.id } : { kind: "custom", name };
+  };
+
+  /** A match being played, into the form: to enter its result ("score") or to change it ("squad"). */
+  const loadLive = (m: LiveMatch, to: "score" | "squad") => {
+    setAbsent((prev) => prev.filter((n) => !m.teamA.includes(n) && !m.teamB.includes(n)));
+    const mode = `${Math.min(m.teamA.length, m.teamB.length)}v${Math.max(m.teamA.length, m.teamB.length)}`;
+    if (mode === "1v1" || mode === "2v2" || mode === "1v2") setMode(mode);
+    setTeamA(m.teamA);
+    setTeamB(m.teamB);
+    setClubA(choiceFor(m.clubA));
+    setClubB(choiceFor(m.clubB));
+    setScoreA(0);
+    setScoreB(0);
+    setClubHint(null);
+    setPhotos([]);
+    setLiveFrom(m);
+    setBusyWith(null);
+    requestAnimationFrame(() =>
+      document.getElementById(to === "score" ? "mc-score" : "mc-squad")?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
+  };
+
+  /** Start the match in the form (or put the one it came from right); it shows as being played everywhere. */
+  const start = async (force = false) => {
+    if (problem) return;
+    const clash = force ? undefined : live.find((m) => m.id !== liveNow?.id && [...m.teamA, ...m.teamB].some((n) => teamA.includes(n) || teamB.includes(n)));
+    if (clash) return setBusyWith(clash);
+    try {
+      await startLive.mutateAsync({
+        teamA,
+        teamB,
+        clubA: clubAName,
+        clubB: clubBName,
+        replaces: liveNow?.id,
+        // a change keeps the clock running
+        startedAt: liveNow?.startedAt,
+        force,
+      });
+      toast.success(liveNow ? tl("updated") : tl("started"), { description: tl("startedSub"), icon: <Play className="size-4" /> });
+      setBusyWith(null);
+      reset();
+      // up to "being played", where it now is
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) {
+      // someone else started one with these players a moment ago
+      if (e instanceof ApiError && e.status === 409) void liveQuery.refetch();
+      toast.error((e as Error).message);
+    }
+  };
+
   /** A match of tonight's plan: its line-up goes in, then on to the clubs. */
   const playPlanned = (a: string[], b: string[], slot: number) => {
     setAbsent((prev) => prev.filter((n) => !a.includes(n) && !b.includes(n)));
@@ -577,6 +660,7 @@ function MatchCenterInner({ data }: { data: Analytics }) {
     setScoreB(0);
     setClubHint(null);
     setPhotos([]);
+    setLiveFrom(null);
   };
 
   const problem = !teamA.length || !teamB.length
@@ -588,9 +672,15 @@ function MatchCenterInner({ data }: { data: Analytics }) {
   const submit = async () => {
     if (problem) return;
     const result: Side | "D" = scoreA > scoreB ? "A" : scoreB > scoreA ? "B" : "D";
+    const from = liveNow;
     let saved: { id: number };
     try {
       saved = await addMatch.mutateAsync({ clubA: clubAName, clubB: clubBName, teamA, teamB, scoreA, scoreB });
+      // the server ends the one with the same sides; one whose teams were changed here ends by its id
+      if (from) {
+        cancelLive.mutate(from.id);
+        setLiveFrom(null);
+      }
       burst(result);
       const winners = result === "A" ? teamA : result === "B" ? teamB : null;
       const d = result === "A" ? preview.deltaA : result === "B" ? preview.deltaB : preview.deltaA;
@@ -609,6 +699,12 @@ function MatchCenterInner({ data }: { data: Analytics }) {
                 onSuccess: () => {
                   setScoreA(scoreA);
                   setScoreB(scoreB);
+                  // back to being played, with its start, if it came from there
+                  if (from)
+                    startLive.mutate(
+                      { teamA, teamB, clubA: clubAName, clubB: clubBName, startedAt: from.startedAt, force: true },
+                      { onSuccess: (m) => setLiveFrom(m) },
+                    );
                   toast(t("undone"));
                 },
                 onError: (e) => toast.error((e as Error).message),
@@ -667,6 +763,12 @@ function MatchCenterInner({ data }: { data: Analytics }) {
         }
       />
 
+      {live.length > 0 && (
+        <div className="mb-6">
+          <LivePanel live={live} onEnter={(m) => loadLive(m, "score")} onChange={(m) => loadLive(m, "squad")} />
+        </div>
+      )}
+
       {/* the whole width: the plan's partnership tables sit side by side */}
       <div className="mb-6">
         <NightPlan data={data} present={present} onPlay={playPlanned} />
@@ -676,64 +778,69 @@ function MatchCenterInner({ data }: { data: Analytics }) {
         <div className="min-w-0 space-y-6 xl:col-span-7 2xl:col-span-8">
           <LayoutGroup>
             {/* Step 1 — squad */}
-            <Panel
-              title={
-                <span className="flex items-center gap-2">
-                  <StepDot n={1} done={teamA.length > 0 && teamB.length > 0} /> {t("squad")}
-                </span>
-              }
-              subtitle={t("squadSub", { here: present.length, all: allNames.length })}
-              action={<AddPlayer players={data.players} />}
-              bodyClassName="p-3.5 sm:p-5"
-            >
-              <div className="mb-5 flex flex-wrap items-center gap-3">
-                <Segmented<TeamMode>
-                  value={mode}
-                  onChange={setMode}
-                  options={[
-                    { value: "1v1", label: "1 v 1" },
-                    { value: "2v2", label: "2 v 2" },
-                    { value: "1v2", label: "1 v 2" },
-                  ]}
-                />
-                <Switch
-                  checked={balance}
-                  onChange={setBalance}
-                  label={
-                    <span className="inline-flex items-center gap-1.5">
-                      <Scale className="size-3.5" /> {t("balance")}
-                    </span>
-                  }
-                />
-                <Button variant="primary" className="ml-auto" onClick={shuffle}>
-                  <Dices className="size-4" /> {t("shuffle")}
-                </Button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
-                {allNames.map((n) => (
-                  <PoolChip
-                    key={n}
-                    name={n}
-                    elo={data.eloByName.get(cleanName(n)) ?? INITIAL_ELO}
-                    present={!absent.includes(n)}
-                    side={sideOf(n)}
-                    onTogglePresent={() => togglePresent(n)}
-                    onAssign={(s) => assign(n, s)}
+            <div id="mc-squad" className="scroll-mt-24">
+              <Panel
+                title={
+                  <span className="flex items-center gap-2">
+                    <StepDot n={1} done={teamA.length > 0 && teamB.length > 0} /> {t("squad")}
+                  </span>
+                }
+                subtitle={
+                  t("squadSub", { here: present.length, all: allNames.length }) +
+                  (busy.length ? ` · ${tl("busy", { names: busy.map(displayName).join(", ") })}` : "")
+                }
+                action={<AddPlayer players={data.players} />}
+                bodyClassName="p-3.5 sm:p-5"
+              >
+                <div className="mb-5 flex flex-wrap items-center gap-3">
+                  <Segmented<TeamMode>
+                    value={mode}
+                    onChange={setMode}
+                    options={[
+                      { value: "1v1", label: "1 v 1" },
+                      { value: "2v2", label: "2 v 2" },
+                      { value: "1v2", label: "1 v 2" },
+                    ]}
                   />
-                ))}
-              </div>
+                  <Switch
+                    checked={balance}
+                    onChange={setBalance}
+                    label={
+                      <span className="inline-flex items-center gap-1.5">
+                        <Scale className="size-3.5" /> {t("balance")}
+                      </span>
+                    }
+                  />
+                  <Button variant="primary" className="ml-auto" onClick={shuffle}>
+                    <Dices className="size-4" /> {t("shuffle")}
+                  </Button>
+                </div>
 
-              <div className="mt-6 grid gap-4 md:grid-cols-2">
-                <TeamPanel side="A" names={teamA} eloByName={data.eloByName} onRemove={(n) => assign(n, "A")} />
-                <TeamPanel side="B" names={teamB} eloByName={data.eloByName} onRemove={(n) => assign(n, "B")} />
-              </div>
-              {teamA.length > 0 && teamB.length > 0 && (
-                <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-5">
-                  <WinProbability squads={squadsOnly} clubs={clubAName && clubBName ? preview.expectedA : null} />
-                </motion.div>
-              )}
-            </Panel>
+                <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+                  {allNames.map((n) => (
+                    <PoolChip
+                      key={n}
+                      name={n}
+                      elo={data.eloByName.get(cleanName(n)) ?? INITIAL_ELO}
+                      present={!absent.includes(n)}
+                      side={sideOf(n)}
+                      onTogglePresent={() => togglePresent(n)}
+                      onAssign={(s) => assign(n, s)}
+                    />
+                  ))}
+                </div>
+
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                  <TeamPanel side="A" names={teamA} eloByName={data.eloByName} onRemove={(n) => assign(n, "A")} />
+                  <TeamPanel side="B" names={teamB} eloByName={data.eloByName} onRemove={(n) => assign(n, "B")} />
+                </div>
+                {teamA.length > 0 && teamB.length > 0 && (
+                  <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-5">
+                    <WinProbability squads={squadsOnly} clubs={clubAName && clubBName ? preview.expectedA : null} />
+                  </motion.div>
+                )}
+              </Panel>
+            </div>
           </LayoutGroup>
 
           {/* Step 2 — clubs */}
@@ -868,6 +975,15 @@ function MatchCenterInner({ data }: { data: Analytics }) {
                 </span>
                 <Pill tone={filledSteps === 2 ? "accent" : "neutral"}>{t("ready", { n: filledSteps })}</Pill>
               </div>
+              {liveNow && (
+                <div className="relative mx-5 mt-3 flex items-center gap-2 rounded-xl border border-loss/25 bg-loss/[0.07] px-3 py-2">
+                  <LiveBadge startedAt={liveNow.startedAt} />
+                  <span className="flex-1" />
+                  <button type="button" onClick={() => setLiveFrom(null)} className="text-xs font-semibold text-muted hover:text-fg">
+                    {tl("release")}
+                  </button>
+                </div>
+              )}
               <div className="relative grid grid-cols-2 gap-3 px-5 pt-5">
                 <ScoreSide side="A" club={clubAName} names={teamA} delta={preview.deltaA} />
                 <ScoreSide side="B" club={clubBName} names={teamB} delta={preview.deltaB} />
@@ -913,6 +1029,21 @@ function MatchCenterInner({ data }: { data: Analytics }) {
                   onChange={setPhotos}
                   busy={photoProgress ? tph("uploading", photoProgress) : null}
                 />
+                {!problem && !sameAsLive && (
+                  <button
+                    type="button"
+                    disabled={startLive.isPending}
+                    onClick={() => start()}
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border-[1.5px] border-accent bg-accent/[0.06] text-[15px] font-bold text-accent-text transition-colors hover:bg-accent/10 disabled:opacity-50"
+                  >
+                    {startLive.isPending ? (
+                      <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    ) : (
+                      <Play className="size-4 fill-current" />
+                    )}
+                    {liveNow ? tl("update") : tl("start")}
+                  </button>
+                )}
                 <button
                   type="button"
                   disabled={!!problem || !!photoProgress || addMatch.isPending}
@@ -927,6 +1058,7 @@ function MatchCenterInner({ data }: { data: Analytics }) {
                   {t("save", { a: scoreA, b: scoreB })}
                 </button>
                 {problem && <p className="text-center text-xs text-muted">{problem}</p>}
+                {!problem && !liveNow && <p className="text-center text-[11px] leading-relaxed text-faint">{tl("startHint")}</p>}
               </div>
             </section>
 
@@ -953,6 +1085,50 @@ function MatchCenterInner({ data }: { data: Analytics }) {
           </div>
         </div>
       </div>
+
+      <Modal open={!!busyWith} onClose={() => setBusyWith(null)} labelledBy="busy-title">
+        {busyWith && (
+          <>
+            <div className="flex gap-3.5">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-draw/12 text-draw">
+                <AlertTriangle className="size-5" />
+              </span>
+              <div>
+                <h3 id="busy-title" className="font-semibold">
+                  {tl("busyTitle", {
+                    names: [...busyWith.teamA, ...busyWith.teamB]
+                      .filter((n) => teamA.includes(n) || teamB.includes(n))
+                      .map(displayName)
+                      .join(", "),
+                  })}
+                </h3>
+                <p className="mt-1.5 text-sm text-muted">{tl("busyText")}</p>
+              </div>
+            </div>
+            <div className="my-4 rounded-2xl border border-loss/25 p-3">
+              <LiveBadge startedAt={busyWith.startedAt} />
+              <div className="mt-2.5">
+                <LiveSides match={busyWith} />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => loadLive(busyWith, "score")}
+              className="accent-gem flex h-11 w-full items-center justify-center rounded-xl text-sm font-bold"
+            >
+              {tl("enterThat")}
+            </button>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <Button variant="secondary" loading={startLive.isPending} onClick={() => start(true)}>
+                {tl("startAnyway")}
+              </Button>
+              <Button variant="ghost" onClick={() => setBusyWith(null)}>
+                {tc("cancel")}
+              </Button>
+            </div>
+          </>
+        )}
+      </Modal>
     </div>
   );
 }

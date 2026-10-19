@@ -14,6 +14,7 @@ import type {
   MatchPhoto,
   MatchStats,
   NewMatch,
+  LiveMatch,
   NightPlan,
   Player,
   PlayerStanding,
@@ -92,6 +93,17 @@ export const publicApi = {
 
 export type BoardApi = ReturnType<typeof boardApi>;
 
+/** A match to start (backend/live.py): `replaces` one being played, `force` past a busy player. */
+export interface NewLiveMatch {
+  teamA: string[];
+  teamB: string[];
+  clubA: string;
+  clubB: string;
+  replaces?: number;
+  force?: boolean;
+  startedAt?: string;
+}
+
 /** Endpoints of one board, called with this device's token for it. */
 export function boardApi(slug: string, token: string) {
   const base = `/boards/${encodeURIComponent(slug)}`;
@@ -145,6 +157,9 @@ export function boardApi(slug: string, token: string) {
     deleteClub: (season: number, id: number) =>
       call<{ message: string }>(`/seasons/${season}/clubs/${id}`, json("DELETE")),
 
+    live: () => call<LiveMatch[]>("/live"),
+    startLive: (body: NewLiveMatch) => call<LiveMatch>("/live", json("POST", body)),
+    cancelLive: (id: number) => call<{ cancelled: number }>(`/live/${id}`, json("DELETE")),
     plan: () => call<NightPlan | null>("/fixture"),
     savePlan: (body: { rules: object; matches: { teamA: string[]; teamB: string[] }[] }) =>
       call<NightPlan>("/fixture", json("PUT", body)),
