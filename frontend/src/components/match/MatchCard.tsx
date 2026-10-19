@@ -8,6 +8,8 @@ import type { Side } from "../../lib/types";
 import { Avatar, ClubCrest } from "../ui/Identity";
 import { Delta, OutcomeBadge, Pill } from "../ui/primitives";
 import { BoardLink } from "../board/BoardLink";
+import { useCanFix } from "../../hooks/useBoard";
+import { FixMatchButton } from "./FixMatch";
 import { MatchPhotosButton } from "./MatchPhotos";
 import { useT } from "../../hooks/useI18n";
 import { defineMessages } from "../../lib/i18n";
@@ -63,6 +65,7 @@ export function MatchCard({
   perspective,
   showTime = true,
   canAddPhotos,
+  fixable,
   className,
 }: {
   match: ParsedMatch;
@@ -72,9 +75,12 @@ export function MatchCard({
   showTime?: boolean;
   /** offer adding photos to a match that has none (its photos show either way) */
   canAddPhotos?: boolean;
+  /** offer fixing the score or taking the match back, where this device may (useCanFix) */
+  fixable?: boolean;
   className?: string;
 }) {
   const t = useT(m);
+  const canFix = useCanFix(match);
   const outcome = perspective ? outcomeFor(match, perspective) : null;
   const upset = isUpset(match, elo);
   const total = match.scoreA + match.scoreB;
@@ -111,7 +117,10 @@ export function MatchCard({
             </Pill>
           )}
         </div>
-        <MatchPhotosButton match={match} canAdd={canAddPhotos} />
+        <div className="flex items-center gap-1">
+          <MatchPhotosButton match={match} canAdd={canAddPhotos} />
+          {fixable && canFix && <FixMatchButton match={match} />}
+        </div>
       </div>
       <SideBlock side="B" match={match} elo={elo} align="right" />
     </div>

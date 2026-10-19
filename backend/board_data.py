@@ -1,6 +1,6 @@
 """A board's players, matches, ratings and standings."""
 
-from datetime import date
+from datetime import date, timedelta
 
 import psycopg2.errors
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -11,7 +11,7 @@ import fixtures
 import leaderboard
 import photos
 from auth import BoardAccess, board_access, board_admin
-from schemas import MatchIn, MatchStatsIn, PlayerIn, PlayerUpdate
+from schemas import MatchIn, MatchScore, MatchStatsIn, PlayerIn, PlayerUpdate
 
 router = APIRouter(prefix="/boards/{slug}", tags=["board data"])
 
@@ -186,9 +186,40 @@ def add_match(match: MatchIn, request: Request, access: BoardAccess = Depends(bo
     return {"message": "Match added successfully.", "id": match_id}
 
 
-@router.delete("/matches/{match_id}")
-def delete_match(match_id: int, request: Request, access: BoardAccess = Depends(board_admin)):
+# a wrong score is usually noticed at once: for this long anyone on the board can put it right or take the
+# match back; after that only admins can, so the history stays put
+FIX_WINDOW = timedelta(minutes=15)
+
+
+def _check_fixable(cur, access: BoardAccess, match_id: int) -> None:
+    cur.execute(
+        "SELECT (NOW() AT TIME ZONE 'UTC') - time <= %s AS recent FROM matches WHERE id = %s AND board_id = %s",
+        (FIX_WINDOW, match_id, access.id),
+    )
+    row = cur.fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"No match with ID {match_id}")
+    if access.role != "admin" and not row["recent"]:
+        raise HTTPException(status_code=403, detail="After 15 minutes only the board's admins can change a match")
+
+
+@router.patch("/matches/{match_id}")
+def fix_score(match_id: int, body: MatchScore, request: Request, access: BoardAccess = Depends(board_access)):
+    """Put a wrong score right; ratings follow, as they are worked out from the matches."""
     with _db(request).transaction() as cur:
+        _check_fixable(cur, access, match_id)
+        cur.execute(
+            "UPDATE matches SET score_a = %s, score_b = %s WHERE id = %s AND board_id = %s",
+            (body.scoreA, body.scoreB, match_id, access.id),
+        )
+    return {"message": f"Match {match_id} updated.", "scoreA": body.scoreA, "scoreB": body.scoreB}
+
+
+@router.delete("/matches/{match_id}")
+def delete_match(match_id: int, request: Request, access: BoardAccess = Depends(board_access)):
+    """A logged match taken back; a planned match it ticked off is open again (fixture_matches)."""
+    with _db(request).transaction() as cur:
+        _check_fixable(cur, access, match_id)
         cur.execute("SELECT file FROM match_photos WHERE match_id = %s", (match_id,))
         files = [r["file"] for r in cur.fetchall()]
         cur.execute("DELETE FROM matches WHERE id = %s AND board_id = %s", (match_id, access.id))
