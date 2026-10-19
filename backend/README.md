@@ -27,7 +27,7 @@ standings, K-factor and club ratings. On startup the API applies pending schema 
 ## Access
 
 A board has a **board password** (role `member`: read, add players, log matches) and an **admin
-password** (role `admin`: archive/rename/delete players, delete matches, settings). `POST
+password** (role `admin`: archive/rename/delete players, change any match, settings). `POST
 /boards/{slug}/login` picks the role from the password and returns a token signed with
 `SECRET_KEY`; send it as `Authorization: Bearer <token>`. Changing a password bumps that role's
 version, which invalidates its old tokens. Players with matches are archived, never deleted, so
@@ -138,6 +138,14 @@ season: every club keeps its EA id, the model's rating and an admin's correction
 `lib/fixture.ts`; anyone on the board may make one, and a new plan closes the previous one). When a
 match is recorded, the first unplayed, unskipped planned match with the same two sides is ticked off;
 deleting the match opens it again.
+
+A wrong score is put right with `PATCH /boards/{slug}/matches/{id}` (`{scoreA, scoreB}`) or taken back
+with `DELETE`: by anyone on the board for 15 minutes after it was logged, by admins any time. A match keeps
+the account that logged it (`matches.logged_by`), and every fix or take-back is kept in `match_changes`
+(who, as what, the score before and after, and for a take-back the match itself). The app doesn't show
+them; they are for settling "who changed that?", e.g.
+`SELECT * FROM match_changes WHERE board_id = … ORDER BY at DESC`. No user means a board password or the
+server admin key.
 
 ## Account photos
 

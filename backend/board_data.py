@@ -166,11 +166,12 @@ def add_match(match: MatchIn, request: Request, access: BoardAccess = Depends(bo
         cur.execute(
             """
             INSERT INTO matches
-                (board_id, season_id, time, club_a, club_b, club_a_elo, club_b_elo, score_a, score_b, club_weight)
-            SELECT id, active_season_id, NOW() AT TIME ZONE 'UTC', %s, %s, %s, %s, %s, %s, club_weight
+                (board_id, season_id, time, club_a, club_b, club_a_elo, club_b_elo, score_a, score_b, club_weight,
+                 logged_by)
+            SELECT id, active_season_id, NOW() AT TIME ZONE 'UTC', %s, %s, %s, %s, %s, %s, club_weight, %s
             FROM boards WHERE id = %s RETURNING id
             """,
-            (club_a, club_b, club_a_elo, club_b_elo, match.scoreA, match.scoreB, access.id),
+            (club_a, club_b, club_a_elo, club_b_elo, match.scoreA, match.scoreB, access.user_id, access.id),
         )
         match_id = cur.fetchone()["id"]
         cur.executemany(
@@ -191,9 +192,18 @@ def add_match(match: MatchIn, request: Request, access: BoardAccess = Depends(bo
 FIX_WINDOW = timedelta(minutes=15)
 
 
-def _check_fixable(cur, access: BoardAccess, match_id: int) -> None:
+def _check_fixable(cur, access: BoardAccess, match_id: int) -> dict:
+    """The match as it is now, if this device may still change it (locked against a change at the same time)."""
     cur.execute(
-        "SELECT (NOW() AT TIME ZONE 'UTC') - time <= %s AS recent FROM matches WHERE id = %s AND board_id = %s",
+        """
+        SELECT m.time, m.club_a, m.club_b, m.score_a, m.score_b, m.logged_by,
+               (NOW() AT TIME ZONE 'UTC') - m.time <= %s AS recent,
+               ARRAY(SELECT p.name FROM match_players mp JOIN players p ON p.id = mp.player_id
+                     WHERE mp.match_id = m.id AND mp.side = 'A' ORDER BY mp.slot) AS team_a,
+               ARRAY(SELECT p.name FROM match_players mp JOIN players p ON p.id = mp.player_id
+                     WHERE mp.match_id = m.id AND mp.side = 'B' ORDER BY mp.slot) AS team_b
+        FROM matches m WHERE m.id = %s AND m.board_id = %s FOR UPDATE OF m
+        """,
         (FIX_WINDOW, match_id, access.id),
     )
     row = cur.fetchone()
@@ -201,17 +211,52 @@ def _check_fixable(cur, access: BoardAccess, match_id: int) -> None:
         raise HTTPException(status_code=404, detail=f"No match with ID {match_id}")
     if access.role != "admin" and not row["recent"]:
         raise HTTPException(status_code=403, detail="After 15 minutes only the board's admins can change a match")
+    return row
+
+
+def _log_change(cur, access: BoardAccess, match_id: int, before: dict, action: str, new: MatchScore | None = None):
+    """Who fixed or took back a match, and from what (match_changes); a take-back keeps the match too."""
+    match = None
+    if action == "delete":
+        match = {
+            "time": before["time"].isoformat(),
+            "clubA": before["club_a"],
+            "clubB": before["club_b"],
+            "teamA": before["team_a"],
+            "teamB": before["team_b"],
+            "loggedBy": before["logged_by"],
+        }
+    cur.execute(
+        """
+        INSERT INTO match_changes
+            (board_id, match_id, action, user_id, role, score_a, score_b, new_score_a, new_score_b, match)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """,
+        (
+            access.id,
+            match_id,
+            action,
+            access.user_id,
+            access.role,
+            before["score_a"],
+            before["score_b"],
+            new.scoreA if new else None,
+            new.scoreB if new else None,
+            Json(match) if match else None,
+        ),
+    )
 
 
 @router.patch("/matches/{match_id}")
 def fix_score(match_id: int, body: MatchScore, request: Request, access: BoardAccess = Depends(board_access)):
     """Put a wrong score right; ratings follow, as they are worked out from the matches."""
     with _db(request).transaction() as cur:
-        _check_fixable(cur, access, match_id)
+        before = _check_fixable(cur, access, match_id)
         cur.execute(
             "UPDATE matches SET score_a = %s, score_b = %s WHERE id = %s AND board_id = %s",
             (body.scoreA, body.scoreB, match_id, access.id),
         )
+        _log_change(cur, access, match_id, before, "fix", body)
     return {"message": f"Match {match_id} updated.", "scoreA": body.scoreA, "scoreB": body.scoreB}
 
 
@@ -219,7 +264,8 @@ def fix_score(match_id: int, body: MatchScore, request: Request, access: BoardAc
 def delete_match(match_id: int, request: Request, access: BoardAccess = Depends(board_access)):
     """A logged match taken back; a planned match it ticked off is open again (fixture_matches)."""
     with _db(request).transaction() as cur:
-        _check_fixable(cur, access, match_id)
+        before = _check_fixable(cur, access, match_id)
+        _log_change(cur, access, match_id, before, "delete")
         cur.execute("SELECT file FROM match_photos WHERE match_id = %s", (match_id,))
         files = [r["file"] for r in cur.fetchall()]
         cur.execute("DELETE FROM matches WHERE id = %s AND board_id = %s", (match_id, access.id))
