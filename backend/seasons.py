@@ -5,6 +5,7 @@ editing or replacing a club list only affects matches played afterwards.
 """
 
 import csv
+from datetime import date
 from pathlib import Path
 
 import psycopg2.errors
@@ -12,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from psycopg2.extras import Json, RealDictCursor
 
 from auth import BoardAccess, board_access, board_admin
-from edition import classic_only
+from edition import classic_only, request_edition
 from schemas import ClubIn, ClubUpdate, ModelApply, SeasonIn, SeasonUpdate
 
 router = APIRouter(prefix="/boards/{slug}/seasons", tags=["seasons"])
@@ -22,16 +23,30 @@ router = APIRouter(prefix="/boards/{slug}/seasons", tags=["seasons"])
 TEMPLATES = Path(__file__).parent / "data" / "seasons"
 
 
-def read_template(name: str) -> list[tuple[str, int, int | None]]:
-    with (TEMPLATES / f"{name}.csv").open(newline="", encoding="utf-8") as f:
+def read_template(path: Path) -> list[tuple[str, int, int | None]]:
+    with path.open(newline="", encoding="utf-8") as f:
         return [
             (row["name"], int(row["elo"]), int(row["ea_id"]) if row.get("ea_id") else None) for row in csv.DictReader(f)
         ]
 
 
-def start_first_season(cur: RealDictCursor, board_id: int) -> None:
-    name = max(path.stem for path in TEMPLATES.glob("*.csv"))
-    clubs = read_template(name)
+# the store edition's starting list: the original group's own ratings, made by hand before any card model
+STORE_TEMPLATE = Path(__file__).parent / "data" / "store-clubs.csv"
+
+
+def season_label(today: date) -> str:
+    """A football season's name, e.g. "2026–27": a season starts in July."""
+    start = today.year if today.month >= 7 else today.year - 1
+    return f"{start}–{(start + 1) % 100:02d}"
+
+
+def start_first_season(cur: RealDictCursor, board_id: int, edition: str = "classic") -> None:
+    if edition == "store":
+        name, path = season_label(date.today()), STORE_TEMPLATE
+    else:
+        name = max(p.stem for p in TEMPLATES.glob("*.csv"))
+        path = TEMPLATES / f"{name}.csv"
+    clubs = read_template(path)
     modelled = any(ea_id for _, _, ea_id in clubs)
     cur.execute(
         "INSERT INTO seasons (board_id, name, game) VALUES (%s, %s, %s) RETURNING id",
@@ -72,8 +87,18 @@ ORDER BY s.created_at, s.id
 """
 
 
-def _season(request: Request, board_id: int, season_id: int) -> dict:
+def _seasons(request: Request, board_id: int, season_id: int | None) -> list[dict]:
     rows = _db(request).fetch_all(SEASONS, {"board": board_id, "season": season_id})
+    if request_edition(request) == "store":
+        # the store edition rates clubs by hand only: nothing of a card model goes out
+        for row in rows:
+            row["game"] = row["model"] = None
+            row["clubs"] = [c | {"eaId": None, "modelElo": None, "adjust": 0} for c in row["clubs"]]
+    return rows
+
+
+def _season(request: Request, board_id: int, season_id: int) -> dict:
+    rows = _seasons(request, board_id, season_id)
     if not rows:
         raise HTTPException(status_code=404, detail=f"No season with ID {season_id}")
     return rows[0]
@@ -91,7 +116,7 @@ def _club_taken(name: str) -> HTTPException:
 @router.get("")
 def list_seasons(request: Request, access: BoardAccess = Depends(board_access)):
     """Oldest first, each with its clubs (strongest first) and how many matches were played in it."""
-    return _db(request).fetch_all(SEASONS, {"board": access.id, "season": None})
+    return _seasons(request, access.id, None)
 
 
 @router.post("", status_code=201)

@@ -26,6 +26,7 @@ import { ConfirmDialog, Modal } from "../ui/Dialog";
 import { Field, TextInput } from "../ui/form";
 import { ClubCrest, Stars } from "../ui/Identity";
 import { Button, Panel, Pill } from "../ui/primitives";
+import { has } from "../../lib/edition";
 
 const MIN_ELO = -1000;
 const MAX_ELO = 3000;
@@ -71,6 +72,7 @@ const m = defineMessages({
     createHint: "Prepare it on the side; nothing changes until you make it active.",
     seasonName: "Name",
     seasonPlaceholder: "FC27",
+    seasonPlaceholderPlain: "2027–28",
     startFrom: "Start from",
     fromCards: "{game} card model ({n} clubs)",
     cardsLoading: "Loading {game} cards…",
@@ -134,6 +136,7 @@ const m = defineMessages({
     createHint: "Kenarda hazırla; aktif yapana kadar hiçbir şey değişmez.",
     seasonName: "Ad",
     seasonPlaceholder: "FC27",
+    seasonPlaceholderPlain: "2027–28",
     startFrom: "Başlangıç",
     fromCards: "{game} kart modeli ({n} kulüp)",
     cardsLoading: "{game} kartları yükleniyor…",
@@ -335,17 +338,19 @@ function NewSeason({
   const tc = useT(common);
   const create = useCreateSeason();
   const applyModel = useApplyModel();
-  const cards = useCards(open ? LATEST_GAME : null);
+  // rating a season with the game's cards is the classic edition's
+  const byCards = has("cardImport");
+  const cards = useCards(open && byCards ? LATEST_GAME : null);
   const hasGame = seasons.some((s) => s.game === LATEST_GAME);
   const [name, setName] = useState("");
   // "cards": rate a fresh season with the newest game's card model; a season id: copy it; "": empty
   const [source, setSource] = useState<string>("");
   useEffect(() => {
     if (!open) return;
-    const fresh = !hasGame && !seasons.some((s) => s.name.toLowerCase() === LATEST_GAME.toLowerCase());
+    const fresh = byCards && !hasGame && !seasons.some((s) => s.name.toLowerCase() === LATEST_GAME.toLowerCase());
     setName(fresh ? LATEST_GAME : "");
     setSource(fresh ? "cards" : from ? String(from.id) : "");
-  }, [open, from, hasGame, seasons]);
+  }, [open, from, hasGame, seasons, byCards]);
 
   const taken = seasons.some((s) => s.name.toLowerCase() === name.trim().toLowerCase());
   const busy = create.isPending || applyModel.isPending;
@@ -393,14 +398,16 @@ function NewSeason({
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={40}
-            placeholder={t("seasonPlaceholder")}
+            placeholder={byCards ? t("seasonPlaceholder") : t("seasonPlaceholderPlain")}
           />
         </Field>
         <Field label={t("startFrom")}>
           <select value={source} onChange={(e) => setSource(e.target.value)} className="input h-11">
-            <option value="cards" disabled={!cards.data}>
-              {cards.data ? t("fromCards", { game: LATEST_GAME, n: cards.data.clubs.length }) : t("cardsLoading", { game: LATEST_GAME })}
-            </option>
+            {byCards && (
+              <option value="cards" disabled={!cards.data}>
+                {cards.data ? t("fromCards", { game: LATEST_GAME, n: cards.data.clubs.length }) : t("cardsLoading", { game: LATEST_GAME })}
+              </option>
+            )}
             {[...seasons].reverse().map((s) => (
               <option key={s.id} value={s.id}>
                 {t("copyOf", { season: s.name, n: s.clubs.length })}
@@ -519,9 +526,11 @@ export function ClubsAdmin({ data }: { data: Analytics }) {
                     <Trash2 className="size-4" />
                   </Button>
                 )}
-                <Button size="sm" variant="secondary" title={t("tuneModelTip")} onClick={() => navigate(path(`/clubs?season=${season.id}&model=1`))}>
-                  <FlaskConical className="size-3.5" /> {t("tuneModel")}
-                </Button>
+                {has("cardImport") && (
+                  <Button size="sm" variant="secondary" title={t("tuneModelTip")} onClick={() => navigate(path(`/clubs?season=${season.id}&model=1`))}>
+                    <FlaskConical className="size-3.5" /> {t("tuneModel")}
+                  </Button>
+                )}
                 <Button size="sm" variant="primary" onClick={() => setActivating(true)}>
                   <Check className="size-3.5" /> {t("makeActive")}
                 </Button>

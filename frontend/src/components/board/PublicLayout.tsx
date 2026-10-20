@@ -7,6 +7,7 @@ import { Logo } from "../layout/Logo";
 import { LanguageButton } from "../layout/LanguageButton";
 import { ThemeButton } from "../layout/ThemeButton";
 import { Avatar } from "../ui/Identity";
+import { IndependenceNote } from "../ui/EditionNotes";
 
 const m = defineMessages({
   en: { signIn: "Sign in", account: "Your account", privacy: "Privacy" },
@@ -55,10 +56,11 @@ export function PublicLayout({ children }: { children: ReactNode }) {
         </span>
       </header>
       <main className="mx-auto max-w-6xl px-4 pb-12 sm:px-6">{children}</main>
-      <footer className="mx-auto max-w-6xl px-4 pb-10 text-xs text-faint sm:px-6">
+      <footer className="mx-auto max-w-6xl space-y-2 px-4 pb-10 text-xs text-faint sm:px-6">
         <Link to="/privacy" className="hover:text-muted">
           {t("privacy")}
         </Link>
+        <IndependenceNote className="max-w-xl" />
       </footer>
     </div>
   );

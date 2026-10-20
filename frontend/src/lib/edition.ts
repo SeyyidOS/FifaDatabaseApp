@@ -35,15 +35,40 @@ declare global {
   }
 }
 
-/** Which edition from the build's setting and the server's: store if either says so. */
-export function editionOf(build: string | undefined, server: string | undefined): Edition {
-  return [build, server].some((v) => v?.trim().toLowerCase() === "store") ? "store" : "classic";
+/** Which edition from the build's setting, the server's (and a device's preview): store if any says so. */
+export function editionOf(...settings: (string | null | undefined)[]): Edition {
+  return settings.some((v) => v?.trim().toLowerCase() === "store") ? "store" : "classic";
 }
 
-export const EDITION: Edition = editionOf(
-  import.meta.env.VITE_EDITION,
-  typeof window === "undefined" ? undefined : window.MATCHNIGHT_EDITION,
-);
+// A device can try the store edition on a classic site (Settings, for a league's owner). Only that device
+// changes, and only towards store, like the server's setting.
+const PREVIEW = "matchnight.preview";
+
+function previewed(): string | null {
+  try {
+    return localStorage.getItem(PREVIEW);
+  } catch {
+    return null;
+  }
+}
+
+const browser = typeof window !== "undefined";
+/** What the site runs, whatever this device previews. */
+export const SITE_EDITION: Edition = editionOf(import.meta.env.VITE_EDITION, browser ? window.MATCHNIGHT_EDITION : undefined);
+export const EDITION: Edition = editionOf(SITE_EDITION, browser ? previewed() : null);
+/** This device is trying the store edition on a classic site. */
+export const PREVIEWING = EDITION !== SITE_EDITION;
+
+/** Starts or ends this device's preview of the store edition; the app starts again in it. */
+export function setStorePreview(on: boolean) {
+  try {
+    if (on) localStorage.setItem(PREVIEW, "store");
+    else localStorage.removeItem(PREVIEW);
+  } catch {
+    return;
+  }
+  window.location.reload();
+}
 
 export const featureOn = (feature: Feature, edition: Edition) => FEATURES[feature][edition];
 

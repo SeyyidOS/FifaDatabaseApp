@@ -20,6 +20,7 @@ import { clubFinder, clubPath, clubRecord, distinctGameName, LATEST_GAME, refere
 import { clubStars } from "../lib/elo";
 import { formatDay } from "../lib/format";
 import type { Club } from "../lib/types";
+import { has } from "../lib/edition";
 
 type View = "overview" | "positions" | "stats";
 type SortKey = "elo" | "xi" | "bench" | "ovr" | "move" | `S${SlotKey}` | `T${Stat}`;
@@ -144,7 +145,7 @@ function ClubsInner({ data }: { data: Analytics }) {
   const ranges = Object.fromEntries(columns.map((c) => [c.key, range(c.key)]));
   const top = Math.max(1, ...rows.map((r) => r.club.elo));
   const bottom = Math.min(0, ...rows.map((r) => r.club.elo));
-  const canTune = role === "admin" && season && !season.active;
+  const canTune = has("cardImport") && role === "admin" && season && !season.active;
 
   if (!season) return <EmptyState title={t("noClubs")} />;
 

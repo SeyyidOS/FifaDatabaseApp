@@ -24,8 +24,10 @@ import {
 import { AddPlayer } from "../components/AddPlayer";
 import { DataGate } from "../components/DataGate";
 import { ClubsAdmin } from "../components/settings/ClubsAdmin";
+import { StorePreview } from "../components/settings/StorePreview";
 import { PageHeader } from "../components/layout/AppShell";
 import { ConfirmDialog } from "../components/ui/Dialog";
+import { IndependenceNote } from "../components/ui/EditionNotes";
 import { Avatar, ClubCrest } from "../components/ui/Identity";
 import { AccountInvites, Members } from "../components/settings/AccountInvites";
 import { Field, PasswordInput, TextInput } from "../components/ui/form";
@@ -948,6 +950,12 @@ export default function Settings() {
               </div>
             )}
           </div>
+          {manager?.role === "owner" && (
+            <Section delay={0.15}>
+              <StorePreview />
+            </Section>
+          )}
+          <IndependenceNote className="mx-auto max-w-xl text-center" />
           <LiveVersion />
         </div>
       )}

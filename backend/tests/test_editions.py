@@ -30,3 +30,37 @@ def test_only_store_means_store(board, monkeypatch):
         assert board.api.get(board.url("/games/fc27/cards"), headers=board.member).status_code == 200, value
     monkeypatch.setenv("EDITION", " STORE ")
     assert board.api.get(board.url("/games/fc27/cards"), headers=board.member).status_code == 404
+
+
+def test_store_sees_no_card_model_in_seasons(board):
+    [classic] = board.api.get(board.url("/seasons"), headers=board.member).json()
+    assert classic["game"] == "FC27" and classic["clubs"][0]["eaId"] is not None
+    [store] = board.api.get(board.url("/seasons"), headers={**board.member, **STORE}).json()
+    assert (store["game"], store["model"]) == (None, None)
+    assert all(c["eaId"] is None and c["modelElo"] is None and c["adjust"] == 0 for c in store["clubs"])
+    # the ratings themselves are the board's own
+    assert [c["elo"] for c in store["clubs"]] == [c["elo"] for c in classic["clubs"]]
+
+
+def test_a_league_started_in_the_store_app_starts_neutral(api, mail):
+    from conftest import bearer, sign_in
+
+    me = sign_in(api, mail)
+    created = api.post("/boards", json={"name": "Office League"}, headers={**bearer(me["token"]), **STORE})
+    admin = {**bearer(created.json()["token"]), **STORE}
+    [season] = api.get("/boards/office-league/seasons", headers=admin).json()
+    # a football season's name, no game's, and the hand-made starting ratings
+    assert season["name"][:4].isdigit() and "–" in season["name"]
+    assert len(season["clubs"]) == 50 and {"Real Madrid", "Galatasaray"} <= {c["name"] for c in season["clubs"]}
+    row = api.app.state.db.fetch_one("SELECT game FROM seasons")
+    assert row["game"] is None
+
+
+def test_season_label():
+    from datetime import date
+
+    from seasons import season_label
+
+    assert season_label(date(2026, 10, 20)) == "2026–27"
+    assert season_label(date(2027, 3, 1)) == "2026–27"
+    assert season_label(date(2099, 7, 1)) == "2099–00"
