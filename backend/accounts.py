@@ -37,6 +37,14 @@ def _require_accounts() -> None:
         raise HTTPException(status_code=404, detail="Accounts are not available on this server")
 
 
+def _review_code(email: str) -> str | None:
+    """The code of App Review's demo account (REVIEW_EMAIL): always REVIEW_CODE, and no e-mail goes out, as
+    the reviewers can't read that inbox. None for every other address, or with no valid code set."""
+    review = os.getenv("REVIEW_EMAIL", "").strip().lower()
+    code = os.getenv("REVIEW_CODE", "").strip()
+    return code if review and email == review and len(code) == 6 and code.isdigit() else None
+
+
 def _hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
@@ -81,7 +89,8 @@ def request_link(body: LinkRequest, request: Request, tasks: BackgroundTasks):
     links_per_email.record(body.email)
 
     token = secrets.token_urlsafe(32)
-    code = f"{secrets.randbelow(10**6):06d}"
+    review = _review_code(body.email)
+    code = review or f"{secrets.randbelow(10**6):06d}"
     # links are worthless a few minutes after they are made: keep the table small
     request.app.state.db.execute("DELETE FROM login_links WHERE expires_at < NOW() - INTERVAL '1 day'")
     request.app.state.db.execute(
@@ -92,7 +101,8 @@ def request_link(body: LinkRequest, request: Request, tasks: BackgroundTasks):
         (_hash(token), _code_hash(body.email, code), body.email, LINK_MINUTES),
     )
     link = f"{os.environ['APP_URL'].rstrip('/')}/#/signin?token={token}"
-    tasks.add_task(mailer.send_login_link, body.email, link, body.lang, LINK_MINUTES, code)
+    if review is None:
+        tasks.add_task(mailer.send_login_link, body.email, link, body.lang, LINK_MINUTES, code)
     return {"sent": True}
 
 

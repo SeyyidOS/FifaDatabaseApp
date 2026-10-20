@@ -7,7 +7,8 @@ the rest:
   deploy/match-stats.py pending [--days N] [--new]
                                              photos of matches without stats from the last N days
                                              (default 14), one JSON line each, with a JPEG copy to read;
-                                             --new leaves out the ones a read has already tried
+                                             --new leaves out the ones a read has already tried. Only
+                                             photos whose uploader agreed to the AI read them (ai_read)
   deploy/match-stats.py count [--days N] [--new] [--ids]
                                              how many there are, or their photo ids (the database only)
   deploy/match-stats.py tried ID...          note photos a read has tried (saved or skipped)
@@ -56,6 +57,7 @@ FROM match_photos ph
 JOIN matches m ON m.id = ph.match_id
 JOIN boards b ON b.id = m.board_id
 WHERE NOT EXISTS (SELECT 1 FROM match_stats s WHERE s.match_id = m.id)
+  AND ph.ai_read
   AND m.time > NOW() AT TIME ZONE 'UTC' - make_interval(days => %d)
 ORDER BY m.time, ph.id
 """

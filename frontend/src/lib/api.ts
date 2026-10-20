@@ -137,8 +137,9 @@ export function boardApi(slug: string, token: string) {
     deleteMatch: (id: number) => call<{ message: string }>(`/matches/${id}`, json("DELETE")),
     fixScore: (id: number, scoreA: number, scoreB: number) =>
       call<{ scoreA: number; scoreB: number }>(`/matches/${id}`, json("PATCH", { scoreA, scoreB })),
-    addPhoto: (matchId: number, image: Blob) =>
-      call<MatchPhoto>(`/matches/${matchId}/photos`, { method: "POST", body: image }),
+    /** `ai`: the uploader agreed to have the stats read by the AI service; otherwise it's only kept */
+    addPhoto: (matchId: number, image: Blob, ai: boolean) =>
+      call<MatchPhoto>(`/matches/${matchId}/photos${ai ? "?ai=true" : ""}`, { method: "POST", body: image }),
     /** the image itself; it needs this device's token, so it can't be a plain <img src> */
     photo: (id: number, size: "full" | "thumb") => call<Blob>(`/photos/${id}?size=${size}`, {}, (res) => res.blob()),
     deletePhoto: (id: number) => call<{ message: string }>(`/photos/${id}`, json("DELETE")),

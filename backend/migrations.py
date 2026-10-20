@@ -482,6 +482,18 @@ def v17_live_matches(cur: RealDictCursor) -> None:
     cur.execute(V17_LIVE_MATCHES)
 
 
+# Whether a match photo may be sent to the AI service that reads stats (deploy/match-stats.py): only with
+# the uploader's say-so (photos.py). Photos from before were sent under the privacy page's notice.
+V18_PHOTO_AI = """
+ALTER TABLE match_photos ADD COLUMN ai_read BOOLEAN NOT NULL DEFAULT FALSE;
+UPDATE match_photos SET ai_read = TRUE;
+"""
+
+
+def v18_photo_ai(cur: RealDictCursor) -> None:
+    cur.execute(V18_PHOTO_AI)
+
+
 MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (1, v1_legacy),
     (2, v2_boards),
@@ -500,6 +512,7 @@ MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (15, v15_sign_in_codes),
     (16, v16_match_log),
     (17, v17_live_matches),
+    (18, v18_photo_ai),
 ]
 
 

@@ -105,3 +105,11 @@ def test_deleting_a_photo_or_its_match_removes_the_files(board, match_id):
     assert board.api.delete(board.url(f"/matches/{match_id}"), headers=board.admin).status_code == 200
     assert board.api.get(board.url(f"/photos/{second}"), headers=board.member).status_code == 404
     assert files() == before
+
+
+def test_only_photos_agreed_to_go_to_the_ai_service(board, match_id):
+    kept = upload(board, match_id, jpeg(800, 600)).json()
+    url = board.url(f"/matches/{match_id}/photos?ai=true")
+    read = board.api.post(url, content=jpeg(800, 600), headers={**board.member, "Content-Type": "image/jpeg"}).json()
+    rows = board.api.app.state.db.fetch_all("SELECT id, ai_read FROM match_photos ORDER BY id")
+    assert [(r["id"], r["ai_read"]) for r in rows] == [(kept["id"], False), (read["id"], True)]
