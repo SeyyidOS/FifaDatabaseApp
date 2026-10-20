@@ -15,7 +15,9 @@ from fastapi import APIRouter, Header, HTTPException, Request
 
 from accounts import current_user
 from auth import board_role, client_ip, failed_logins, issue_token, verify_password
+from avatars import _remove as remove_avatar
 from elo import compute_ratings
+from photos import remove_files
 from schemas import BoardClaim, MembershipPlayer
 
 router = APIRouter(tags=["memberships"])
@@ -213,3 +215,79 @@ def link_player(slug: str, body: MembershipPlayer, request: Request, authorizati
     except psycopg2.errors.UniqueViolation as exc:
         raise HTTPException(status_code=409, detail="That player already belongs to another account") from exc
     return {"playerId": body.playerId}
+
+
+# --------------------------------- leaving for good ----------------------------------
+
+# Each of an account's boards and, for one it owns, who takes it over: an admin first, then a member with
+# a player, longest in first; never someone whose request to join is still unanswered.
+_LEAVING = """
+SELECT b.id, b.slug, b.name, m.role, b.password_hash IS NOT NULL AS passwords,
+       h.user_id AS heir, COALESCE(hu.name, hp.name) AS heir_name
+FROM memberships m
+JOIN boards b ON b.id = m.board_id
+LEFT JOIN LATERAL (
+    SELECT o.user_id, o.player_id FROM memberships o
+    WHERE o.board_id = m.board_id AND o.user_id <> m.user_id
+      AND NOT EXISTS (SELECT 1 FROM join_requests r WHERE r.board_id = o.board_id AND r.user_id = o.user_id)
+    ORDER BY o.role = 'admin' DESC, o.player_id IS NOT NULL DESC, o.created_at, o.user_id
+    LIMIT 1
+) h ON m.role = 'owner'
+LEFT JOIN users hu ON hu.id = h.user_id
+LEFT JOIN players hp ON hp.id = h.player_id
+WHERE m.user_id = %s
+ORDER BY m.created_at, b.id
+"""
+
+
+def _fate(row: dict) -> str:
+    """What deleting the account does to one of its boards. One it owns passes to the heir; with nobody to
+    take it, a board people open with its passwords stays, ownerless (its admin password claims it again),
+    and one only the account could open goes with it."""
+    if row["role"] != "owner":
+        return "leave"
+    if row["heir"] is not None:
+        return "handover"
+    return "keep" if row["passwords"] else "delete"
+
+
+@router.get("/auth/me/deletion")
+def deletion_preview(request: Request, authorization: str | None = Header(default=None)):
+    """What deleting this account would do to each of its boards, for the app to say before it is done."""
+    user = current_user(request, authorization)
+    rows = request.app.state.db.fetch_all(_LEAVING, (user["id"],))
+    return [{"slug": r["slug"], "name": r["name"], "fate": _fate(r), "heir": r["heir_name"]} for r in rows]
+
+
+@router.delete("/auth/me", status_code=204)
+def delete_account(request: Request, authorization: str | None = Header(default=None)):
+    """Deletes the account: its e-mail, name and photo, its memberships and its sign-in links. Boards it
+    owns go as deletion_preview says. Its players and their matches stay with their boards, as when a
+    member is removed; who logged or changed a match is forgotten."""
+    user = current_user(request, authorization)
+    files: list[str] = []
+    with request.app.state.db.transaction() as cur:
+        cur.execute("SELECT id FROM users WHERE id = %s FOR UPDATE", (user["id"],))
+        cur.execute(_LEAVING, (user["id"],))
+        for row in cur.fetchall():
+            fate = _fate(row)
+            if fate == "handover":
+                # one owner per board: this membership goes before the heir moves up
+                cur.execute("DELETE FROM memberships WHERE user_id = %s AND board_id = %s", (user["id"], row["id"]))
+                cur.execute(
+                    "UPDATE memberships SET role = 'owner' WHERE user_id = %s AND board_id = %s",
+                    (row["heir"], row["id"]),
+                )
+            elif fate == "delete":
+                cur.execute(
+                    "SELECT p.file FROM match_photos p JOIN matches m ON m.id = p.match_id WHERE m.board_id = %s",
+                    (row["id"],),
+                )
+                files += [r["file"] for r in cur.fetchall()]
+                # matches first: their players are only let go once no match names them
+                cur.execute("DELETE FROM matches WHERE board_id = %s", (row["id"],))
+                cur.execute("DELETE FROM boards WHERE id = %s", (row["id"],))
+        cur.execute("DELETE FROM login_links WHERE email = %s", (user["email"],))
+        cur.execute("DELETE FROM users WHERE id = %s", (user["id"],))
+    remove_avatar(user["photo"])
+    remove_files(files)

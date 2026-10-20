@@ -7,6 +7,7 @@ import type {
   BoardInvites,
   BoardMembers,
   InvitePreview,
+  LeagueFate,
   Membership,
   BoardMe,
   Club,
@@ -203,6 +204,9 @@ export const accountApi = {
   /** A league owned by the account, with no passwords: people come in with invites. */
   createLeague: (token: string, name: string) => request<SignIn>("/boards", json("POST", { name }), token),
   rename: (token: string, name: string) => request<Account>("/auth/me", json("PATCH", { name }), token),
+  /** What deleting the account would do to each of its leagues. */
+  deletion: (token: string) => request<LeagueFate[]>("/auth/me/deletion", {}, token),
+  deleteAccount: (token: string) => request<void>("/auth/me", json("DELETE"), token, async () => undefined),
   boards: (token: string) => request<Membership[]>("/auth/boards", {}, token),
   /** A board token for a board the account is a member of. */
   session: (token: string, slug: string) => request<SignIn>(`/boards/${encodeURIComponent(slug)}/session`, json("POST"), token),

@@ -15,6 +15,7 @@ import { Modal } from "../ui/Dialog";
 import { Field, TextInput } from "../ui/form";
 import { Avatar } from "../ui/Identity";
 import { Button, Pill } from "../ui/primitives";
+import { DeleteAccount } from "./DeleteAccount";
 import { InviteLinkForm, NewLeagueForm } from "./LeagueForms";
 import { PhotoCropper } from "./PhotoCropper";
 
@@ -437,10 +438,11 @@ function EditProfile({ account, onPhoto }: { account: AccountSession; onPhoto: (
         </div>
         {moving && <ChangeEmail account={account} />}
       </div>
-      <div className="border-t border-line pt-4">
+      <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
         <Button variant="ghost" className="text-loss" onClick={signOutAccount}>
           <LogOut className="size-4" /> {t("signOut")}
         </Button>
+        <DeleteAccount account={account} />
       </div>
     </div>
   );
