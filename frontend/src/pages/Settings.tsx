@@ -24,6 +24,7 @@ import {
 import { AddPlayer } from "../components/AddPlayer";
 import { DataGate } from "../components/DataGate";
 import { ClubsAdmin } from "../components/settings/ClubsAdmin";
+import { CrestLook } from "../components/settings/CrestLook";
 import { PageHeader } from "../components/layout/AppShell";
 import { ConfirmDialog } from "../components/ui/Dialog";
 import { Avatar, ClubCrest } from "../components/ui/Identity";
@@ -875,6 +876,11 @@ export default function Settings() {
           />
           <div className="grid gap-6 xl:grid-cols-12">
             <div className="min-w-0 space-y-6 xl:col-span-7">
+              {manager?.role === "owner" && (
+                <Section>
+                  <CrestLook />
+                </Section>
+              )}
               <Section>
                 {manager ? (
                   <AccountInvites welcome={params.get("welcome") === "1"} />

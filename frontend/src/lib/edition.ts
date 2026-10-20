@@ -13,7 +13,7 @@
 export type Edition = "classic" | "store";
 
 export const FEATURES = {
-  /** the clubs' real crests (public/crests); otherwise a badge from the club's colours and initials */
+  /** the clubs' real crests (public/crests); otherwise a badge drawn from the club's kit (ClubBadge) */
   realCrests: { classic: true, store: false },
   /** club ratings from the game's cards, and where they came from; otherwise stars an admin gives */
   cardRatings: { classic: true, store: false },

@@ -5,6 +5,9 @@ import { cn } from "../../lib/cn";
 import { cleanName, displayName } from "../../lib/format";
 import { crestFor } from "../../lib/crests";
 import { clubIdentity, initials, playerGradient } from "../../lib/identity";
+import type { BadgeStyle } from "../../lib/kits";
+import { useCrestStyle, type CrestStyle } from "../../hooks/useCrestStyle";
+import { ClubBadge } from "./ClubBadge";
 import { useT } from "../../hooks/useI18n";
 import { defineMessages } from "../../lib/i18n";
 
@@ -85,21 +88,40 @@ const m = defineMessages({
 
 const CREST_SIZES = { xs: 18, sm: 24, md: 32, lg: 44, xl: 64, "2xl": 88 } as const;
 
+/**
+ * A club's crest, or where real crests aren't shown (the store edition, or a look this device is trying)
+ * a badge drawn from its kit. `look` shows one particular way, whatever the device's.
+ */
 export function ClubCrest({
   name,
   size = "md",
+  look,
   className,
 }: {
   name: string;
   size?: keyof typeof CREST_SIZES;
+  look?: CrestStyle;
   className?: string;
 }) {
   const t = useT(m);
   const id = useId().replace(/:/g, "");
   const [broken, setBroken] = useState<string | null>(null);
+  const style = useCrestStyle();
   const { abbr, primary, secondary, ink } = clubIdentity(name);
   const px = CREST_SIZES[size];
   const crest = crestFor(name);
+
+  if ((look ?? style) !== "real") {
+    return (
+      <ClubBadge
+        name={name}
+        px={px}
+        style={(look ?? style) as BadgeStyle}
+        label={t("crest", { name })}
+        className={cn("shrink-0 select-none drop-shadow-[0_3px_8px_rgba(0,0,0,.35)]", className)}
+      />
+    );
+  }
 
   if (crest && broken !== crest.src) {
     return (

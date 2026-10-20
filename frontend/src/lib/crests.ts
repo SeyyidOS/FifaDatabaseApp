@@ -109,10 +109,15 @@ export interface Crest {
   mono: boolean;
 }
 
-export function crestFor(name: string): Crest | null {
+/** The key a club goes by in `table`: its name as typed, without accents, or through a known alias. */
+export function clubKey(name: string, table: Record<string, unknown>): string | undefined {
   const raw = name.trim().toLowerCase();
   const n = normalise(name);
-  const key = [raw, n, ALIASES[raw], ALIASES[n]].find((k) => k && FILES[k]);
+  return [raw, n, ALIASES[raw], ALIASES[n]].find((k) => k && table[k] !== undefined);
+}
+
+export function crestFor(name: string): Crest | null {
+  const key = clubKey(name, FILES);
   if (!key) return null;
   return { src: `${import.meta.env.BASE_URL}crests/${FILES[key]}`, mono: MONO.has(key) };
 }
