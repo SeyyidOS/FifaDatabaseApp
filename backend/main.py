@@ -12,6 +12,7 @@ import avatars
 import board_data
 import boards
 import fixtures
+import games
 import invites
 import live
 import memberships
@@ -71,5 +72,6 @@ app.include_router(boards.router)
 app.include_router(board_data.router)
 app.include_router(seasons.router)
 app.include_router(fixtures.router)
+app.include_router(games.router)
 app.include_router(live.router)
 app.include_router(photos.router)

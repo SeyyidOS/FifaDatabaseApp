@@ -11,6 +11,7 @@ standings, K-factor and club ratings. On startup the API applies pending schema 
 | `board_data.py`  | a board's players, matches, ratings and standings                           |
 | `seasons.py`     | a board's seasons and their club ratings (by hand or from a card model)     |
 | `fixtures.py`    | the night's plan: who plays with and against whom, in order                 |
+| `games.py`       | a game's card data and player faces, for signed-in boards only               |
 | `live.py`        | matches being played now: started on one device, finished on any            |
 | `photos.py`      | photos of a match (the stats screens), stored as files in `PHOTO_DIR`       |
 | `avatars.py`     | an account's photo, shown wherever its player appears (also in `PHOTO_DIR`)  |
@@ -130,8 +131,10 @@ From FC27 on, ratings can come from the game's cards. The card model runs in the
 previous season's scale. `POST /boards/{slug}/seasons/{id}/model` stores the result on a draft
 season: every club keeps its EA id, the model's rating and an admin's correction on top
 (`elo = model_elo + adjust`), so re-running the model keeps corrections. Card data lives in
-`frontend/public/games/<game>/` and is imported from the study's export with
-`frontend/scripts/import-fc-cards.py`; the server never contacts fut.gg.
+`backend/games/<game>/` (cards.json and the players' faces) and is imported from the study's export with
+`frontend/scripts/import-fc-cards.py`; the server never contacts fut.gg. It isn't ours to publish, so it
+is never a public file: `GET /boards/{slug}/games/{game}/cards` and `…/faces/{card_id}` (`games.py`)
+give it to devices signed in to a board.
 
 ## The night's plan
 
