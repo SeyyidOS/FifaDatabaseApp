@@ -20,6 +20,7 @@ from auth import (
     slugify,
     verify_password,
 )
+from edition import request_edition
 from memberships import add_owner
 from schemas import BoardCreate, BoardUpdate, Login
 from seasons import start_first_season
@@ -88,7 +89,7 @@ def create_board(
         except psycopg2.errors.UniqueViolation as exc:
             raise HTTPException(status_code=409, detail="That board name was just taken; try again") from exc
         board = cur.fetchone()
-        start_first_season(cur, board["id"])
+        start_first_season(cur, board["id"], request_edition(request))
         if owner:
             add_owner(cur, owner["id"], board["id"])
     # opened with the account, a token that lasts as long as its membership (auth.board_access)

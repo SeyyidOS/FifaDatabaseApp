@@ -11,6 +11,9 @@ describe("editions", () => {
     expect(editionOf("store", undefined)).toBe("store");
     // a store build stays store whatever the server says
     expect(editionOf("store", "classic")).toBe("store");
+    // a device's preview can only move a classic site towards store
+    expect(editionOf("classic", "store")).toBe("store");
+    expect(editionOf("classic", null)).toBe("classic");
   });
 
   it("keeps everything that isn't ours to publish out of the store edition", () => {

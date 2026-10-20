@@ -21,6 +21,7 @@ import { Logo } from "./Logo";
 import { LanguageButton } from "./LanguageButton";
 import { navGroup, navMessages, type NavItem } from "./nav";
 import { ThemeButton } from "./ThemeButton";
+import { PreviewBanner } from "../ui/EditionNotes";
 
 const m = defineMessages({
   en: {
@@ -487,6 +488,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
           className="mx-auto max-w-[1400px] px-4 pt-6 pb-32 sm:px-6 lg:px-8 lg:pt-8 lg:pb-16"
         >
+          <PreviewBanner />
           {children}
         </motion.main>
       </div>

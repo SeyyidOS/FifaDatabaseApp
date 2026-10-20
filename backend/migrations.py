@@ -10,7 +10,7 @@ from psycopg2.extras import RealDictCursor
 from auth import hash_password
 from db import Database
 from elo import DEFAULT_CLUB_ELO
-from seasons import read_template
+from seasons import TEMPLATES, read_template
 
 log = logging.getLogger("fifa.migrations")
 
@@ -192,7 +192,8 @@ def v3_seasons(cur: RealDictCursor) -> None:
     cur.execute(V3_SEASONS)
     # the shared club list every rating so far was calculated with (seeded from FC26 if never filled)
     cur.execute("SELECT name, elo FROM clubs ORDER BY id")
-    clubs = [(c["name"], c["elo"]) for c in cur.fetchall()] or [c[:2] for c in read_template(LEGACY_SEASON)]
+    legacy = TEMPLATES / f"{LEGACY_SEASON}.csv"
+    clubs = [(c["name"], c["elo"]) for c in cur.fetchall()] or [c[:2] for c in read_template(legacy)]
     cur.execute("SELECT id FROM boards ORDER BY id")
     for board in cur.fetchall():
         cur.execute("INSERT INTO seasons (board_id, name) VALUES (%s, %s) RETURNING id", (board["id"], LEGACY_SEASON))

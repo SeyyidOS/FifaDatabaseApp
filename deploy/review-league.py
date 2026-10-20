@@ -77,7 +77,10 @@ def api_url() -> str:
 
 
 def call(method: str, path: str, body: dict | None = None, token: str | None = None):
-    headers = {"Content-Type": "application/json"} | ({"Authorization": f"Bearer {token}"} if token else {})
+    # as the App Store app asks: the store edition (backend/edition.py), so the league starts with a neutral
+    # season and the hand-made club ratings
+    headers = {"Content-Type": "application/json", "X-Edition": "store"}
+    headers |= {"Authorization": f"Bearer {token}"} if token else {}
     data = None if body is None else json.dumps(body).encode()
     request = urllib.request.Request(api_url() + path, data=data, method=method, headers=headers)
     try:
