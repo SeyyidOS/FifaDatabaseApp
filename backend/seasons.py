@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from psycopg2.extras import Json, RealDictCursor
 
 from auth import BoardAccess, board_access, board_admin
+from edition import classic_only
 from schemas import ClubIn, ClubUpdate, ModelApply, SeasonIn, SeasonUpdate
 
 router = APIRouter(prefix="/boards/{slug}/seasons", tags=["seasons"])
@@ -146,7 +147,8 @@ def delete_season(season_id: int, request: Request, access: BoardAccess = Depend
     return {"message": f"Season {season['name']} deleted."}
 
 
-@router.post("/{season_id}/model")
+# ratings from the game's cards: classic only (edition.py)
+@router.post("/{season_id}/model", dependencies=[Depends(classic_only)])
 def apply_model(season_id: int, body: ModelApply, request: Request, access: BoardAccess = Depends(board_admin)):
     """Rate the season's clubs with a card model. Clubs are matched by EA id, then by name; an admin's
     correction on a club is kept on top of its new model rating, and clubs the model doesn't know stay

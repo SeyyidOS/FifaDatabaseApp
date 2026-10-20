@@ -49,6 +49,8 @@ services:
       APP_VERSION: ${APP_VERSION:-manual}
       CORS_ORIGINS: https://matchnight.hotspotkeeper.com
       PHOTO_DIR: /data/photos
+      # classic, or store (backend/edition.py): what isn't ours to publish stays out of store
+      EDITION: ${EDITION:-classic}
       # accounts (backend/README.md, "Accounts"): off unless ACCOUNTS=on, APP_URL and a mail server are set
       ACCOUNTS: ${ACCOUNTS:-}
       APP_URL: ${APP_URL:-}
@@ -91,7 +93,9 @@ services:
       API_UPSTREAM: fifa_api:8080
       # the API's way out for mail (frontend/nginx/smtp-relay.conf.stream-template)
       SMTP_UPSTREAM: ${SMTP_HOST:-localhost}:${SMTP_PORT:-587}
-      NGINX_ENVSUBST_FILTER: "^(API|SMTP)_UPSTREAM$"
+      # the same edition as the API, for /edition.js
+      EDITION: ${EDITION:-classic}
+      NGINX_ENVSUBST_FILTER: "^((API|SMTP)_UPSTREAM|EDITION)$"
     mem_limit: 128m
     cpus: 0.5
     security_opt: ["no-new-privileges:true"]

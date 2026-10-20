@@ -1,4 +1,5 @@
 import type { CardSet } from "./clubModel";
+import { EDITION } from "./edition";
 import { removeSession } from "./session";
 import type {
   Account,
@@ -53,6 +54,8 @@ async function request<T>(
   // a Blob (a photo) is sent as itself, with its own type
   if (init.body && !(init.body instanceof Blob)) headers["Content-Type"] = "application/json";
   if (token) headers.Authorization = `Bearer ${token}`;
+  // the store edition says so on every request, so the API never answers it with classic content
+  if (EDITION === "store") headers["X-Edition"] = "store";
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, { ...init, headers });

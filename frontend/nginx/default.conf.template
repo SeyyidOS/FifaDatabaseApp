@@ -1,5 +1,6 @@
-# Rendered at container start by the nginx image's envsubst step (only ${API_UPSTREAM} is
-# substituted; nginx's own $variables are left alone). The API itself checks the admin key.
+# Rendered at container start by the nginx image's envsubst step (only ${API_UPSTREAM} and ${EDITION} are
+# substituted, see NGINX_ENVSUBST_FILTER; nginx's own $variables are left alone). The API itself checks the
+# admin key.
 
 server {
     listen 8080;
@@ -11,6 +12,13 @@ server {
     location = /healthz {
         access_log off;
         return 200 "ok\n";
+    }
+
+    # the edition this site runs, read before the app starts (src/lib/edition.ts); EDITION in secrets.env
+    location = /edition.js {
+        default_type application/javascript;
+        add_header Cache-Control "no-cache";
+        return 200 'window.MATCHNIGHT_EDITION = "${EDITION}";\n';
     }
 
     location /api/ {

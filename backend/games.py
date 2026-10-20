@@ -12,10 +12,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 
 from auth import board_access
+from edition import classic_only
 
 GAMES = Path(__file__).resolve().parent / "games"
 
-router = APIRouter(prefix="/boards/{slug}/games", tags=["game data"], dependencies=[Depends(board_access)])
+# signed in, and classic only: the store edition has no cards (edition.py)
+router = APIRouter(
+    prefix="/boards/{slug}/games", tags=["game data"], dependencies=[Depends(board_access), Depends(classic_only)]
+)
 
 
 def _game(game: str) -> Path:

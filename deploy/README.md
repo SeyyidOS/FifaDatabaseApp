@@ -61,6 +61,18 @@ Optional, for accounts (none of them is generated; a deploy picks up changes):
 | `SMTP_HOST`     | the mail server, e.g. `smtp.resend.com`; `SMTP_PORT` (587), `SMTP_USER`, `SMTP_PASSWORD` |
 | `MAIL_FROM`     | the sender, in quotes when it has a name: `MAIL_FROM="Matchnight <giris@mail.example.com>"` |
 
+`EDITION` (optional, `classic` when unset) picks what the site shows:
+- `classic` is the app as the original group knows it.
+- `store` leaves out what isn't ours to publish: real club crests, card ratings, the cards' squads and faces, and the game's season names. It is what the App Store app always runs.
+
+To switch, change the line in secrets.env and redeploy the settings:
+
+    cd /root/programs/fifa-app/repo && APP_VERSION=$(git rev-parse --short HEAD) ./deploy/deploy.sh
+
+The data stays the same either way, so switching back is just as quick. `backend/edition.py` and
+`frontend/src/lib/edition.ts` say what each edition shows, and the API and `/edition.js` (nginx) both read
+the setting. The tag `classic-2026-10-20` keeps the code as it was before the editions.
+
 The API has no internet. It sends mail through `fifa_web`, which passes the connection on to `SMTP_HOST`
 untouched (`frontend/nginx/smtp-relay.conf.stream-template`); TLS runs between the API and the mail server
 and is checked against `SMTP_HOST`'s certificate. Quote any value with spaces: the file is read by both
