@@ -5,6 +5,7 @@ import type { CardSet } from "../lib/clubModel";
 import { shrinkPhoto } from "../lib/photos";
 import { updateSession } from "../lib/session";
 import type { NewMatch, SideStats } from "../lib/types";
+import { aiPhotos } from "./useAiPhotos";
 import { useBoard } from "./useBoard";
 
 /** Every query of a board starts with ["board", slug], so a board can be refreshed or dropped at once. */
@@ -180,7 +181,7 @@ export function useUploadPhotos() {
     try {
       for (const [i, file] of files.entries()) {
         try {
-          await api.addPhoto(matchId, await shrinkPhoto(file));
+          await api.addPhoto(matchId, await shrinkPhoto(file), aiPhotos());
           stored++;
         } catch (e) {
           error ??= e as Error;

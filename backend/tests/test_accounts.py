@@ -172,3 +172,26 @@ def test_a_token_in_use_is_renewed(api, mail):
     body = auth._b64(json.dumps(payload, separators=(",", ":")).encode())
     renewed = api.get("/auth/me", headers=bearer(f"{body}.{auth._sign(body)}")).json()["renewed"]
     assert auth.read_user_token(renewed)["iat"] > time.time() - 60
+
+
+def test_app_reviews_demo_account_signs_in_with_its_fixed_code(api, mail, monkeypatch):
+    monkeypatch.setenv("REVIEW_EMAIL", "Review@Matchnight.test")
+    monkeypatch.setenv("REVIEW_CODE", "246810")
+    assert api.post("/auth/email", json={"email": "review@matchnight.test"}).status_code == 202
+    # no e-mail goes out: nobody would read it
+    assert mail == []
+    signed = api.post("/auth/email/code", json={"email": "review@matchnight.test", "code": "246810"})
+    assert signed.status_code == 200, signed.text
+    assert signed.json()["user"]["email"] == "review@matchnight.test"
+    # the code is spent like any other, until the app asks for a new one
+    assert api.post("/auth/email/code", json={"email": "review@matchnight.test", "code": "246810"}).status_code == 400
+
+    # everyone else still gets a random code by e-mail, and the review code doesn't open their account
+    api.post("/auth/email", json={"email": "kerem@example.com"})
+    assert mail[-1]["to"] == "kerem@example.com" and mail[-1]["code"] != "246810"
+    assert api.post("/auth/email/code", json={"email": "kerem@example.com", "code": "246810"}).status_code == 400
+
+    # without a proper code set, the address is an ordinary one
+    monkeypatch.setenv("REVIEW_CODE", "12")
+    api.post("/auth/email", json={"email": "review@matchnight.test"})
+    assert mail[-1]["to"] == "review@matchnight.test"

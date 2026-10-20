@@ -60,6 +60,7 @@ Optional, for accounts (none of them is generated; a deploy picks up changes):
 | `ACCOUNTS`      | `on` to offer accounts (backend/README.md, "Accounts"); needs `APP_URL` and mail |
 | `SMTP_HOST`     | the mail server, e.g. `smtp.resend.com`; `SMTP_PORT` (587), `SMTP_USER`, `SMTP_PASSWORD` |
 | `MAIL_FROM`     | the sender, in quotes when it has a name: `MAIL_FROM="Matchnight <giris@mail.example.com>"` |
+| `REVIEW_EMAIL`, `REVIEW_CODE` | App Review's demo account: that address signs in with that six-digit code and is sent no e-mail. `deploy/review-league.py` gives it a league to look at |
 
 `EDITION` (optional, `classic` when unset) picks what the site shows:
 - `classic` is the app as the original group knows it.

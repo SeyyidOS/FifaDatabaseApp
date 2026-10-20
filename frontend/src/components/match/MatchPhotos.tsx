@@ -1,6 +1,7 @@
 import { BarChart3, Camera, ChevronLeft, ChevronRight, ExternalLink, ImagePlus, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import { useAiPhotos } from "../../hooks/useAiPhotos";
 import { useCanEdit } from "../../hooks/useBoard";
 import { useDeletePhoto, usePhotoBlob, useUploadPhotos } from "../../hooks/useData";
 import { useT } from "../../hooks/useI18n";
@@ -10,6 +11,7 @@ import { MAX_PHOTOS } from "../../lib/photos";
 import type { ParsedMatch } from "../../lib/stats";
 import { Modal } from "../ui/Dialog";
 import { Button, Segmented, Skeleton } from "../ui/primitives";
+import { AiConsent, AiNote } from "./AiConsent";
 import { MatchStatsPanel } from "./MatchStats";
 import { photoMessages } from "./messages";
 
@@ -28,11 +30,23 @@ function PickButton({
   children: ReactNode;
 }) {
   const input = useRef<HTMLInputElement>(null);
+  const ai = useAiPhotos();
+  const [asking, setAsking] = useState(false);
+  // the first time on a device, whether the AI may read them comes first; the picker opens from the answer
+  const pick = () => (ai === null ? setAsking(true) : input.current?.click());
   return (
     <>
-      <button type="button" disabled={disabled} onClick={() => input.current?.click()} className={className}>
+      <button type="button" disabled={disabled} onClick={pick} className={className}>
         {children}
       </button>
+      <AiConsent
+        open={asking}
+        onClose={() => setAsking(false)}
+        onAnswer={() => {
+          setAsking(false);
+          input.current?.click();
+        }}
+      />
       <input
         ref={input}
         type="file"
@@ -251,6 +265,7 @@ function MatchDialog({ match, open, onClose, tab, onTab }: { match: ParsedMatch;
             )}
           </div>
           {!ids.length && canEdit && <p className="mt-3 text-center text-xs text-muted">{t("noneHint")}</p>}
+          {canEdit && <AiNote className="mt-3 text-center text-[11px] text-faint" />}
         </>
       )}
     </Modal>
@@ -349,6 +364,7 @@ export function PhotoPicker({ files, onChange, busy }: { files: File[]; onChange
           </PickButton>
         )}
       </div>
+      {files.length > 0 && <AiNote className="mt-2 text-[11px] text-faint" />}
       {files.length > 0 && (
         <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-5">
           {files.map((f, i) => (

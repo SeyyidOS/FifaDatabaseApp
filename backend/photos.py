@@ -84,7 +84,7 @@ def _match_exists(request: Request, board_id: int, match_id: int) -> bool:
     return row is not None
 
 
-def _store(request: Request, board_id: int, match_id: int, raw: bytes) -> dict:
+def _store(request: Request, board_id: int, match_id: int, raw: bytes, ai: bool) -> dict:
     if not _match_exists(request, board_id, match_id):
         raise HTTPException(status_code=404, detail=f"No match with ID {match_id}")
     full, thumb, width, height = _encode(raw)
@@ -104,10 +104,10 @@ def _store(request: Request, board_id: int, match_id: int, raw: bytes) -> dict:
                 raise HTTPException(status_code=409, detail=f"A match holds at most {MAX_PHOTOS} photos")
             cur.execute(
                 """
-                INSERT INTO match_photos (match_id, file, width, height) VALUES (%s, %s, %s, %s)
+                INSERT INTO match_photos (match_id, file, width, height, ai_read) VALUES (%s, %s, %s, %s, %s)
                 RETURNING id, match_id AS "matchId", width, height, created_at AS "createdAt"
                 """,
-                (match_id, file, width, height),
+                (match_id, file, width, height, ai),
             )
             return cur.fetchone()
     except BaseException:
@@ -116,8 +116,9 @@ def _store(request: Request, board_id: int, match_id: int, raw: bytes) -> dict:
 
 
 @router.post("/matches/{match_id}/photos", status_code=201)
-async def add_photo(match_id: int, request: Request, access: BoardAccess = Depends(board_access)):
-    """The request body is the image itself (JPEG, PNG or WebP)."""
+async def add_photo(match_id: int, request: Request, ai: bool = False, access: BoardAccess = Depends(board_access)):
+    """The request body is the image itself (JPEG, PNG or WebP). With ?ai=true the uploader agreed to have
+    its stats read by the AI service (deploy/match-stats.py); without, the photo is only kept."""
     chunks, size = [], 0
     async for chunk in request.stream():
         size += len(chunk)
@@ -126,7 +127,7 @@ async def add_photo(match_id: int, request: Request, access: BoardAccess = Depen
         chunks.append(chunk)
     if not size:
         raise HTTPException(status_code=422, detail="No photo was sent")
-    return await run_in_threadpool(_store, request, access.id, match_id, b"".join(chunks))
+    return await run_in_threadpool(_store, request, access.id, match_id, b"".join(chunks), ai)
 
 
 @router.get("/matches/{match_id}/photos")

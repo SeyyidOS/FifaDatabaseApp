@@ -58,6 +58,9 @@ services:
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      # App Review's demo account: this address signs in with this code, and gets no e-mail
+      REVIEW_EMAIL: ${REVIEW_EMAIL:-}
+      REVIEW_CODE: ${REVIEW_CODE:-}
       MAIL_FROM: ${MAIL_FROM:-}
       # no internet here: mail goes out through fifa_web, which passes the connection on to SMTP_HOST
       SMTP_RELAY: fifa_web:2587
