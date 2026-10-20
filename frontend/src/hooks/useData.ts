@@ -25,17 +25,26 @@ export function useSeasons() {
   return useQuery({ queryKey: boardKey(slug, "seasons"), queryFn: api.seasons });
 }
 
-/** A game's cards (static, served next to the app); null while there's no game to load. */
+/** A game's cards (the API gives them to signed-in boards only); null while there's no game to load. */
 export function useCards(game: string | null | undefined) {
+  const { api } = useBoard();
   return useQuery({
     queryKey: ["cards", game],
     enabled: !!game,
     staleTime: Infinity,
-    queryFn: async (): Promise<CardSet> => {
-      const res = await fetch(`${import.meta.env.BASE_URL}games/${game!.toLowerCase()}/cards.json`);
-      if (!res.ok) throw new Error(`No cards for ${game} (${res.status})`);
-      return res.json();
-    },
+    queryFn: (): Promise<CardSet> => api.cards(game!),
+  });
+}
+
+/** A card's face, loaded with this device's sign-in like a match photo; kept while the app is open. */
+export function useCardFace(game: string, id: number) {
+  const { api } = useBoard();
+  return useQuery({
+    queryKey: ["card-face", game, id],
+    staleTime: Infinity,
+    gcTime: 30 * 60_000,
+    retry: false,
+    queryFn: () => api.cardFace(game, id),
   });
 }
 

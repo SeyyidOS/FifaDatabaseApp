@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import golden from "./__fixtures__/fc27-model.golden.json";
 import { DEFAULT_MODEL, hungarian, rateClubs, sanitizeModel, type CardSet } from "./clubModel";
 
-const cards: CardSet = JSON.parse(readFileSync(new URL("../../public/games/fc27/cards.json", import.meta.url), "utf8"));
+const cards: CardSet = JSON.parse(readFileSync(new URL("../../../backend/games/fc27/cards.json", import.meta.url), "utf8"));
 const reference = golden.reference as Record<string, number>;
 const byName = (club: { name: string }) => reference[club.name] ?? null;
 

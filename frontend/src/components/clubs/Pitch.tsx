@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { cn } from "../../lib/cn";
 import type { BenchPlace, Card, ClubEvaluation, SlotKey } from "../../lib/clubModel";
-import { faceUrl, pace } from "../../lib/clubs";
+import { useCardFace } from "../../hooks/useData";
+import { useObjectUrl } from "../../hooks/useObjectUrl";
+import { pace } from "../../lib/clubs";
 import { defineMessages } from "../../lib/i18n";
 import { initials } from "../../lib/identity";
 import { useT } from "../../hooks/useI18n";
@@ -20,6 +22,8 @@ const QUALITY: Record<string, string> = {
 
 /** A card's face, falling back to initials (sizes in px). */
 export function CardFace({ game, card, size = 48, className }: { game: string; card: Card; size?: number; className?: string }) {
+  const face = useCardFace(game, card.id);
+  const url = useObjectUrl(face.data);
   const [broken, setBroken] = useState(false);
   return (
     <span
@@ -30,13 +34,13 @@ export function CardFace({ game, card, size = 48, className }: { game: string; c
       )}
       style={{ width: size, height: size }}
     >
-      {broken ? (
+      {broken || face.isError || !url ? (
         <span className="font-display font-bold text-white" style={{ fontSize: size * 0.36 }}>
           {initials(card.name)}
         </span>
       ) : (
         <img
-          src={faceUrl(game, card.id)}
+          src={url}
           alt=""
           loading="lazy"
           decoding="async"

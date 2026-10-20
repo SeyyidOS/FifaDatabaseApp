@@ -1,3 +1,4 @@
+import type { CardSet } from "./clubModel";
 import { removeSession } from "./session";
 import type {
   Account,
@@ -157,6 +158,10 @@ export function boardApi(slug: string, token: string) {
     deleteClub: (season: number, id: number) =>
       call<{ message: string }>(`/seasons/${season}/clubs/${id}`, json("DELETE")),
 
+    // a game's cards and their faces (backend/games.py): for signed-in boards only, never public files
+    cards: (game: string) => call<CardSet>(`/games/${encodeURIComponent(game.toLowerCase())}/cards`),
+    cardFace: (game: string, id: number) =>
+      call<Blob>(`/games/${encodeURIComponent(game.toLowerCase())}/faces/${id}`, {}, (res) => res.blob()),
     live: () => call<LiveMatch[]>("/live"),
     startLive: (body: NewLiveMatch) => call<LiveMatch>("/live", json("POST", body)),
     cancelLive: (id: number) => call<{ cancelled: number }>(`/live/${id}`, json("DELETE")),

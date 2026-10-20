@@ -77,10 +77,6 @@ export function distinctGameName(ours: string, game: string): boolean {
 /** URL-safe key of a club for /clubs/:club. */
 export const clubPath = (name: string) => `/clubs/${encodeURIComponent(name)}`;
 
-/** Card face, served next to the app. */
-export const faceUrl = (game: string, id: number) =>
-  `${import.meta.env.BASE_URL}games/${game.toLowerCase()}/faces/${id}.webp`;
-
 /** A card's pace; goalkeepers have no outfield stats. */
 export const pace = (card: Card): number | null => card.stats?.[0] ?? null;
 

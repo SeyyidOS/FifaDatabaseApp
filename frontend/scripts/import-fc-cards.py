@@ -1,4 +1,6 @@
-"""Turn a card export (fc27-elo's data/players.json + data/img/players) into public/games/<game>/.
+"""Turn a card export (fc27-elo's data/players.json + data/img/players) into backend/games/<game>/.
+
+The API serves it to signed-in boards only (backend/games.py); it isn't ours to publish.
 
 Usage: python3 -I scripts/import-fc-cards.py <fc27-elo folder> [--game fc27]   (needs Pillow)
 
@@ -96,7 +98,7 @@ def main() -> None:
         )
         print(f"{'known' if name in ours else 'NEW  '} {name:28} ({team['name']}) {len(cards)} cards")
 
-    out = ROOT / "public" / "games" / args.game
+    out = ROOT.parent / "backend" / "games" / args.game
     faces = out / "faces"
     faces.mkdir(parents=True, exist_ok=True)
     data = {

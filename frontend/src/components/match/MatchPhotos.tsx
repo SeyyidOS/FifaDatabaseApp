@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useCanEdit } from "../../hooks/useBoard";
 import { useDeletePhoto, usePhotoBlob, useUploadPhotos } from "../../hooks/useData";
 import { useT } from "../../hooks/useI18n";
+import { useObjectUrl } from "../../hooks/useObjectUrl";
 import { cn } from "../../lib/cn";
 import { MAX_PHOTOS } from "../../lib/photos";
 import type { ParsedMatch } from "../../lib/stats";
@@ -13,21 +14,6 @@ import { MatchStatsPanel } from "./MatchStats";
 import { photoMessages } from "./messages";
 
 const m = photoMessages;
-
-/** An object URL for a Blob or File, revoked when it is no longer shown. */
-function useObjectUrl(blob: Blob | undefined) {
-  const [url, setUrl] = useState<string>();
-  useEffect(() => {
-    if (!blob) return;
-    const u = URL.createObjectURL(blob);
-    setUrl(u);
-    return () => {
-      URL.revokeObjectURL(u);
-      setUrl(undefined);
-    };
-  }, [blob]);
-  return url;
-}
 
 /** Opens the phone's camera or gallery; several photos at once. */
 function PickButton({
