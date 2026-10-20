@@ -1,13 +1,12 @@
-import { useContext, useId, useState } from "react";
+import { useContext, useState } from "react";
 import { PlayerPhotosContext } from "../../hooks/player-photos";
 import { photoUrl } from "../../lib/api";
 import { cn } from "../../lib/cn";
 import { cleanName, displayName } from "../../lib/format";
 import { crestFor } from "../../lib/crests";
-import { clubIdentity, initials, playerGradient } from "../../lib/identity";
-import type { BadgeStyle } from "../../lib/kits";
-import { useCrestStyle, type CrestStyle } from "../../hooks/useCrestStyle";
-import { ClubBadge } from "./ClubBadge";
+import { has } from "../../lib/edition";
+import { initials, playerGradient } from "../../lib/identity";
+import { ClubKit } from "./ClubKit";
 import { useT } from "../../hooks/useI18n";
 import { defineMessages } from "../../lib/i18n";
 
@@ -88,40 +87,20 @@ const m = defineMessages({
 
 const CREST_SIZES = { xs: 18, sm: 24, md: 32, lg: 44, xl: 64, "2xl": 88 } as const;
 
-/**
- * A club's crest, or where real crests aren't shown (the store edition, or a look this device is trying)
- * a badge drawn from its kit. `look` shows one particular way, whatever the device's.
- */
+/** A club's crest, or where real crests aren't shown (the store edition) or there's none, a drawing of its kit. */
 export function ClubCrest({
   name,
   size = "md",
-  look,
   className,
 }: {
   name: string;
   size?: keyof typeof CREST_SIZES;
-  look?: CrestStyle;
   className?: string;
 }) {
   const t = useT(m);
-  const id = useId().replace(/:/g, "");
   const [broken, setBroken] = useState<string | null>(null);
-  const style = useCrestStyle();
-  const { abbr, primary, secondary, ink } = clubIdentity(name);
   const px = CREST_SIZES[size];
-  const crest = crestFor(name);
-
-  if ((look ?? style) !== "real") {
-    return (
-      <ClubBadge
-        name={name}
-        px={px}
-        style={(look ?? style) as BadgeStyle}
-        label={t("crest", { name })}
-        className={cn("shrink-0 select-none drop-shadow-[0_3px_8px_rgba(0,0,0,.35)]", className)}
-      />
-    );
-  }
+  const crest = has("realCrests") ? crestFor(name) : null;
 
   if (crest && broken !== crest.src) {
     return (
@@ -144,53 +123,13 @@ export function ClubCrest({
       />
     );
   }
-  const fontSize = abbr.length >= 3 ? 12 : 14;
   return (
-    <svg
-      viewBox="0 0 40 46"
-      width={px}
-      height={px * 1.15}
-      className={cn("shrink-0 drop-shadow-[0_4px_10px_rgba(0,0,0,.35)]", className)}
-      role="img"
-      aria-label={t("crest", { name })}
-    >
-      <defs>
-        <linearGradient id={`g${id}`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor={primary} />
-          <stop offset="1" stopColor={primary} stopOpacity="0.78" />
-        </linearGradient>
-        <linearGradient id={`s${id}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#fff" stopOpacity="0.28" />
-          <stop offset="0.5" stopColor="#fff" stopOpacity="0" />
-        </linearGradient>
-        <clipPath id={`c${id}`}>
-          <path d="M20 1.5 37.5 6.5V22c0 11.6-7.6 18.6-17.5 22.5C10.1 40.6 2.5 33.6 2.5 22V6.5Z" />
-        </clipPath>
-      </defs>
-      <g clipPath={`url(#c${id})`}>
-        <rect width="40" height="46" fill={`url(#g${id})`} />
-        <path d="M0 4 20 -1 40 4V12L20 7 0 12Z" fill={secondary} opacity="0.95" />
-        <rect width="40" height="46" fill={`url(#s${id})`} />
-      </g>
-      <path
-        d="M20 1.5 37.5 6.5V22c0 11.6-7.6 18.6-17.5 22.5C10.1 40.6 2.5 33.6 2.5 22V6.5Z"
-        fill="none"
-        stroke="rgba(255,255,255,.22)"
-        strokeWidth="1"
-      />
-      <text
-        x="20"
-        y="29"
-        textAnchor="middle"
-        fontFamily="Barlow Condensed, sans-serif"
-        fontWeight="700"
-        fontSize={fontSize}
-        letterSpacing="0.5"
-        fill={ink}
-      >
-        {abbr}
-      </text>
-    </svg>
+    <ClubKit
+      name={name}
+      px={px}
+      label={t("crest", { name })}
+      className={cn("shrink-0 select-none drop-shadow-[0_3px_8px_rgba(0,0,0,.35)]", className)}
+    />
   );
 }
 

@@ -1,13 +1,9 @@
 /**
  * Each club's home kit: its colours and their pattern. Where crests can't be used (the store edition,
- * src/lib/edition.ts) the app draws a badge from these instead (components/ui/ClubBadge.tsx). Colours and
+ * src/lib/edition.ts) the app draws the club's shirt instead (components/ui/ClubKit.tsx). Colours and
  * stripes are nobody's to own; a crest is.
  */
 import { clubKey } from "./crests";
-
-/** The ways a club's badge can be drawn from its kit: the shirt, a round badge, a shield, a lettered tile. */
-export const BADGE_STYLES = ["kit", "roundel", "shield", "tile"] as const;
-export type BadgeStyle = (typeof BADGE_STYLES)[number];
 
 export type KitPattern =
   | "plain"
