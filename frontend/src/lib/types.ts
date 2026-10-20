@@ -164,6 +164,15 @@ export interface Membership {
   asked: { name: string; new: boolean } | null;
 }
 
+/** What deleting the account does to one of its leagues: handed to `heir`, deleted with it (nobody else is
+ * in it), kept for its password devices, or just left. */
+export interface LeagueFate {
+  slug: string;
+  name: string;
+  fate: "handover" | "delete" | "keep" | "leave";
+  heir: string | null;
+}
+
 /** A player's place in a league, for the account's own card. */
 export interface Standing {
   elo: number;
