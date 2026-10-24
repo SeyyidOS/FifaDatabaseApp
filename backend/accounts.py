@@ -76,11 +76,15 @@ def config():
     return {"accounts": accounts_on()}
 
 
+MAIL_FAILED = "Couldn't send the e-mail; try again in a while"
+
+
 @router.post("/email", status_code=202)
-def request_link(body: LinkRequest, request: Request, tasks: BackgroundTasks):
+def request_link(body: LinkRequest, request: Request):
     """Mails a sign-in link and a six-digit code: the link for the browser it opens in, the code to type
     wherever the sign-in began (another browser, an app on the home screen). Either one signs in, once.
-    The answer is the same whether or not the address has an account."""
+    The answer is the same whether or not the address has an account; 503 if the e-mail couldn't go out,
+    so nobody waits for one that never comes."""
     _require_accounts()
     ip = client_ip(request)
     if links_per_ip.blocked(ip) or links_per_email.blocked(body.email):
@@ -102,7 +106,12 @@ def request_link(body: LinkRequest, request: Request, tasks: BackgroundTasks):
     )
     link = f"{os.environ['APP_URL'].rstrip('/')}/#/signin?token={token}"
     if review is None:
-        tasks.add_task(mailer.send_login_link, body.email, link, body.lang, LINK_MINUTES, code)
+        try:
+            mailer.send_login_link(body.email, link, body.lang, LINK_MINUTES, code)
+        except mailer.MailError as exc:
+            # a link nobody received is no use to anyone
+            request.app.state.db.execute("DELETE FROM login_links WHERE token_hash = %s", (_hash(token),))
+            raise HTTPException(status_code=503, detail=MAIL_FAILED) from exc
     return {"sent": True}
 
 
@@ -196,10 +205,9 @@ def update_me(body: AccountUpdate, request: Request, authorization: str | None =
 
 
 @router.post("/me/email", status_code=202)
-def request_email_change(
-    body: LinkRequest, request: Request, tasks: BackgroundTasks, authorization: str | None = Header(default=None)
-):
-    """Mails a link to the new address; the account moves there, leagues and all, once it is opened."""
+def request_email_change(body: LinkRequest, request: Request, authorization: str | None = Header(default=None)):
+    """Mails a link to the new address; the account moves there, leagues and all, once it is opened. 503
+    if the e-mail couldn't go out."""
     user = current_user(request, authorization)
     if body.email == user["email"]:
         raise HTTPException(status_code=422, detail="That is already your address")
@@ -223,7 +231,11 @@ def request_email_change(
         (user["id"], body.email, body.lang, _hash(token), LINK_MINUTES),
     )
     link = f"{os.environ['APP_URL'].rstrip('/')}/#/email?token={token}"
-    tasks.add_task(mailer.send_mail, "change", body.email, body.lang, link=link, minutes=LINK_MINUTES)
+    try:
+        mailer.send_mail("change", body.email, body.lang, link=link, minutes=LINK_MINUTES)
+    except mailer.MailError as exc:
+        db.execute("DELETE FROM email_changes WHERE token_hash = %s", (_hash(token),))
+        raise HTTPException(status_code=503, detail=MAIL_FAILED) from exc
     return {"sent": True}
 
 
@@ -260,5 +272,6 @@ def verify_email_change(body: LinkVerify, request: Request, tasks: BackgroundTas
             user = cur.fetchone()
     except psycopg2.errors.UniqueViolation as exc:
         raise HTTPException(status_code=409, detail="That address already has an account") from exc
-    tasks.add_task(mailer.send_mail, "changed", old["email"], change["lang"], email=user["email"])
+    # the move is done; the note to the old address can't change that, so it goes after the reply
+    tasks.add_task(mailer.send_mail_later, "changed", old["email"], change["lang"], email=user["email"])
     return {"token": issue_user_token(user["id"], user["session_version"]), "user": _public(user)}

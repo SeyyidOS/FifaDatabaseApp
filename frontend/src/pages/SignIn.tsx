@@ -11,6 +11,7 @@ import { useLang, useT } from "../hooks/useI18n";
 import { getAccount, saveAccount, takeAfterSignIn } from "../lib/account";
 import { accountApi, ApiError } from "../lib/api";
 import { defineMessages } from "../lib/i18n";
+import { common } from "../lib/messages";
 
 const m = defineMessages({
   en: {
@@ -120,6 +121,7 @@ function CodeForm({ email }: { email: string }) {
 /** Asks for the e-mail (under `header`); once sent, the code takes the whole screen. */
 function LinkForm({ header }: { header: ReactNode }) {
   const t = useT(m);
+  const tc = useT(common);
   const { lang } = useLang();
   const [email, setEmail] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -134,7 +136,8 @@ function LinkForm({ header }: { header: ReactNode }) {
       await accountApi.requestLink(email.trim(), lang);
       setSentTo(email.trim());
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : String(err));
+      // 503: the e-mail couldn't go out (the mail service refused or was down)
+      setError(err instanceof ApiError ? (err.status === 503 ? tc("mailFailed") : err.message) : String(err));
     } finally {
       setBusy(false);
     }

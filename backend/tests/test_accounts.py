@@ -195,3 +195,45 @@ def test_app_reviews_demo_account_signs_in_with_its_fixed_code(api, mail, monkey
     monkeypatch.setenv("REVIEW_CODE", "12")
     api.post("/auth/email", json={"email": "review@matchnight.test"})
     assert mail[-1]["to"] == "review@matchnight.test"
+
+
+def test_an_e_mail_that_could_not_go_out_says_so(api, mail, monkeypatch):
+    import mailer
+
+    def refuse(kind, to, lang, **fields):
+        raise mailer.MailError("550 daily sending quota exceeded")
+
+    monkeypatch.setattr(mailer, "send_mail", refuse)
+    refused = api.post("/auth/email", json={"email": "kerem@example.com", "lang": "tr"})
+    assert refused.status_code == 503
+    assert refused.json()["detail"] == "Couldn't send the e-mail; try again in a while"
+    # no link was left behind that nobody received
+    assert api.app.state.db.fetch_one("SELECT COUNT(*) AS n FROM login_links")["n"] == 0
+    # the same for an address without an account and one with: nothing to tell them apart
+    assert api.post("/auth/email", json={"email": "nobody@example.com"}).status_code == 503
+
+
+def test_a_refused_e_mail_change_says_so(api, mail, monkeypatch):
+    import mailer
+
+    session = sign_in(api, mail)
+
+    def refuse(kind, to, lang, **fields):
+        raise mailer.MailError("connection refused")
+
+    monkeypatch.setattr(mailer, "send_mail", refuse)
+    moved = api.post("/auth/me/email", json={"email": "new@example.com"}, headers=bearer(session["token"]))
+    assert moved.status_code == 503
+    assert api.app.state.db.fetch_one("SELECT COUNT(*) AS n FROM email_changes")["n"] == 0
+
+
+def test_refused_e_mails_still_count_against_the_limits(api, mail, monkeypatch):
+    import mailer
+
+    def refuse(kind, to, lang, **fields):
+        raise mailer.MailError("down")
+
+    monkeypatch.setattr(mailer, "send_mail", refuse)
+    for _ in range(5):
+        assert api.post("/auth/email", json={"email": "kerem@example.com"}).status_code == 503
+    assert api.post("/auth/email", json={"email": "kerem@example.com"}).status_code == 429
