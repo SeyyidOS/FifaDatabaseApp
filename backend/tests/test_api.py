@@ -548,3 +548,10 @@ def test_plans_only_hold_the_boards_active_players(api, board):
     plan(board, (["a", "b"], ["c", "d"]))
     other = Board(api, "Other Crew")
     assert api.get(other.url("/fixture"), headers=other.member).json() is None
+
+
+def test_the_support_address_comes_from_the_server(api, monkeypatch):
+    monkeypatch.delenv("SUPPORT_EMAIL", raising=False)
+    assert api.get("/config").json() == {"supportEmail": None}
+    monkeypatch.setenv("SUPPORT_EMAIL", "  help@matchnight.test ")
+    assert api.get("/config").json() == {"supportEmail": "help@matchnight.test"}

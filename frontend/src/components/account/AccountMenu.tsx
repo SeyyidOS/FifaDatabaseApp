@@ -24,6 +24,7 @@ const m = defineMessages({
     admin: "admin",
     player: "player",
     privacy: "Privacy",
+    help: "Help",
   },
   tr: {
     account: "Hesabın",
@@ -34,6 +35,7 @@ const m = defineMessages({
     admin: "yönetici",
     player: "oyuncu",
     privacy: "Gizlilik",
+    help: "Yardım",
   },
 });
 
@@ -138,6 +140,9 @@ export function AccountMenu() {
                   </button>
                 </div>
                 <div className="mt-1.5 flex items-center border-t border-line pt-1.5">
+                  <Link to="/support" className="px-3 py-2 text-xs text-faint hover:text-muted">
+                    {t("help")}
+                  </Link>
                   <Link to="/privacy" className="px-3 py-2 text-xs text-faint hover:text-muted">
                     {t("privacy")}
                   </Link>

@@ -59,6 +59,8 @@ services:
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      # where people write for help (the app's Support page); no contact line while it's unset
+      SUPPORT_EMAIL: ${SUPPORT_EMAIL:-}
       # App Review's demo account: this address signs in with this code, and gets no e-mail
       REVIEW_EMAIL: ${REVIEW_EMAIL:-}
       REVIEW_CODE: ${REVIEW_CODE:-}

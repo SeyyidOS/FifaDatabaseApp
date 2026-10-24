@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { PublicLayout } from "../components/board/PublicLayout";
 import { useT } from "../hooks/useI18n";
 import { defineMessages } from "../lib/i18n";
@@ -9,7 +10,7 @@ const m = defineMessages({
     eyebrow: "Privacy",
     title: "What we keep",
     lead: "Matchnight is a small app for groups of friends to keep their match nights. Here is what it stores, why, and who sees it.",
-    updated: "Last updated 20 October 2026",
+    updated: "Last updated 25 October 2026",
     storeTitle: "What is stored",
     store1: "Your e-mail address, to send you sign-in codes. There are no passwords, so none are stored.",
     store2: "Your name and, if you add one, your profile photo.",
@@ -29,14 +30,15 @@ const m = defineMessages({
     device1: "Your sign-in, language and theme are kept in your browser's local storage. No cookies.",
     deleteTitle: "Deleting and questions",
     delete1: "You can remove your profile photo, or delete your whole account, yourself: Profile › Edit › Delete account. Your e-mail, name and photo go at once; a league you own passes to another member, or goes with your account if nobody else is in it.",
-    delete2: "For any question, tell your league's owner; they will pass it on to whoever runs the app.",
+    delete2: "For anything else, see Help: how the app works and where to write.",
     delete3: "If you leave or are removed from a league, your matches stay in it as part of its history; they are no longer tied to your account.",
+    help: "Help and contact",
   },
   tr: {
     eyebrow: "Gizlilik",
     title: "Neyi saklıyoruz",
     lead: "Matchnight, arkadaş gruplarının maç gecelerini tutması için yapılmış küçük bir uygulama. Neyi, neden sakladığı ve kimin ne gördüğü aşağıda.",
-    updated: "Son güncelleme: 20 Ekim 2026",
+    updated: "Son güncelleme: 25 Ekim 2026",
     storeTitle: "Neler saklanır",
     store1: "E-posta adresin: giriş kodlarını göndermek için. Şifre yok, dolayısıyla şifre de saklanmaz.",
     store2: "Adın ve eklersen profil fotoğrafın.",
@@ -56,8 +58,9 @@ const m = defineMessages({
     device1: "Giriş bilgin, dil ve tema tercihin tarayıcının yerel depolamasında tutulur. Çerez yok.",
     deleteTitle: "Silme ve sorular",
     delete1: "Profil fotoğrafını ya da hesabının tamamını kendin silebilirsin: Profilim › Düzenle › Hesabı sil. E-postan, adın ve fotoğrafın hemen silinir; sahibi olduğun bir lig başka bir üyeye geçer, başka kimse yoksa hesabınla birlikte silinir.",
-    delete2: "Bir sorun olursa ya da sormak istediğin bir şey varsa ligin sahibine söyle; o, uygulamayı yöneten kişiye iletir.",
+    delete2: "Başka bir sorun ya da soru için Yardım sayfasına bak: uygulama nasıl çalışır ve nereye yazarsın.",
     delete3: "Bir ligden ayrılır ya da çıkarılırsan maçların ligin geçmişinin parçası olarak orada kalır; hesabınla bağı kopar.",
+    help: "Yardım ve iletişim",
   },
 });
 
@@ -96,6 +99,11 @@ export default function Privacy() {
             </section>
           ))}
         </div>
+        <p className="mt-6 text-sm">
+          <Link to="/support" className="font-semibold text-accent-text hover:underline">
+            {t("help")} →
+          </Link>
+        </p>
       </article>
     </PublicLayout>
   );
