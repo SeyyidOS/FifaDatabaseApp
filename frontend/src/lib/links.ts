@@ -10,3 +10,11 @@ export function linkTarget(input: string): string | null {
   if (board) return `/b/${board[1].toLowerCase()}`;
   return /^[A-Za-z0-9_-]{8,}$/.test(text) ? `/join/${text}` : null;
 }
+
+/**
+ * The site's address, for links people share (invites, a board's own link): the page's own, or in the
+ * iPhone app, which isn't served from it, VITE_SITE_URL (.env.app).
+ */
+export function siteUrl(): string {
+  return import.meta.env.VITE_SITE_URL ?? `${window.location.origin}${window.location.pathname}`;
+}

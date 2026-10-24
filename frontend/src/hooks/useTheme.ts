@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from "react";
+import { syncStatusBar } from "../lib/native";
 
 export type Theme = "dark" | "light";
 const KEY = "fm-theme";
@@ -16,6 +17,7 @@ export function useTheme() {
   const theme = useSyncExternalStore(subscribe, read, () => "dark" as Theme);
   const setTheme = useCallback((t: Theme) => {
     document.documentElement.dataset.theme = t;
+    syncStatusBar(t);
     try {
       localStorage.setItem(KEY, t);
     } catch {

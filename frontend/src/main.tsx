@@ -8,6 +8,10 @@ import "@fontsource/barlow-condensed/600.css";
 import "@fontsource/barlow-condensed/700.css";
 import "./index.css";
 import App from "./App";
+import { syncStatusBar } from "./lib/native";
+
+// index.html set the theme before anything drew; the iPhone app's status bar follows it
+syncStatusBar(document.documentElement.dataset.theme === "light" ? "light" : "dark");
 
 const queryClient = new QueryClient({
   defaultOptions: {

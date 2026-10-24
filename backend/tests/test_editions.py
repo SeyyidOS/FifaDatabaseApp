@@ -64,3 +64,18 @@ def test_season_label():
     assert season_label(date(2026, 10, 20)) == "2026–27"
     assert season_label(date(2027, 3, 1)) == "2026–27"
     assert season_label(date(2099, 7, 1)) == "2099–00"
+
+
+def test_the_iphone_app_may_call_the_api(board):
+    # its web view asks first: a PUT (a photo, stats) with the store edition's header
+    asked = board.api.options(
+        board.url("/players"),
+        headers={
+            "Origin": "capacitor://localhost",
+            "Access-Control-Request-Method": "PUT",
+            "Access-Control-Request-Headers": "authorization,content-type,x-edition",
+        },
+    )
+    assert asked.status_code == 200, asked.text
+    assert "PUT" in asked.headers["access-control-allow-methods"]
+    assert "x-edition" in asked.headers["access-control-allow-headers"].lower()
