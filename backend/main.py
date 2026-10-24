@@ -39,12 +39,13 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Matchnight API", version="3.0.0", lifespan=lifespan)
 
 # Tokens travel in the Authorization header (no cookies), so any origin may call the API; set
-# CORS_ORIGINS (comma-separated) to restrict browsers to known frontends.
+# CORS_ORIGINS (comma-separated) to restrict browsers to known frontends. The site itself calls it on its
+# own origin; the iPhone app (frontend/capacitor.config.ts) from capacitor://localhost.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()],
-    allow_methods=["GET", "POST", "PATCH", "DELETE"],
-    allow_headers=["Content-Type", "Authorization", "X-Admin-Key"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=["Content-Type", "Authorization", "X-Admin-Key", "X-Edition"],
 )
 
 

@@ -1,0 +1,3 @@
+/* Maç özeti ekranının istatistikler için ya da profil için fotoğrafı */
+"NSCameraUsageDescription" = "İstatistikler için maç özeti ekranının ya da profilin için bir fotoğraf çek.";
+"NSPhotoLibraryUsageDescription" = "İstatistikler için maç özeti ekranının ya da profilin için fotoğraf seç.";

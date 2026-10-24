@@ -1,0 +1,3 @@
+/* Taking a photo of the match summary screen for its stats, or of yourself for your profile */
+"NSCameraUsageDescription" = "Take a photo of the match summary screen for its stats, or a profile photo.";
+"NSPhotoLibraryUsageDescription" = "Pick photos of the match summary screen for its stats, or a profile photo.";

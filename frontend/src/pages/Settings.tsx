@@ -40,6 +40,7 @@ import { ApiError, publicApi } from "../lib/api";
 import { cn } from "../lib/cn";
 import { runElo } from "../lib/elo";
 import { cleanName, displayName, formatDateTime } from "../lib/format";
+import { siteUrl } from "../lib/links";
 import { getSession, removeSession, saveSession } from "../lib/session";
 import type { ParsedMatch } from "../lib/stats";
 import type { Player } from "../lib/types";
@@ -291,7 +292,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
 function Invite({ welcome }: { welcome: boolean }) {
   const t = useT(msg);
   const { slug } = useBoard();
-  const link = `${window.location.origin}${window.location.pathname}#/b/${slug}`;
+  const link = `${siteUrl()}#/b/${slug}`;
   return (
     <Panel
       title={t("invite")}

@@ -26,6 +26,7 @@ import type {
   SignIn,
 } from "./types";
 import { defineMessages, translator, type Lang } from "./i18n";
+import { siteUrl } from "./links";
 
 const messages = defineMessages({
   en: { offline: "Can't reach the server. Check your connection." },
@@ -241,4 +242,4 @@ export const accountApi = {
 };
 
 /** The address of an invite link, on whatever host the app is served from. */
-export const inviteLink = (code: string) => `${window.location.origin}${window.location.pathname}#/join/${code}`;
+export const inviteLink = (code: string) => `${siteUrl()}#/join/${code}`;
