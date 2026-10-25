@@ -59,6 +59,7 @@ import type { LiveMatch, Side } from "../lib/types";
 import { ApiError } from "../lib/api";
 import { useT } from "../hooks/useI18n";
 import { defineMessages, locale } from "../lib/i18n";
+import { hapticSuccess } from "../lib/native";
 
 const msg = defineMessages({
   en: {
@@ -676,6 +677,7 @@ function MatchCenterInner({ data }: { data: Analytics }) {
     let saved: { id: number };
     try {
       saved = await addMatch.mutateAsync({ clubA: clubAName, clubB: clubBName, teamA, teamB, scoreA, scoreB });
+      hapticSuccess();
       // the server ends the one with the same sides; one whose teams were changed here ends by its id
       if (from) {
         cancelLive.mutate(from.id);

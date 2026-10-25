@@ -14,6 +14,7 @@ import type { Membership } from "../../lib/types";
 import { ConfirmDialog } from "../ui/Dialog";
 import { Avatar } from "../ui/Identity";
 import { Button, Panel, Pill } from "../ui/primitives";
+import { shareLink } from "../../lib/native";
 
 const m = defineMessages({
   en: {
@@ -96,18 +97,9 @@ const m = defineMessages({
 
 const failed = (err: unknown) => toast.error(err instanceof ApiError ? err.message : String(err));
 
-/** Hands a link over: the phone's share sheet where there is one, the clipboard otherwise. */
+/** Hands a link over (lib/native.ts): the share sheet, or the clipboard, saying so. */
 async function hand(link: string, text: string, copied: string) {
-  if (typeof navigator.share === "function") {
-    try {
-      await navigator.share({ text, url: link });
-      return;
-    } catch (err) {
-      if ((err as Error).name === "AbortError") return;
-    }
-  }
-  await navigator.clipboard.writeText(link);
-  toast.success(copied);
+  if ((await shareLink(link, text)) === "copied") toast.success(copied);
 }
 
 /** Group link and personal links, for owners and admins once accounts are on. */
