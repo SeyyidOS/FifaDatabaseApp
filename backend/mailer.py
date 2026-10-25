@@ -101,8 +101,13 @@ def _send(to: str, subject: str, body: str) -> None:
         smtp.send_message(message)
 
 
+class MailError(Exception):
+    """The mail server couldn't be reached or refused the e-mail (a daily limit, say)."""
+
+
 def send_mail(kind: str, to: str, lang: str, **fields) -> None:
-    """Sends one of MAILS; logs, rather than raises, when it can't (it runs after the reply has gone)."""
+    """Sends one of MAILS while the request waits, so the person can be told when it fails: raises
+    MailError then. Without SMTP_HOST, MAIL_LOG_LINKS=1 logs the link and code instead (development)."""
     text = MAILS[kind].get(lang, MAILS[kind]["en"])
     if not os.getenv("SMTP_HOST"):
         if os.getenv("MAIL_LOG_LINKS") == "1":
@@ -114,6 +119,15 @@ def send_mail(kind: str, to: str, lang: str, **fields) -> None:
         _send(to, text["subject"].format(**fields), text["body"].format(**fields))
     except (OSError, smtplib.SMTPException) as exc:
         log.error("could not send the %s e-mail to %s: %s", kind, to, exc)
+        raise MailError(str(exc)) from exc
+
+
+def send_mail_later(kind: str, to: str, lang: str, **fields) -> None:
+    """send_mail for after the reply has gone (a background task): a failure is only logged."""
+    try:
+        send_mail(kind, to, lang, **fields)
+    except MailError:
+        pass
 
 
 def send_login_link(to: str, link: str, lang: str, minutes: int, code: str) -> None:

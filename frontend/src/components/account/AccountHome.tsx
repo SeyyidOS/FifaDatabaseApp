@@ -10,6 +10,7 @@ import { accountApi, ApiError } from "../../lib/api";
 import { cn } from "../../lib/cn";
 import { displayName, nameLang } from "../../lib/format";
 import { defineMessages, locale } from "../../lib/i18n";
+import { common } from "../../lib/messages";
 import type { Membership, Outcome } from "../../lib/types";
 import { Modal } from "../ui/Dialog";
 import { Field, TextInput } from "../ui/form";
@@ -315,6 +316,7 @@ function NameStep({ account }: { account: AccountSession }) {
 /** Moving the account to another address: a link to that address, which does it once opened. */
 function ChangeEmail({ account }: { account: AccountSession }) {
   const t = useT(m);
+  const tc = useT(common);
   const { lang } = useLang();
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
@@ -330,7 +332,15 @@ function ChangeEmail({ account }: { account: AccountSession }) {
       setSent(email.trim());
     } catch (err) {
       const status = err instanceof ApiError ? err.status : 0;
-      setError(status === 409 ? t("emailTaken") : status === 422 ? t("emailSame") : (err as Error).message);
+      setError(
+        status === 409
+          ? t("emailTaken")
+          : status === 422
+            ? t("emailSame")
+            : status === 503
+              ? tc("mailFailed")
+              : (err as Error).message,
+      );
     } finally {
       setBusy(false);
     }

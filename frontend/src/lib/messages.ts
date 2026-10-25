@@ -25,6 +25,7 @@ export const common = defineMessages({
     elo: "Elo",
     vs: "vs",
     and: "&",
+    mailFailed: "We couldn't send the e-mail. Try again in a while.",
   },
   tr: {
     admin: "Yönetici",
@@ -49,5 +50,6 @@ export const common = defineMessages({
     elo: "Elo",
     vs: "-",
     and: "&",
+    mailFailed: "E-postayı gönderemedik. Biraz sonra tekrar dene.",
   },
 });
