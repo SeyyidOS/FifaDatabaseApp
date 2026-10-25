@@ -116,7 +116,8 @@ web container's nginx.
 
 ## Off-server backups
 
-The nightly dump (`deploy.sh --backup`, 04:07) stays on this server's disk. [`offsite-backup.sh`](offsite-backup.sh)
+The nightly dump (`deploy.sh --backup`, 04:07, and one before every deploy) stays on this server's disk
+for 30 days; older ones are deleted as each new one is written. [`offsite-backup.sh`](offsite-backup.sh)
 copies it and the photos to a Backblaze B2 bucket, so a lost disk or server doesn't take the leagues
 with it:
 

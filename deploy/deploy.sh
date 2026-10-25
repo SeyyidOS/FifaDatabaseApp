@@ -72,6 +72,8 @@ backup() {
     local out
     out="$BASE/backups/fifa_db-$(date +%Y%m%d-%H%M%S).sql.gz"
     docker exec fifa_db pg_dump -U fifa --no-owner fifa_db | gzip > "$out"
+    # a month of dumps here is plenty: offsite-backup.sh keeps 30 nights off the server as well
+    find "$BASE/backups" -maxdepth 1 -name 'fifa_db-*.sql.gz' -mtime +30 -delete
     echo "$out"
 }
 
