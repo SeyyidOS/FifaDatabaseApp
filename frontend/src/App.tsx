@@ -13,6 +13,7 @@ const SignIn = lazy(() => import("./pages/SignIn"));
 const JoinInvite = lazy(() => import("./pages/JoinInvite"));
 const ConfirmEmail = lazy(() => import("./pages/ConfirmEmail"));
 const Privacy = lazy(() => import("./pages/Privacy"));
+const Support = lazy(() => import("./pages/Support"));
 
 /** Links from before boards existed (#/leaderboard, #/admin, …) belong to the original group's board. */
 function LegacyRedirect() {
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="/join/:code" element={<JoinInvite />} />
           <Route path="/email" element={<ConfirmEmail />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/support" element={<Support />} />
           <Route path="/b/:slug/*" element={<BoardGate />} />
           <Route path="*" element={<LegacyRedirect />} />
         </Routes>

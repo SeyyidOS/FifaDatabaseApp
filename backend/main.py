@@ -65,6 +65,13 @@ def health(request: Request):
     return {"ok": True, "version": os.getenv("APP_VERSION", "dev")}
 
 
+@app.get("/config")
+def config():
+    """What the app shows that the server decides: where people write for help (SUPPORT_EMAIL; while it
+    is unset, the app shows no contact line)."""
+    return {"supportEmail": os.getenv("SUPPORT_EMAIL", "").strip() or None}
+
+
 app.include_router(accounts.router)
 app.include_router(memberships.router)
 app.include_router(invites.router)

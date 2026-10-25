@@ -21,6 +21,14 @@ server {
         return 200 'window.MATCHNIGHT_EDITION = "${EDITION}";\n';
     }
 
+    # short addresses for the pages people are sent to (the App Store's support and privacy links)
+    location = /support {
+        return 302 /#/support;
+    }
+    location = /privacy {
+        return 302 /#/privacy;
+    }
+
     location /api/ {
         proxy_pass http://${API_UPSTREAM}/;
         proxy_set_header Host $host;

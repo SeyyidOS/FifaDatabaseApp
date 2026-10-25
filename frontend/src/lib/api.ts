@@ -89,6 +89,8 @@ const json = (method: string, body?: unknown): RequestInit => ({
 export const publicApi = {
   /** "version" is the short commit hash that is live */
   health: () => request<{ ok: boolean; version: string }>("/health"),
+  /** what the server decides for the app: where people write for help (null: no contact line) */
+  config: () => request<{ supportEmail: string | null }>("/config"),
   board: (slug: string) => request<BoardPublic>(`/boards/${encodeURIComponent(slug)}`),
   /** A board with passwords (accounts off; with them on, accountApi.createLeague). */
   createBoard: (body: { name: string; password: string; adminPassword: string }) =>
