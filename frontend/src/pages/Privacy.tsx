@@ -26,6 +26,7 @@ const m = defineMessages({
     send1: "Sign-in e-mails are sent through Resend, which gets your e-mail address and the code.",
     send2: "If you allow it when you add match photos, an AI service, Anthropic's Claude, reads the stats from them: the photo is sent to it for that and nothing else. Without your say-so a photo is only kept.",
     send3: "No ads, no analytics, no trackers. Your data is not sold.",
+    send4: "Each night the database and the photos are backed up to Backblaze (B2), encrypted before they leave: the database's last 30 nights and the photos' last 7 are kept. Only whoever runs the app holds the key that opens them.",
     deviceTitle: "On your device",
     device1: "Your sign-in, language and theme are kept in your browser's local storage. No cookies.",
     deleteTitle: "Deleting and questions",
@@ -54,6 +55,7 @@ const m = defineMessages({
     send1: "Giriş e-postaları Resend üzerinden gönderilir; Resend e-posta adresini ve kodu görür.",
     send2: "Maç fotoğrafı eklerken izin verirsen istatistikleri bir yapay zekâ servisi (Anthropic'in Claude'u) okur; fotoğraf sadece bunun için ona gönderilir. İzin vermezsen fotoğraf sadece saklanır.",
     send3: "Reklam, analiz ya da takip aracı yok. Verilerin satılmaz.",
+    send4: "Veritabanı ve fotoğraflar her gece, sunucudan çıkmadan şifrelenip Backblaze'de (B2) yedeklenir: veritabanının son 30, fotoğrafların son 7 gecesi tutulur. Yedekleri açan anahtar sadece uygulamayı yöneten kişidedir.",
     deviceTitle: "Cihazında",
     device1: "Giriş bilgin, dil ve tema tercihin tarayıcının yerel depolamasında tutulur. Çerez yok.",
     deleteTitle: "Silme ve sorular",
@@ -69,7 +71,7 @@ type Key = keyof typeof m.en;
 const SECTIONS: { title: Key; items: Key[] }[] = [
   { title: "storeTitle", items: ["store1", "store2", "store3", "store4", "store5"] },
   { title: "seeTitle", items: ["see1", "see2", "see3", "see4"] },
-  { title: "sendTitle", items: ["send1", "send2", "send3"] },
+  { title: "sendTitle", items: ["send1", "send2", "send4", "send3"] },
   { title: "deviceTitle", items: ["device1"] },
   { title: "deleteTitle", items: ["delete1", "delete2", "delete3"] },
 ];
