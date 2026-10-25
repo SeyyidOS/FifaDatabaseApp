@@ -97,12 +97,41 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run build:app
       - run: npx cap sync ios
+      # The .p8 file as Xcode wants it, from however the secret was pasted: with or without its BEGIN and
+      # END lines, on one line, with Windows line ends, or the whole file base64'd. Says what's wrong with
+      # it, never what it is.
       - name: The API key, where Xcode looks for it
         env:
           ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
         run: |
           mkdir -p ~/private_keys
-          printf '%s\n' "$ASC_KEY_P8" > ~/private_keys/"AuthKey_$ASC_KEY_ID.p8"
+          python3 - ~/private_keys/"AuthKey_$ASC_KEY_ID.p8" <<'PY'
+          import base64, binascii, os, re, sys, textwrap
+
+          def body_of(text):
+              text = text.replace("\r", "").replace("\\n", "\n").strip().strip('"').strip("'")
+              found = re.search(r"-----BEGIN [A-Z ]*PRIVATE KEY-----(.*?)-----END [A-Z ]*PRIVATE KEY-----", text, re.S)
+              return re.sub(r"[^A-Za-z0-9+/=]", "", found.group(1) if found else text), bool(found)
+
+          raw = os.environ["ASC_KEY_P8"]
+          body, marked = body_of(raw)
+          try:
+              der = base64.b64decode(body, validate=True)
+          except binascii.Error:
+              der = b""
+          if not marked and b"PRIVATE KEY" in der:  # the whole file, base64'd
+              body, marked = body_of(der.decode())
+              der = base64.b64decode(body)
+          # an App Store Connect key is a P-256 key in PKCS#8: DER starting with a SEQUENCE, ~138 bytes
+          if not der.startswith(b"\x30") or not 100 <= len(der) <= 200:
+              print(f"::error::ASC_KEY_P8 isn't the .p8 file: {len(raw)} characters, {raw.count(chr(10)) + 1} lines, "
+                    f"BEGIN/END lines {'found' if marked else 'missing'}, {len(der)} bytes once decoded. "
+                    "Paste the whole AuthKey_….p8 file, from -----BEGIN PRIVATE KEY----- to -----END PRIVATE KEY-----.")
+              sys.exit(1)
+          with open(sys.argv[1], "w") as f:
+              f.write("-----BEGIN PRIVATE KEY-----\n" + "\n".join(textwrap.wrap(body, 64)) + "\n-----END PRIVATE KEY-----\n")
+          print(f"key file written ({len(der)} bytes)")
+          PY
           chmod 600 ~/private_keys/"AuthKey_$ASC_KEY_ID.p8"
       # one place each: the bundle id is appId in capacitor.config.ts, the version is package.json's;
       # the build number is this run's number, so every upload is a new build
