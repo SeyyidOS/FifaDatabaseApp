@@ -1,7 +1,9 @@
 # App Store listing
 
-Drafts for App Store Connect › the app › App Information and the version page. Turkish first, then
-English. The limits are App Store Connect's; `check-lengths.py` in this folder counts them.
+Drafts for App Store Connect › the app › App Information and the version page. The app is aimed at
+everyone, so its **primary language is English (U.S.)** and **Turkish is an added localization**; the
+name is the same in both. The limits are App Store Connect's; `check-lengths.py` in this folder counts
+them.
 
 The listing names no game, publisher or club (no "FIFA", "EA", "FC 27", club names): trademarks in
 metadata are a common rejection (guideline 5.2.1), and the app itself shows none of their content.
@@ -11,9 +13,11 @@ metadata are a common rejection (guideline 5.2.1), and the app itself shows none
 - **Privacy policy URL:** `https://matchnight.hotspotkeeper.com/privacy`
 - **Marketing URL:** optional; the site, `https://matchnight.hotspotkeeper.com`
 - **Copyright:** `2026 [owner's name]`
-- **Name:** Matchnight (30 max). Whether it is free is the owner's check in App Store Connect.
+- **Name:** `Matchnight: League Nights`, in every localization. The app record was made with it on
+  25 October 2026, which reserves it. It also keeps us apart from an unrelated "MatchNight: Party Planner"
+  in Sports. The home screen shows just "Matchnight" (`CFBundleDisplayName`).
 
-## Türkçe
+## Türkçe (added localization)
 
 **Alt başlık** (30 max)
 
@@ -64,15 +68,15 @@ metadata are a common rejection (guideline 5.2.1), and the app itself shows none
 
     Hata düzeltmeleri ve iyileştirmeler.
 
-## English
+## English (primary)
 
 **Subtitle** (30 max)
 
-    Match nights with friends
+    Track scores with your friends
 
 **Keywords** (100 max, comma separated, no spaces)
 
-    match,league,table,scores,elo,friends,tournament,fixtures,stats,teams,draw,night,football,soccer
+    match,friends,scores,elo,ranking,tournament,fixtures,stats,teams,draw,football,soccer,console,game
 
 **Promotional text** (170 max; can change without review)
 

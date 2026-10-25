@@ -13,7 +13,7 @@ app itself: [frontend/ios/README.md](../../frontend/ios/README.md).
 
 ## Before the first submission
 
-- [ ] App record created with the bundle id (`frontend/ios/README.md`), name checked as free
+- [x] App record created with the bundle id (`frontend/ios/README.md`): "Matchnight: League Nights", primary language English (U.S.)
 - [ ] TestFlight build uploaded and tried on a phone
 - [ ] Demo account live on the server (`REVIEW_EMAIL`, `REVIEW_CODE`, `deploy/review-league.py`) and signed into once
 - [ ] `SUPPORT_EMAIL` set, so `/support` shows a contact
