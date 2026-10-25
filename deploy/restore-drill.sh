@@ -3,18 +3,19 @@
 # table has and the schema version, then removes it. The live database is never touched.
 #
 #   deploy/restore-drill.sh FILE.sql.gz                a dump on this server (backups/)
-#   deploy/restore-drill.sh FILE.sql.gz.age KEY        one from R2, with the age private key file
-#   deploy/restore-drill.sh --latest KEY               fetches the newest dump from R2 first
-#                                                      (the R2_* settings, as deploy/offsite-backup.sh)
+#   deploy/restore-drill.sh FILE.sql.gz.age KEY        one from the backup bucket, with the age private key file
+#   deploy/restore-drill.sh --latest KEY               fetches the newest dump from the bucket first
+#                                                      (the BACKUP_* settings, as deploy/offsite-backup.sh)
 #
 # A real restore is the same load into the live, emptied database (deploy/README.md, "Off-server backups").
 set -euo pipefail
 
+HERE=$(cd "$(dirname "$0")" && pwd)
 BASE=${FIFA_BASE:-/root/programs/fifa-app}
 SECRETS=${SECRETS_FILE:-$BASE/secrets.env}
-RCLONE_IMAGE=rclone/rclone:1.71.2
-AGE_IMAGE=alpine:3.22
 PG_IMAGE=postgres:16-alpine
+# shellcheck source=backup-common.sh
+. "$HERE/backup-common.sh"
 DB=fifa-restore-drill-$$
 
 usage() { sed -n '4,7p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
@@ -25,37 +26,16 @@ chmod 700 "$work"
 cleanup() { docker rm -f "$DB" >/dev/null 2>&1 || true; rm -rf "$work"; }
 trap cleanup EXIT
 
-setting() {
-    local name=$1
-    if [ -n "${!name:-}" ]; then
-        printf '%s' "${!name}"
-    elif [ -f "$SECRETS" ]; then
-        sed -n "s/^$name=//p" "$SECRETS" | tail -1 | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'$/\1/"
-    fi
-}
-
 if [ "$1" = --latest ]; then
     [ $# -eq 2 ] || usage
     key=$2
-    for name in R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET; do
-        value=$(setting "$name")
-        [ -n "$value" ] || { echo "$name is not set in $SECRETS" >&2; exit 1; }
-        printf -v "$name" '%s' "$value"
-    done
-    endpoint=$(setting R2_ENDPOINT)
-    cat > "$work/rclone.env" <<EOF
-RCLONE_CONFIG_R2_TYPE=s3
-RCLONE_CONFIG_R2_PROVIDER=Cloudflare
-RCLONE_CONFIG_R2_ACCESS_KEY_ID=$R2_ACCESS_KEY_ID
-RCLONE_CONFIG_R2_SECRET_ACCESS_KEY=$R2_SECRET_ACCESS_KEY
-RCLONE_CONFIG_R2_ENDPOINT=${endpoint:-https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com}
-RCLONE_CONFIG_R2_NO_CHECK_BUCKET=true
-EOF
+    store_config "$work/rclone.env" >&2 || exit 1
+    bucket=$(setting BACKUP_BUCKET)
     rclone=(docker run --rm --network host --env-file "$work/rclone.env" -v "$work:/work" "$RCLONE_IMAGE" -q)
-    newest=$("${rclone[@]}" lsf "r2:$R2_BUCKET/db/" | sort | tail -1)
-    [ -n "$newest" ] || { echo "no dump in r2:$R2_BUCKET/db/" >&2; exit 1; }
+    newest=$("${rclone[@]}" lsf "store:$bucket/db/" | sort | tail -1)
+    [ -n "$newest" ] || { echo "no dump in store:$bucket/db/" >&2; exit 1; }
     echo "==> fetching db/$newest"
-    "${rclone[@]}" copyto "r2:$R2_BUCKET/db/$newest" "/work/$newest"
+    "${rclone[@]}" copyto "store:$bucket/db/$newest" "/work/$newest"
     file="$work/$newest"
 else
     file=$1
