@@ -3,6 +3,7 @@ import {
   BrickWall,
   ChevronLeft,
   ChevronRight,
+  Share2,
   CircleDot,
   CloudRain,
   Clock,
@@ -28,16 +29,20 @@ import {
 } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
+import { toast } from "sonner";
 import { BoardLink } from "../components/board/BoardLink";
 import { DataGate } from "../components/DataGate";
 import { MatchPhotosButton } from "../components/match/MatchPhotos";
 import { Avatar, ClubCrest } from "../components/ui/Identity";
 import { Panel, Pill } from "../components/ui/primitives";
 import type { Analytics } from "../hooks/analytics-context";
+import { useBoard } from "../hooks/useBoard";
 import { useT } from "../hooks/useI18n";
 import { cn } from "../lib/cn";
 import { dayFromKey, displayName, formatDayShort, formatTime, formatWeekday, nameLang } from "../lib/format";
 import { defineMessages } from "../lib/i18n";
+import { siteUrl } from "../lib/links";
+import { shareLink } from "../lib/native";
 import {
   nightRecap,
   type DuoNight,
@@ -88,6 +93,9 @@ const msg = defineMessages({
     latest: "Go to the latest night",
     older: "Previous night",
     newer: "Next night",
+    share: "Share",
+    shareText: "The Night Post, {day}",
+    copied: "Link copied",
     // awards: title, caption, value, line
     king: "King of the Night",
     kingCap: "Most Elo won",
@@ -190,6 +198,9 @@ const msg = defineMessages({
     latest: "Son geceye git",
     older: "Önceki gece",
     newer: "Sonraki gece",
+    share: "Paylaş",
+    shareText: "Gece Postası, {day}",
+    copied: "Link kopyalandı",
     king: "Gecenin Kralı",
     kingCap: "En çok Elo kazanan",
     kingVal: "+{v} Elo",
@@ -681,7 +692,7 @@ function Flow({ r, data, t }: { r: Recap; data: Analytics; t: T }) {
 /* ------------------------------------ Page ----------------------------------- */
 
 /** Steps to the night before and the night after. */
-function NightNav({ older, newer, t }: { older?: string; newer?: string; t: T }) {
+function NightNav({ older, newer, onShare, t }: { older?: string; newer?: string; onShare: () => void; t: T }) {
   const step = "flex min-h-11 min-w-0 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-muted transition-colors hover:bg-surface-2 hover:text-fg";
   return (
     <nav className="flex items-center justify-between gap-3">
@@ -693,12 +704,18 @@ function NightNav({ older, newer, t }: { older?: string; newer?: string; t: T })
       ) : (
         <span />
       )}
-      {newer && (
-        <BoardLink to={`/night/${newer}`} className={step} aria-label={t("newer")}>
-          <span className="truncate">{formatDayShort(dayFromKey(newer))}</span>
-          <ChevronRight className="size-4 shrink-0" />
-        </BoardLink>
-      )}
+      <span className="flex min-w-0 items-center gap-1">
+        {newer && (
+          <BoardLink to={`/night/${newer}`} className={step} aria-label={t("newer")}>
+            <span className="truncate">{formatDayShort(dayFromKey(newer))}</span>
+            <ChevronRight className="size-4 shrink-0" />
+          </BoardLink>
+        )}
+        <button type="button" onClick={onShare} className={step} aria-label={t("share")}>
+          <Share2 className="size-4 shrink-0" />
+          <span className="max-sm:hidden">{t("share")}</span>
+        </button>
+      </span>
     </nav>
   );
 }
@@ -706,6 +723,7 @@ function NightNav({ older, newer, t }: { older?: string; newer?: string; t: T })
 function NightRecapInner({ data }: { data: Analytics }) {
   const t = useMsg();
   const { key } = useParams();
+  const { slug } = useBoard();
   // matchdays are newest first: /night is the latest night, /night/2026-10-10 that one
   const index = key ? data.matchdays.findIndex((d) => d.key === key) : 0;
   const day = data.matchdays[index];
@@ -726,7 +744,16 @@ function NightRecapInner({ data }: { data: Analytics }) {
   const roasts = r.awards.filter((a) => a.roast);
   return (
     <div className="space-y-6">
-      <NightNav older={data.matchdays[index + 1]?.key} newer={data.matchdays[index - 1]?.key} t={t} />
+      <NightNav
+        older={data.matchdays[index + 1]?.key}
+        newer={data.matchdays[index - 1]?.key}
+        onShare={async () => {
+          const link = `${siteUrl()}#/b/${slug}/night/${day.key}`;
+          if ((await shareLink(link, t("shareText", { day: formatDayShort(dayFromKey(day.key)) }))) === "copied")
+            toast.success(t("copied"));
+        }}
+        t={t}
+      />
       <FrontPage r={r} t={t} />
 
       <section>
