@@ -24,6 +24,16 @@ Match tracking for match nights with friends (formerly FIFA Manager): boards per
 The live commit is shown at the bottom of Settings and at `/api/health`. Schema changes go in
 `backend/migrations.py` as a new numbered step; they run once, on the first start of the new version.
 
+## Outage alert
+
+[.github/workflows/uptime.yml](.github/workflows/uptime.yml) checks the live site from GitHub every 15
+minutes: `/api/health` must say `"ok": true`, and a board's players must stay closed without signing in
+(401). It tries again a minute later before failing. A failed run e-mails whoever last changed that
+file's schedule. The address is the `SITE` line at its top.
+
+GitHub pauses scheduled workflows after 60 days without activity in the repository. If the alerts have
+gone quiet after a long pause, turn it back on under Actions › Uptime › Enable workflow.
+
 ## Run it locally
 
 You need Docker, Python 3.11 and Node 20.

@@ -1,0 +1,36 @@
+# Is the live site up? Checked from GitHub, not from the server it runs on, so it still speaks up when
+# that whole server is down. A failed run e-mails whoever last changed this file's schedule (GitHub's own
+# notifications). GitHub pauses scheduled workflows after 60 days without activity in the repository:
+# turn it back on under Actions › Uptime (README, "Outage alert").
+name: Uptime
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # the live site: a new domain is this one line
+  SITE: https://matchnight.hotspotkeeper.com
+
+jobs:
+  check:
+    name: live site
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: The API answers, and keeps boards private
+        run: |
+          check() {
+            health=$(curl -sS --max-time 20 "$SITE/api/health") || { echo "::warning::$SITE/api/health didn't answer"; return 1; }
+            version=$(echo "$health" | python3 -c 'import json, sys; h = json.load(sys.stdin); print(h["version"]) if h.get("ok") is True else sys.exit(1)' 2>/dev/null) \
+              || { echo "::warning::health said: ${health:0:200}"; return 1; }
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$SITE/api/boards/main/players")
+            [ "$code" = 401 ] || { echo "::warning::a board's players without signing in: HTTP $code (want 401)"; return 1; }
+            echo "up: $version"
+          }
+          # one more try a minute later before anyone gets an e-mail: a deploy restarts the API for a moment
+          check || { sleep 60; check; } || { echo "::error::$SITE is down or open"; exit 1; }
