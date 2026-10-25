@@ -22,10 +22,9 @@ birleştirilmeye gitmiyor. Hepsi kullanıcının hesabına **bağlı** (linked) 
 Toplanmayanlar: konum, kişiler, sağlık, finans, tarama ve arama geçmişi, kullanım verisi (analitik yok),
 tanılama (çökme raporlayıcısı yok), satın almalar, hassas bilgiler.
 
-Karar sende: sunucu, sorunları bulmak için isteklerin IP adresini ve zamanını bir süre tutuyor (gizlilik
-sayfasında yazıyor). Apple'ın IP için ayrı bir kategorisi yok; bu kayıtlar ne analize ne kişiyle
-eşleştirmeye gidiyor. Önerim bunları beyan etmemek; temkinli olmak istersen "Diagnostics › Other
-Diagnostic Data", bağlı değil, Uygulama İşlevselliği.
+Karar (25 Ekim 2026): sunucunun sorunları bulmak için bir süre tuttuğu IP adresi ve istek zamanı (gizlilik
+sayfasında yazıyor) beyan edilmiyor. Apple'ın IP için ayrı bir kategorisi yok; bu kayıtlar ne analize ne
+kişiyle eşleştirmeye gidiyor.
 
 ### Veriyi işleyen servisler (Apple sormuyor, gizlilik sayfasıyla tutarlı olsun)
 
@@ -40,10 +39,10 @@ her yüklemede soru sorulmaz.
 
 ### İçerik hakları (Content Rights)
 
-"Uygulama üçüncü taraf içeriği içeriyor, gösteriyor ya da erişiyor mu?" Önerim **Hayır**: mağaza
+"Uygulama üçüncü taraf içeriği içeriyor, gösteriyor ya da erişiyor mu?" Karar: **Hayır**. Mağaza
 sürümünde hiçbir arma, oyun verisi ya da kart puanı yok; kulüpler kendi renklerinde genel formalarla
-çiziliyor. Kulüp adları sadece hangi kulüple oynandığını söyleyen düz metin. Emin olmak istersen
-"Evet, haklarım var" demek yerine Hayır deyip inceleme notunda açıklamak daha doğru (review-notes.md).
+çiziliyor. Kulüp adları sadece hangi kulüple oynandığını söyleyen düz metin; inceleme notu bunu
+açıklıyor (review-notes.md).
 
 ## English
 
@@ -63,10 +62,9 @@ All of it is **linked** to the user's account and used only for **App Functional
 Not collected: location, contacts, health, financial info, browsing or search history, usage data (no
 analytics), diagnostics (no crash reporter), purchases, sensitive info.
 
-The owner's call: the server keeps the IP address and time of requests for a while, to find and fix
-problems (the privacy page says so). Apple has no category for IP addresses, and these logs go to no
-analysis or profile. I'd leave them out; to be cautious, declare "Diagnostics › Other Diagnostic Data",
-not linked, App Functionality.
+Decided (25 October 2026): the IP address and time of requests that the server keeps for a while to find
+and fix problems (the privacy page says so) are not declared. Apple has no category for IP addresses, and
+these logs go to no analysis or profile.
 
 ### Services that process data (Apple doesn't ask; keep in step with the privacy page)
 
@@ -81,6 +79,6 @@ question isn't asked on every upload.
 
 ### Content Rights
 
-"Does your app contain, show, or access third-party content?" I'd answer **No**: the store edition has
+"Does your app contain, show, or access third-party content?" Decided: **No**. The store edition has
 no crests, no game data and no card ratings; clubs are drawn as generic shirts in their colours. Club
 names are plain text saying which club was played. The review notes explain this (review-notes.md).
