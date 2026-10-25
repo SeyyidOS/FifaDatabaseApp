@@ -113,6 +113,62 @@ dumps in `backups/` stay small and don't include them. Deploys never touch that 
 `/api/boards/*/matches/*/photos` may be larger than 64 KB (up to 12 MB), in `Caddyfile.fifa` and in the
 web container's nginx.
 
+## Off-server backups
+
+The nightly dump (`deploy.sh --backup`, 04:07) stays on this server's disk. [`offsite-backup.sh`](offsite-backup.sh)
+copies it and the photos to Cloudflare R2, so a lost disk or server doesn't take the leagues with it:
+
+- the newest dump of the night, as `db/fifa_db-….sql.gz.age`, the last 30 kept;
+- `photos/` (match photos and account photos), as `photos/photos-YYYYMMDD.tar.age`, the last 7 kept.
+
+Both are encrypted here with [age](https://age-encryption.org) before they leave, to a public key. The
+private key that opens them must **not** stay on this server: keep it in a password manager, say. Both
+tools run from pinned Docker images (`rclone/rclone:1.71.2`, `alpine:3.22` with age); nothing is installed.
+Until all of the settings below are in `secrets.env` the script says which one is missing and exits 0,
+so it can be in the crontab before R2 is ready.
+
+| Variable | What |
+|---|---|
+| `R2_ACCOUNT_ID` | the Cloudflare account id (R2 › Overview) |
+| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | an R2 API token with *Object Read & Write* on the bucket only |
+| `R2_BUCKET` | the bucket's name, e.g. `matchnight-backups` |
+| `BACKUP_AGE_RECIPIENT` | the age public key, `age1…` |
+| `R2_ENDPOINT` | optional: another S3-compatible store instead of R2, for trying it out |
+
+To set it up:
+
+1. Make a key pair, then move the private part off the server and delete it here:
+
+        docker run --rm alpine:3.22 sh -c 'apk add -q age && age-keygen' > /root/backup-key.txt
+        grep 'public key' /root/backup-key.txt   # the age1… line is BACKUP_AGE_RECIPIENT
+
+2. Add the variables to `secrets.env`, then run it once by hand:
+
+        /root/programs/fifa-app/repo/deploy/offsite-backup.sh
+
+3. Run it after the nightly dump: in root's crontab, the backup line becomes
+
+        7 4 * * * /root/programs/fifa-app/repo/deploy/deploy.sh --backup >> /root/programs/fifa-app/backups/cron.log 2>&1 && /root/programs/fifa-app/repo/deploy/offsite-backup.sh >> /root/programs/fifa-app/backups/offsite.log 2>&1
+
+To check that a backup really comes back, [`restore-drill.sh`](restore-drill.sh) loads a dump into a
+throwaway Postgres, prints the rows per table and the schema version, then removes it. It never
+touches the live database.
+
+    deploy/restore-drill.sh --latest /path/to/backup-key.txt          # the newest dump in R2
+    deploy/restore-drill.sh backups/fifa_db-20261025-040701.sql.gz     # a dump on this server
+
+A real restore loads the same way into the live database, after taking a fresh dump of what's there and
+emptying it (the API stopped meanwhile):
+
+    deploy/deploy.sh --backup
+    docker stop fifa_api
+    docker exec fifa_db psql -U fifa -d postgres -c 'DROP DATABASE fifa_db' -c 'CREATE DATABASE fifa_db OWNER fifa'
+    gunzip -c DUMP.sql.gz | docker exec -i fifa_db psql -q -U fifa -d fifa_db
+    docker start fifa_api
+
+Photos come back with `age -d -i KEY photos-….tar.age | tar -xf - -C /root/programs/fifa-app`, owned by
+uid 10001 as before (`chown -R 10001 photos`).
+
 ## Match stats from photos
 
 The stats of a match (possession, shots, xG, …) are read from photos of the game's summary screen by
