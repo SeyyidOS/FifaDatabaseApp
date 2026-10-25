@@ -30,6 +30,10 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+      # App Store Connect takes only apps built with the newest iOS SDK (Xcode 26 and later)
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -89,6 +93,9 @@ jobs:
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
     steps:
       - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -97,6 +104,25 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run build:app
       - run: npx cap sync ios
+      # One place each: the bundle id is appId in capacitor.config.ts, the version is package.json's, the
+      # build number this run's. They go into the App target's own settings, not onto xcodebuild's command
+      # line, where they'd reach the Capacitor frameworks too and break their signatures.
+      - name: The app's id, version, build number and team
+        run: |
+          python3 - <<'PY'
+          import json, os, re
+          app_id = json.load(open("ios/App/App/capacitor.config.json"))["appId"]
+          version = json.load(open("package.json"))["version"]
+          path = "ios/App/App.xcodeproj/project.pbxproj"
+          text = open(path).read()
+          text = re.sub(r"PRODUCT_BUNDLE_IDENTIFIER = [^;]+;", f"PRODUCT_BUNDLE_IDENTIFIER = {app_id};", text)
+          text = re.sub(r"MARKETING_VERSION = [^;]+;", f"MARKETING_VERSION = {version};", text)
+          text = re.sub(r"CURRENT_PROJECT_VERSION = [^;]+;", f"CURRENT_PROJECT_VERSION = {os.environ['GITHUB_RUN_NUMBER']};", text)
+          text = re.sub(r"(\t+)CODE_SIGN_STYLE = Automatic;", lambda m: f"{m.group(0)}\n{m.group(1)}DEVELOPMENT_TEAM = {os.environ['APPLE_TEAM_ID']};", text)
+          open(path, "w").write(text)
+          print(f"{app_id} {version} ({os.environ['GITHUB_RUN_NUMBER']})")
+          PY
+          xcodebuild -version
       # The .p8 file as Xcode wants it, from however the secret was pasted: with or without its BEGIN and
       # END lines, on one line, with Windows line ends, or the whole file base64'd. Says what's wrong with
       # it, never what it is.
@@ -133,22 +159,13 @@ jobs:
           print(f"key file written ({len(der)} bytes)")
           PY
           chmod 600 ~/private_keys/"AuthKey_$ASC_KEY_ID.p8"
-      # one place each: the bundle id is appId in capacitor.config.ts, the version is package.json's;
-      # the build number is this run's number, so every upload is a new build
       - name: Archive, signed by the App Store Connect key
         run: |
-          set -o pipefail
-          app_id=$(node -p "require('./ios/App/App/capacitor.config.json').appId")
-          version=$(node -p "require('./package.json').version")
-          echo "$app_id $version ($GITHUB_RUN_NUMBER)"
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
             -destination "generic/platform=iOS" -archivePath "$RUNNER_TEMP/App.xcarchive" \
             -allowProvisioningUpdates \
             -authenticationKeyPath ~/private_keys/"AuthKey_$ASC_KEY_ID.p8" \
             -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic \
-            PRODUCT_BUNDLE_IDENTIFIER="$app_id" MARKETING_VERSION="$version" \
-            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
             -quiet archive
       - name: Export for App Store Connect and upload to TestFlight
         run: |
