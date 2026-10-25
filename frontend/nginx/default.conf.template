@@ -7,6 +7,9 @@ server {
     server_name _;
     root /usr/share/nginx/html;
     server_tokens off;
+    # behind Caddy: a redirect names only the path, so the browser keeps https and the public host
+    # instead of being sent to this container's own http://host:8080
+    absolute_redirect off;
     client_max_body_size 64k;
 
     location = /healthz {
