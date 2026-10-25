@@ -7,6 +7,7 @@ Match tracking for match nights with friends (formerly FIFA Manager): boards per
 |-------------|--------------------------------------------------------------------------------|
 | `backend/`  | FastAPI + Postgres API ([backend/README.md](backend/README.md))                |
 | `frontend/` | React + Vite + Tailwind app; Elo replay, club model and fixture logic in `src/lib` |
+| `frontend/ios/` | the iPhone app: the same app in a native shell, built in GitHub Actions ([frontend/ios/README.md](frontend/ios/README.md)) |
 | `deploy/`   | how the server runs it ([deploy/README.md](deploy/README.md))                  |
 
 ## How we work
