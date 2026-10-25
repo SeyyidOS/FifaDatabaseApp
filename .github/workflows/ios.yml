@@ -1,6 +1,9 @@
-# The iPhone app (frontend/capacitor.config.ts, frontend/ios): the web app built as the store edition, in
-# its native shell, built on a Mac. For now it checks that the app builds (for the simulator, unsigned);
-# signing and TestFlight come once the App Store Connect key is in the repository's secrets.
+# The iPhone app (frontend/capacitor.config.ts, frontend/ios; frontend/ios/README.md): the web app built
+# as the store edition, in its native shell, built on a Mac.
+#   simulator   every change under frontend/: does the app still build (unsigned)?
+#   testflight  main and by hand, once the App Store Connect secrets exist: signs it and sends it to
+#               TestFlight. Without them it is skipped, with a notice; the gate runs on Linux, so no Mac
+#               minutes are spent waiting for secrets.
 name: iOS
 
 on:
@@ -46,3 +49,98 @@ jobs:
           name: Matchnight-simulator
           path: frontend/build/Build/Products/Release-iphonesimulator/App.app
           retention-days: 7
+
+  gate:
+    name: testflight gate
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          missing=""
+          for name in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 APPLE_TEAM_ID; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::notice::TestFlight skipped: the repository has no secret$missing (frontend/ios/README.md)"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  testflight:
+    name: testflight
+    needs: gate
+    if: needs.gate.outputs.ready == 'true'
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build:app
+      - run: npx cap sync ios
+      - name: The API key, where Xcode looks for it
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          mkdir -p ~/private_keys
+          printf '%s\n' "$ASC_KEY_P8" > ~/private_keys/"AuthKey_$ASC_KEY_ID.p8"
+          chmod 600 ~/private_keys/"AuthKey_$ASC_KEY_ID.p8"
+      # one place each: the bundle id is appId in capacitor.config.ts, the version is package.json's;
+      # the build number is this run's number, so every upload is a new build
+      - name: Archive, signed by the App Store Connect key
+        run: |
+          set -o pipefail
+          app_id=$(node -p "require('./ios/App/App/capacitor.config.json').appId")
+          version=$(node -p "require('./package.json').version")
+          echo "$app_id $version ($GITHUB_RUN_NUMBER)"
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination "generic/platform=iOS" -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/"AuthKey_$ASC_KEY_ID.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            PRODUCT_BUNDLE_IDENTIFIER="$app_id" MARKETING_VERSION="$version" \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
+            -quiet archive
+      - name: Export for App Store Connect and upload to TestFlight
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/"AuthKey_$ASC_KEY_ID.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+      - name: Forget the key
+        if: always()
+        run: rm -rf ~/private_keys
