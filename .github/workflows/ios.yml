@@ -161,13 +161,15 @@ jobs:
           chmod 600 ~/private_keys/"AuthKey_$ASC_KEY_ID.p8"
       - name: Archive, signed by the App Store Connect key
         run: |
+          set -o pipefail
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
             -destination "generic/platform=iOS" -archivePath "$RUNNER_TEMP/App.xcarchive" \
             -allowProvisioningUpdates \
             -authenticationKeyPath ~/private_keys/"AuthKey_$ASC_KEY_ID.p8" \
             -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
-            -quiet archive
-      - name: Export for App Store Connect and upload to TestFlight
+            archive > "$RUNNER_TEMP/archive.log" 2>&1 || { tail -60 "$RUNNER_TEMP/archive.log"; exit 1; }
+          grep -E "Signing Identity|Provisioning Profile|warning: |error: |ARCHIVE" "$RUNNER_TEMP/archive.log" | sort -u | head -40
+      - name: Export for App Store Connect
         run: |
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
@@ -175,7 +177,7 @@ jobs:
           <plist version="1.0">
           <dict>
             <key>method</key><string>app-store-connect</string>
-            <key>destination</key><string>upload</string>
+            <key>destination</key><string>export</string>
             <key>teamID</key><string>$APPLE_TEAM_ID</string>
             <key>signingStyle</key><string>automatic</string>
             <key>manageAppVersionAndBuildNumber</key><false/>
@@ -187,6 +189,17 @@ jobs:
             -allowProvisioningUpdates \
             -authenticationKeyPath ~/private_keys/"AuthKey_$ASC_KEY_ID.p8" \
             -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+      # what the IPA is really signed with, before App Store Connect is asked
+      - name: Check the signature
+        run: |
+          cd "$RUNNER_TEMP" && rm -rf ipa && mkdir ipa && unzip -q export/*.ipa -d ipa
+          for f in ipa/Payload/App.app ipa/Payload/App.app/Frameworks/Capacitor.framework; do
+            echo "== $f"
+            codesign -dvv "$f" 2>&1 | grep -E "^(Identifier|Authority|TeamIdentifier|Signature|Format)" || true
+          done
+          codesign --verify --deep --strict --verbose=2 ipa/Payload/App.app
+      - name: Upload to TestFlight
+        run: xcrun altool --upload-app -f "$RUNNER_TEMP"/export/*.ipa -t ios --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
       - name: Forget the key
         if: always()
         run: rm -rf ~/private_keys
