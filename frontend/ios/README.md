@@ -41,3 +41,15 @@ is built on a Mac by hand: GitHub Actions does it ([.github/workflows/ios.yml](.
 
 4. Run Actions › iOS › Run workflow. Once App Store Connect has processed the build (some minutes), it
    shows under TestFlight; add yourself as an internal tester to install it with the TestFlight app.
+
+## Known problems
+
+- **"Code failed to satisfy specified code requirement(s)"** (ITMS-90035), and the workflow's signature
+  check says the app "does not satisfy its designated Requirement". This is Apple's bug, when the team's
+  name has a letter outside ASCII (here the "İ" of SEVGİLİ). The certificate keeps the letter composed,
+  while the signature's requirement gets it decomposed, so they never match
+  ([developer forums thread 843700](https://developer.apple.com/forums/thread/843700), FB24633162).
+  - **The fix:** ask Apple Developer Programs (developer.apple.com/contact) to change the team name to
+    ASCII only.
+  - Once it's changed, revoke every Apple Distribution certificate that still carries the old name
+    (Certificates, Identifiers & Profiles › Certificates). The next run then gets a new one.
