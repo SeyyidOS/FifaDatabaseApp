@@ -88,8 +88,13 @@ def prepare(out: Path) -> None:
     ids = {"certificate": cert["id"]}
     # written straight away, so cleanup can revoke it even if the profile fails
     (out / "ids.json").write_text(json.dumps(ids))
-    (out / "cert.der").write_bytes(base64.b64decode(cert["attributes"]["certificateContent"]))
+    der = base64.b64decode(cert["attributes"]["certificateContent"])
+    (out / "cert.der").write_bytes(der)
     print(f"certificate {cert['id']}, until {cert['attributes'].get('expirationDate', '?')}")
+    # the team's name as Apple writes it into certificates: outside ASCII it breaks Xcode's own signing
+    name = x509.load_der_x509_certificate(der).subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+    odd = [f"{c}=U+{ord(c):04X}" for c in name if ord(c) > 127]
+    print(f"name on the certificate: {'ASCII only' if not odd else 'has ' + ' '.join(odd)}")
 
     app_id = os.environ["APP_ID"]
     bundles = call("GET", f"/bundleIds?filter[identifier]={app_id}&limit=200")["data"]
