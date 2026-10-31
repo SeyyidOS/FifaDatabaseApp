@@ -80,7 +80,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
         <Search className="size-4 text-faint" />
         <Command.Input
           placeholder={t("placeholder")}
-          className="h-14 w-full bg-transparent text-base outline-none placeholder:text-faint sm:text-[15px]"
+          className="h-14 w-full bg-transparent text-[max(1rem,16px)] outline-none placeholder:text-faint sm:text-[15px]"
         />
         <kbd className="rounded-md border border-line bg-surface-2 px-1.5 py-0.5 text-[10px] text-muted">ESC</kbd>
       </div>

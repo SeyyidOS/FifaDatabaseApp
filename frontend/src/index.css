@@ -207,9 +207,10 @@
   .tabular {
     font-variant-numeric: tabular-nums;
   }
-  /* 16px on phones: iOS zooms the page into any field smaller than that when it is tapped */
+  /* never under 16px on phones, whatever the interface size (useUiScale): iOS zooms the page into any
+     field smaller than that when it is tapped */
   .input {
-    @apply h-10 w-full rounded-xl border border-line bg-surface-2 px-3 text-base text-fg sm:text-sm
+    @apply h-10 w-full rounded-xl border border-line bg-surface-2 px-3 text-[max(1rem,16px)] text-fg sm:text-sm
       placeholder:text-faint transition-colors outline-none
       focus:border-accent/60 focus:ring-4 focus:ring-accent/10;
   }

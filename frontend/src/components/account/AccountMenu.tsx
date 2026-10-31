@@ -10,6 +10,7 @@ import { signOutAccount } from "../../lib/account";
 import { cn } from "../../lib/cn";
 import { nameLang } from "../../lib/format";
 import { defineMessages } from "../../lib/i18n";
+import { setUiScale, UI_SCALES, useUiScale, type UiScale } from "../../hooks/useUiScale";
 import { LanguageButton } from "../layout/LanguageButton";
 import { ThemeButton } from "../layout/ThemeButton";
 import { Avatar } from "../ui/Identity";
@@ -25,6 +26,12 @@ const m = defineMessages({
     player: "player",
     privacy: "Privacy",
     help: "Help",
+    size: "Interface size",
+    sizeNote: "experimental",
+    xs: "Smallest",
+    s: "Small",
+    m: "Normal",
+    l: "Large",
   },
   tr: {
     account: "Hesabın",
@@ -36,6 +43,12 @@ const m = defineMessages({
     player: "oyuncu",
     privacy: "Gizlilik",
     help: "Yardım",
+    size: "Görünüm boyutu",
+    sizeNote: "deneysel",
+    xs: "En küçük",
+    s: "Küçük",
+    m: "Normal",
+    l: "Büyük",
   },
 });
 
@@ -44,6 +57,42 @@ const m = defineMessages({
  * signing out. A sheet from the bottom on phones (with language and theme, which the sidebar has on
  * larger screens), a dropdown under the avatar there.
  */
+// the "A" of each size, drawn at its size
+const SIZE_GLYPH: Record<UiScale, string> = { xs: "text-[11px]", s: "text-[13px]", m: "text-[15px]", l: "text-[18px]" };
+
+/** This device's interface size (useUiScale), an experiment: four sizes to try. */
+function UiScalePicker() {
+  const t = useT(m);
+  const scale = useUiScale();
+  return (
+    <div className="mt-1.5 flex items-center gap-3 border-t border-line px-3 pt-2.5 pb-1">
+      <span className="min-w-0 flex-1 text-xs text-muted">
+        {t("size")} <span className="text-faint">· {t("sizeNote")}</span>
+      </span>
+      <span className="flex items-end gap-1" role="radiogroup" aria-label={t("size")}>
+        {(Object.keys(UI_SCALES) as UiScale[]).map((s) => (
+          <button
+            key={s}
+            type="button"
+            role="radio"
+            aria-checked={s === scale}
+            aria-label={t(s)}
+            title={t(s)}
+            onClick={() => setUiScale(s)}
+            className={cn(
+              "grid size-9 place-items-center rounded-xl font-semibold transition-colors",
+              SIZE_GLYPH[s],
+              s === scale ? "bg-accent/15 text-accent-text ring-1 ring-accent/50" : "text-muted hover:bg-surface-2 hover:text-fg",
+            )}
+          >
+            A
+          </button>
+        ))}
+      </span>
+    </div>
+  );
+}
+
 export function AccountMenu() {
   const t = useT(m);
   const account = useAccount();
@@ -139,6 +188,7 @@ export function AccountMenu() {
                     {t("signOut")}
                   </button>
                 </div>
+                <UiScalePicker />
                 <div className="mt-1.5 flex items-center border-t border-line pt-1.5">
                   <Link to="/support" className="px-3 py-2 text-xs text-faint hover:text-muted">
                     {t("help")}
