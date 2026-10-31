@@ -57,7 +57,8 @@ def call(method: str, path: str, body: dict | None = None, check: bool = True):
     try:
         with urllib.request.urlopen(request, timeout=60) as response:
             raw = response.read()
-            return json.loads(raw) if raw else None
+            # an empty answer (204) is a success too; None is kept for a refused call
+            return json.loads(raw) if raw else {}
     except urllib.error.HTTPError as e:
         message = f"App Store Connect {method} {path.split('?')[0]}: {e.code} {e.read().decode(errors='replace')[:800]}"
         if check:
