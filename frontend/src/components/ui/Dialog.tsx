@@ -30,7 +30,7 @@ export function Modal({
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50 grid place-items-center p-4">
+        <div className="fixed inset-0 z-50 grid place-items-center p-4 pt-[calc(var(--safe-top)+1rem)] pb-[calc(var(--safe-bottom)+1rem)]">
           <motion.div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             initial={{ opacity: 0 }}
