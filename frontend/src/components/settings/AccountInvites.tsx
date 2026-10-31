@@ -158,7 +158,7 @@ export function AccountInvites({ welcome }: { welcome: boolean }) {
         <p className="text-xs text-muted">{t("groupHint")}</p>
         {data?.group ? (
           <div className="flex gap-2">
-            <input readOnly value={inviteLink(data.group)} onFocus={(e) => e.target.select()} className="input h-11 font-mono text-xs" />
+            <input readOnly value={inviteLink(data.group)} onFocus={(e) => e.target.select()} className="input h-11 font-mono sm:text-xs" />
             <Button variant="primary" className="h-11" onClick={() => hand(inviteLink(data.group!), text, t("copied"))} aria-label={t("copyAgain")}>
               <Send className="size-4" />
             </Button>

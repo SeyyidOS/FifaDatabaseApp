@@ -233,7 +233,7 @@ function ClubRow({ club, season }: { club: Club; season: Season }) {
               }
             }}
             maxLength={100}
-            className="input h-8 text-sm"
+            className="input h-8 sm:text-sm"
             aria-label={t("newName")}
           />
           <Button type="submit" size="sm" variant="primary" loading={update.isPending}>
