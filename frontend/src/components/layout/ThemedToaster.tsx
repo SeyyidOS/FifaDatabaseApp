@@ -7,7 +7,9 @@ export function ThemedToaster() {
     <Toaster
       position="top-center"
       theme={theme}
-      offset={20}
+      // below the notch where the page runs under it (index.css, --safe-top)
+      offset={{ top: "calc(var(--safe-top) + 20px)" }}
+      mobileOffset={{ top: "calc(var(--safe-top) + 12px)" }}
       toastOptions={{
         classNames: {
           toast: "!rounded-2xl !border !border-line !bg-surface !text-fg !shadow-2xl !font-sans",

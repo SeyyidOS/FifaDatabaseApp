@@ -263,7 +263,7 @@ function TopBar({ onSearch }: { onSearch: () => void }) {
   const showsAccount = useShowsAccount();
 
   return (
-    <header className="sticky top-0 z-20 border-b border-line/70 bg-bg/70 backdrop-blur-xl">
+    <header className="sticky top-0 z-20 border-b border-line/70 bg-bg/70 pt-[var(--safe-top)] backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-3 px-4 sm:px-6 lg:px-8">
         <Link to="/" className="lg:hidden">
           <Logo compact />
@@ -361,7 +361,7 @@ function BottomNav() {
               id="league-sheet"
               role="dialog"
               aria-label={name}
-              className="card fixed inset-x-2.5 bottom-[calc(0.75rem+env(safe-area-inset-bottom)+68px+0.625rem)] z-[26] mx-auto max-w-md rounded-[28px] p-2 pt-4 shadow-2xl lg:hidden"
+              className="card fixed inset-x-2.5 bottom-[calc(0.75rem+var(--safe-bottom)+68px+0.625rem)] z-[26] mx-auto max-w-md rounded-[28px] p-2 pt-4 shadow-2xl lg:hidden"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 14 }}
@@ -415,7 +415,7 @@ function BottomNav() {
       </AnimatePresence>
       <nav
         aria-label={t("menu")}
-        className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-30 lg:hidden"
+        className="fixed inset-x-3 bottom-[calc(0.75rem+var(--safe-bottom))] z-30 lg:hidden"
       >
         <div className="mx-auto grid h-[68px] max-w-md grid-cols-5 items-center rounded-3xl border border-line bg-bg-elev/80 shadow-[0_20px_40px_-16px_rgba(0,0,0,0.6)] backdrop-blur-xl backdrop-saturate-150">
           {cell(overview)}

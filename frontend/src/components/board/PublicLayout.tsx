@@ -43,7 +43,7 @@ function AccountChip() {
 export function PublicLayout({ children }: { children: ReactNode }) {
   const t = useT(m);
   return (
-    <div className="min-h-dvh">
+    <div className="min-h-dvh pt-[var(--safe-top)]">
       <div className="app-ambient" />
       <header className="mx-auto flex h-20 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Link to="/">

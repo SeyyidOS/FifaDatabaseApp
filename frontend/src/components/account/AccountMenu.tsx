@@ -99,7 +99,7 @@ export function AccountMenu() {
                 role="dialog"
                 aria-label={t("account")}
                 style={anchor ?? undefined}
-                className="card absolute inset-x-2.5 bottom-[calc(0.625rem+env(safe-area-inset-bottom))] rounded-[28px] p-2 pt-3 shadow-2xl lg:inset-x-auto lg:bottom-auto lg:w-80 lg:rounded-3xl lg:pt-4"
+                className="card absolute inset-x-2.5 bottom-[calc(0.625rem+var(--safe-bottom))] rounded-[28px] p-2 pt-3 shadow-2xl lg:inset-x-auto lg:bottom-auto lg:w-80 lg:rounded-3xl lg:pt-4"
                 initial={{ opacity: 0, y: anchor ? -6 : 24 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: anchor ? -4 : 16 }}

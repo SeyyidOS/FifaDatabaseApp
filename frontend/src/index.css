@@ -5,6 +5,13 @@
 /* ------------------------------------------------------------------ */
 /* Design tokens                                                       */
 /* ------------------------------------------------------------------ */
+/* The iPhone's notch and home bar where the page reaches under them (viewport-fit=cover: the home-screen
+   app and the iPhone app, frontend/ios); 0 in a browser tab. Everything near an edge keeps clear of them. */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 :root,
 [data-theme="dark"] {
   color-scheme: dark;
