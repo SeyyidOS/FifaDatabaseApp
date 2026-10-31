@@ -216,6 +216,8 @@ jobs:
           cp -R "$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app" "$RUNNER_TEMP/ipa/Payload/"
           (cd "$RUNNER_TEMP/ipa" && zip -qr --symlinks ../App.ipa Payload)
           xcrun altool --upload-app -f "$RUNNER_TEMP/App.ipa" -t ios --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+      - name: Wait for App Store Connect, then give the build to the internal testers
+        run: '"$RUNNER_TEMP/venv/bin/python" ios/ci/asc_testflight.py "$GITHUB_RUN_NUMBER"'
       - name: Revoke the temporary certificate and delete its profile
         if: always()
         run: |
