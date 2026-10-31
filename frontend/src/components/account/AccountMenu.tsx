@@ -27,7 +27,6 @@ const m = defineMessages({
     privacy: "Privacy",
     help: "Help",
     size: "Interface size",
-    sizeNote: "experimental",
     xs: "Smallest",
     s: "Small",
     m: "Normal",
@@ -44,7 +43,6 @@ const m = defineMessages({
     privacy: "Gizlilik",
     help: "Yardım",
     size: "Görünüm boyutu",
-    sizeNote: "deneysel",
     xs: "En küçük",
     s: "Küçük",
     m: "Normal",
@@ -60,15 +58,13 @@ const m = defineMessages({
 // the "A" of each size, drawn at its size
 const SIZE_GLYPH: Record<UiScale, string> = { xs: "text-[11px]", s: "text-[13px]", m: "text-[15px]", l: "text-[18px]" };
 
-/** This device's interface size (useUiScale), an experiment: four sizes to try. */
+/** This device's interface size (useUiScale): phones start at the smallest. */
 function UiScalePicker() {
   const t = useT(m);
   const scale = useUiScale();
   return (
     <div className="mt-1.5 flex items-center gap-3 border-t border-line px-3 pt-2.5 pb-1">
-      <span className="min-w-0 flex-1 text-xs text-muted">
-        {t("size")} <span className="text-faint">· {t("sizeNote")}</span>
-      </span>
+      <span className="min-w-0 flex-1 text-xs text-muted">{t("size")}</span>
       <span className="flex items-end gap-1" role="radiogroup" aria-label={t("size")}>
         {(Object.keys(UI_SCALES) as UiScale[]).map((s) => (
           <button

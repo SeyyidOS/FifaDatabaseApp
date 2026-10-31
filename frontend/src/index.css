@@ -12,6 +12,14 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* Phones draw the whole interface at the smallest size (src/hooks/useUiScale.ts, which shares this query):
+   every rem shrinks with the root font size. A size picked in the account menu overrides it inline. */
+@media (max-width: 639px), (pointer: coarse) and (max-height: 639px) {
+  :root {
+    font-size: 81.25%;
+  }
+}
+
 :root,
 [data-theme="dark"] {
   color-scheme: dark;
