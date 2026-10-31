@@ -45,11 +45,16 @@ def main(number: str) -> None:
         )
         return
     for group in call("GET", f"/apps/{app['id']}/betaGroups?limit=50")["data"]:
-        if group["attributes"].get("isInternalGroup"):
-            body = {"data": [{"type": "builds", "id": build["id"]}]}
-            # already there (a group that takes every build) is fine: the call only warns
-            call("POST", f"/betaGroups/{group['id']}/relationships/builds", body, check=False)
-            print(f"in the internal group {group['attributes']['name']!r}")
+        attributes = group["attributes"]
+        if not attributes.get("isInternalGroup"):
+            continue
+        if attributes.get("hasAccessToAllBuilds"):
+            # automatic distribution: App Store Connect refuses to add builds to such a group by hand
+            print(f"the internal group {attributes['name']!r} gets every build by itself")
+            continue
+        body = {"data": [{"type": "builds", "id": build["id"]}]}
+        if call("POST", f"/betaGroups/{group['id']}/relationships/builds", body, check=False) is not None:
+            print(f"added to the internal group {attributes['name']!r}")
 
 
 if __name__ == "__main__":
