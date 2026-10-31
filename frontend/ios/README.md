@@ -19,16 +19,16 @@ is built on a Mac by hand: GitHub Actions does it ([.github/workflows/ios.yml](.
 - **simulator**: every pull request and push that touches `frontend/`. Checks that the app still builds,
   unsigned; the `.app` is kept as an artifact for a week.
 - **testflight**: every push to `main` that touches `frontend/`, and by hand (Actions › iOS › Run
-  workflow). It signs the app with the App Store Connect API key (automatic signing: Xcode makes the
-  certificate and profile itself) and uploads it to TestFlight. Until all four secrets below exist it is
-  skipped with a notice, without starting a Mac.
+  workflow). It signs the app by hand through the App Store Connect API key, with a temporary
+  certificate and profile ("Known problems" says why), and uploads it to TestFlight. Until all four
+  secrets below exist it is skipped with a notice, without starting a Mac.
 
 ## What the owner sets up once
 
 1. **App Store Connect › Apps › +**: a new iOS app with the bundle id above (register it under
    Certificates, Identifiers & Profiles › Identifiers first if it isn't offered) and the name.
 2. **Users and Access › Integrations › App Store Connect API › Team Keys › +**, with **Admin** access:
-   automatic signing in CI creates the distribution certificate, which App Manager keys may not. Download
+   the lane creates and revokes a distribution certificate, which App Manager keys may not. Download
    the `.p8` (it can be downloaded once) and note the Key ID and the Issuer ID.
 3. **GitHub › Settings › Secrets and variables › Actions**, four repository secrets:
 
@@ -44,12 +44,16 @@ is built on a Mac by hand: GitHub Actions does it ([.github/workflows/ios.yml](.
 
 ## Known problems
 
-- **"Code failed to satisfy specified code requirement(s)"** (ITMS-90035), and the workflow's signature
-  check says the app "does not satisfy its designated Requirement". This is Apple's bug, when the team's
-  name has a letter outside ASCII (here the "İ" of SEVGİLİ). The certificate keeps the letter composed,
-  while the signature's requirement gets it decomposed, so they never match
+- **"Code failed to satisfy specified code requirement(s)"** (ITMS-90035). This is Apple's bug when the
+  team's name has a letter outside ASCII (here the "İ" of SEVGİLİ). The certificate keeps the letter
+  composed (U+0130), while the designated requirement Xcode writes gets it decomposed ("I" + U+0307), so
+  an app signed by Xcode never satisfies its own signature
   ([developer forums thread 843700](https://developer.apple.com/forums/thread/843700), FB24633162).
-  - **The fix:** ask Apple Developer Programs (developer.apple.com/contact) to change the team name to
-    ASCII only.
-  - Once it's changed, revoke every Apple Distribution certificate that still carries the old name
-    (Certificates, Identifiers & Profiles › Certificates). The next run then gets a new one.
+  - **How the lane gets round it:** it doesn't let Xcode sign. It archives unsigned, then
+    `ci/asc_signing.py` makes a temporary Apple Distribution certificate (its key made in the run) and an
+    App Store profile through the App Store Connect API. `codesign` then signs the frameworks and the app
+    with a designated requirement of identifier plus team id, which never names the team. The certificate
+    is revoked and the profile deleted at the end; uploaded builds aren't affected, because Apple signs
+    them again.
+  - **If Apple renames the team to ASCII** (case 103008214933), Xcode's own signing would work again too,
+    but nothing needs to change.
