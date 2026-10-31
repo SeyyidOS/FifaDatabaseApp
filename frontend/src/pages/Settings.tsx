@@ -280,7 +280,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
   return (
     <Field label={label}>
       <div className="flex gap-2">
-        <input readOnly value={value} onFocus={(e) => e.target.select()} className="input h-11 font-mono text-xs" />
+        <input readOnly value={value} onFocus={(e) => e.target.select()} className="input h-11 font-mono sm:text-xs" />
         <Button variant="secondary" className="h-11" onClick={copy} aria-label={t("copy", { what: label })}>
           {copied ? <Check className="size-4 text-win" /> : <Copy className="size-4" />}
         </Button>
@@ -628,7 +628,7 @@ function PlayerRow({ player, played }: { player: Player; played: number }) {
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === "Escape" && setEditing(false)}
             maxLength={30}
-            className="input h-8 text-sm"
+            className="input h-8 sm:text-sm"
             aria-label={t("newName")}
           />
           <Button type="submit" size="sm" variant="primary" loading={update.isPending}>

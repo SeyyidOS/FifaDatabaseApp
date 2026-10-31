@@ -199,7 +199,7 @@ function ClubsInner({ data }: { data: Analytics }) {
             </button>
           ))}
         {leagues.length > 1 && (
-          <select value={league} onChange={(e) => setLeague(e.target.value)} className="input h-9 w-auto min-w-40 text-sm" aria-label={t("allLeagues")}>
+          <select value={league} onChange={(e) => setLeague(e.target.value)} className="input h-9 w-auto min-w-40 sm:text-sm" aria-label={t("allLeagues")}>
             <option value="">{t("allLeagues")}</option>
             {leagues.map((l) => (
               <option key={l} value={l}>
