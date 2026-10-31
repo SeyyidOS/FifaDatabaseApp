@@ -30,8 +30,9 @@
       try {
         var t = localStorage.getItem("fm-theme");
         if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
-        // the interface size this device tries (src/hooks/useUiScale.ts), before anything is drawn
-        var s = { xs: 0.8125, s: 0.875, l: 1.125 }[localStorage.getItem("matchnight.uiScale")];
+        // an interface size picked on this device (src/hooks/useUiScale.ts), before anything is drawn;
+        // without one, phones start small (index.css)
+        var s = { xs: 0.8125, s: 0.875, m: 1, l: 1.125 }[localStorage.getItem("matchnight.uiScale")];
         if (s) document.documentElement.style.fontSize = s * 100 + "%";
       } catch (e) {}
     </script>
