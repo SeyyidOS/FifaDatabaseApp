@@ -10,8 +10,8 @@ Turkish (`tr/`) and English (`en/`):
 5. Night Post
 6. An invite, before signing in
 
-They are the **store** edition (shirts instead of crests, no game data, season "2026–27") with
-made-up players and matches. No real data was used: `deploy/review-league.py` seeded a scratch API.
+They are the **store** edition (shirts instead of crests, no game data, season "2026–27") at the size
+phones start at (81.25%, `frontend/src/hooks/useUiScale.ts`), with made-up players and matches. No real data was used: `deploy/review-league.py` seeded a scratch API.
 The small print at the foot of 2 and 6 is the store edition's "not affiliated with EA SPORTS, FIFA or
 any club" note.
 
@@ -29,4 +29,6 @@ To make them again:
 
 4. Run `capture.mjs` in `mcr.microsoft.com/playwright:v1.57.0-noble` on that network (WebKit, 440×956 at
    3×). It checks every screen for crests, "FC27", "fut.gg" and "FIFA", and reloads a screen when
-   headless WebKit leaves an entrance animation invisible.
+   headless WebKit leaves an entrance animation invisible on screen. The demo account agrees to the terms
+   first, as App Review will, and the invite is Jordan's (Sam has an account, for Block). The
+   independence note is left out of the check: it names EA SPORTS and FIFA on purpose.
