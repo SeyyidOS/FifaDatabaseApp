@@ -16,7 +16,7 @@ birleştirilmeye gitmiyor. Hepsi kullanıcının hesabına **bağlı** (linked) 
 | Contact Info › Email Address | giriş e-postası | giriş kodu göndermek |
 | Contact Info › Name | hesabın adı | ligde görünmesi |
 | User Content › Photos or Videos | profil fotoğrafı, maç fotoğrafları | profil; maçla birlikte saklanması, izin verilirse istatistiklerin okunması |
-| User Content › Other User Content | maçlar, skorlar, kulüpler, oyuncu adları, istatistikler | ligin kendisi |
+| User Content › Other User Content | maçlar, skorlar, kulüpler, oyuncu adları, istatistikler; bildirimler ve engellemeler | ligin kendisi; bildirilenlere bakmak, engellenenin fotoğraflarını gizlemek |
 | Identifiers › User ID | hesap numarası | hesabı ve liglerdeki üyeliği tanımak |
 
 Toplanmayanlar: konum, kişiler, sağlık, finans, tarama ve arama geçmişi, kullanım verisi (analitik yok),
@@ -30,7 +30,7 @@ kişiyle eşleştirmeye gidiyor.
 
 - **Resend**: giriş ve e-posta değişikliği mailleri; e-posta adresini ve kodu görür.
 - **Anthropic (Claude)**: sadece kişi izin verirse, maç özeti fotoğrafından istatistikleri okumak için.
-- **Cloudflare R2**: şifreli gece yedekleri; off-server yedek açıldığında (deploy/README.md).
+- **Backblaze B2**: şifreli gece yedekleri (deploy/README.md).
 
 ### Şifreleme (export compliance)
 
@@ -56,7 +56,7 @@ All of it is **linked** to the user's account and used only for **App Functional
 | Contact Info › Email Address | the sign-in e-mail | to send sign-in codes |
 | Contact Info › Name | the account's name | shown in the league |
 | User Content › Photos or Videos | profile photo, match photos | the profile; kept with the match, stats read with consent |
-| User Content › Other User Content | matches, scores, clubs, player names, stats | the league itself |
+| User Content › Other User Content | matches, scores, clubs, player names, stats; reports and blocks | the league itself; looking into reports, hiding a blocked person's photos |
 | Identifiers › User ID | the account's id | to know the account and its memberships |
 
 Not collected: location, contacts, health, financial info, browsing or search history, usage data (no
@@ -70,7 +70,7 @@ these logs go to no analysis or profile.
 
 - **Resend**: sign-in and e-mail-change e-mails; sees the address and the code.
 - **Anthropic (Claude)**: only with the person's consent, to read the stats from a match summary photo.
-- **Cloudflare R2**: encrypted nightly backups, once off-server backups are on (deploy/README.md).
+- **Backblaze B2**: encrypted nightly backups (deploy/README.md).
 
 ### Encryption (export compliance)
 

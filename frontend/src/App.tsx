@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { PageSkeleton } from "./components/DataGate";
 import { ThemedToaster } from "./components/layout/ThemedToaster";
+import { TermsGate } from "./components/account/TermsGate";
 import { useAccountSync } from "./hooks/useAccount";
 
 /** The board that data from before boards existed was moved into (backend/migrations.py). */
@@ -14,6 +15,7 @@ const JoinInvite = lazy(() => import("./pages/JoinInvite"));
 const ConfirmEmail = lazy(() => import("./pages/ConfirmEmail"));
 const Privacy = lazy(() => import("./pages/Privacy"));
 const Support = lazy(() => import("./pages/Support"));
+const Terms = lazy(() => import("./pages/Terms"));
 
 /** Links from before boards existed (#/leaderboard, #/admin, …) belong to the original group's board. */
 function LegacyRedirect() {
@@ -38,11 +40,13 @@ export default function App() {
           <Route path="/email" element={<ConfirmEmail />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/support" element={<Support />} />
+          <Route path="/terms" element={<Terms />} />
           <Route path="/b/:slug/*" element={<BoardGate />} />
           <Route path="*" element={<LegacyRedirect />} />
         </Routes>
       </Suspense>
       <AccountSync />
+      <TermsGate />
       <ThemedToaster />
     </>
   );

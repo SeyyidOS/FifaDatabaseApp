@@ -25,6 +25,16 @@ sahibidir. Bakılacaklar: Ana sayfa (son maç gecesi ve Gece Postası), Tablo, M
 Hesap silme: Profilim › kalem (Profili düzenle) › Hesabı sil. Silmeden önce her lige ne olacağı gösterilir. Demo hesabı
 silerseniz bize yazın, yeniden kurarız.
 
+Kullanıcı içeriği (kural 1.2): Herkes ilk girişte kullanım koşullarını kabul eder (uygunsuz içeriğe ve
+tacize sıfır tolerans; /terms). Oyuncu, hesap, lig, kulüp ve sezon adlarında küfür ve hakaret filtrelenir.
+Fotoğraf görüntüleyicide ve oyuncu sayfasında "Bildir" var; bildirim bize e-postayla gelir ve 24 saat
+içinde bakar, içeriği kaldırır ve hesabı askıya alırız. Oyuncu sayfasındaki "Engelle" o kişinin
+fotoğraflarını gizler; engellenenler Profilim › Düzenle'de. Lig sahibi Ayarlar › Üyeler'den birini "Çıkar ve
+engelle" ile dışarıda tutabilir; herkes hesap menüsünden ligden ayrılabilir. Demo ligde Sam'in hesabı var
+(deploy/review-league.py): Engelle onun sayfasında, "Çıkar ve engelle" Ayarlar › Üyeler'de denenebilir;
+Bildir her oyuncuda ve fotoğrafta var. İnceleme Sam'i ligden çıkarırsa deploy/review-league.py'yi yeniden
+çalıştırmak onu geri koyar.
+
 Yapay zekâ: Bir maça fotoğraf eklerken (maç kartındaki fotoğraf düğmesi) uygulama önce, maç özeti
 ekranının fotoğrafını istatistikleri okuması için bir yapay zekâ servisine (Anthropic'in Claude'u)
 gönderip göndermeyeceğini sorar. Hayır denirse fotoğraf sadece saklanır.
@@ -43,6 +53,8 @@ not Ayarlar'ın ve giriş sayfalarının altında da yazar.
     Leagues are private and invite-only, so the demo account owns "Friday Night League", a league with sample matches. Worth a look: Home (the last match night, with its Night Post), Table, Matches, a player's profile, and "+" to log a match (draw teams and clubs, start the match, save the result).
 
     ACCOUNT DELETION: My profile › the pencil (Edit profile) › Delete account. Before anything is deleted it shows what happens to each of the account's leagues. If you delete the demo account, write to us and we'll set it up again.
+
+    USER-GENERATED CONTENT: Everyone agrees to the terms of use on first sign-in (zero tolerance for objectionable content and abuse; also at /terms). Names of players, accounts, leagues, clubs and seasons are filtered for slurs and obscenities. Report is on every photo (open it from a match card) and on every player's page; reports reach us by e-mail and we act on them within 24 hours, removing the content and suspending the account that posted it. Block, on a player's page, hides that person's photos from you; your blocked list is under My profile › Edit. A league's owner can remove someone and keep them out (Settings › Members › Remove and block), and anyone can leave a league from the account menu. In the demo league Sam has an account, so Block can be tried on Sam's page and Remove and block on Sam in Settings › Members; Report is on every player and photo.
 
     AI: When adding photos to a match (the photo button on a match card), the app first asks whether a photo of the match summary screen may be sent to an AI service, Anthropic's Claude, to read its stats. If not, the photo is only kept.
 

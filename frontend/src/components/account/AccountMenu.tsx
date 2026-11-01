@@ -1,18 +1,23 @@
 import { AnimatePresence, motion } from "motion/react";
-import { LayoutGrid, LogOut, UserRound } from "lucide-react";
+import { DoorOpen, LayoutGrid, LogOut, UserRound } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type MouseEvent } from "react";
+import { toast } from "sonner";
 import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAccount, useMemberships } from "../../hooks/useAccount";
 import { useBoard } from "../../hooks/useBoard";
 import { useT } from "../../hooks/useI18n";
 import { signOutAccount } from "../../lib/account";
+import { accountApi, ApiError } from "../../lib/api";
 import { cn } from "../../lib/cn";
 import { nameLang } from "../../lib/format";
 import { defineMessages } from "../../lib/i18n";
+import { removeSession } from "../../lib/session";
 import { setUiScale, UI_SCALES, useUiScale, type UiScale } from "../../hooks/useUiScale";
 import { LanguageButton } from "../layout/LanguageButton";
 import { ThemeButton } from "../layout/ThemeButton";
+import { ConfirmDialog } from "../ui/Dialog";
 import { Avatar } from "../ui/Identity";
 
 const m = defineMessages({
@@ -25,7 +30,13 @@ const m = defineMessages({
     admin: "admin",
     player: "player",
     privacy: "Privacy",
+    terms: "Terms",
     help: "Help",
+    leave: "Leave this league",
+    leaveTitle: "Leave {name}?",
+    leaveBody: "Your player and matches stay in the league as part of its history, without your account. To come back you need a new invite.",
+    leaveConfirm: "Leave",
+    left: "You left {name}",
     size: "Interface size",
     xs: "Smallest",
     s: "Small",
@@ -41,7 +52,13 @@ const m = defineMessages({
     admin: "yönetici",
     player: "oyuncu",
     privacy: "Gizlilik",
+    terms: "Koşullar",
     help: "Yardım",
+    leave: "Bu ligden ayrıl",
+    leaveTitle: "{name} liginden ayrılınsın mı?",
+    leaveBody: "Oyuncun ve maçların ligin geçmişinin parçası olarak kalır, hesabınla bağı kopar. Geri dönmek için yeni bir davet gerekir.",
+    leaveConfirm: "Ayrıl",
+    left: "{name} liginden ayrıldın",
     size: "Görünüm boyutu",
     xs: "En küçük",
     s: "Küçük",
@@ -97,6 +114,9 @@ export function AccountMenu() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const queryClient = useQueryClient();
   // where the dropdown hangs on larger screens; null on phones, where it is a sheet
   const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null);
 
@@ -120,6 +140,21 @@ export function AccountMenu() {
   const signOut = () => {
     signOutAccount();
     navigate("/");
+  };
+  const leave = async () => {
+    setBusy(true);
+    try {
+      await accountApi.leave(account.token, slug);
+      removeSession(slug);
+      await queryClient.invalidateQueries({ queryKey: ["auth-boards"] });
+      toast.success(t("left", { name }));
+      navigate("/");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : String(err));
+    } finally {
+      setBusy(false);
+      setLeaving(false);
+    }
   };
 
   const item = "flex min-h-[52px] w-full items-center gap-3.5 rounded-2xl px-3 text-left text-[15px] font-semibold transition-colors hover:bg-surface-2 lg:min-h-11 lg:text-sm";
@@ -177,6 +212,20 @@ export function AccountMenu() {
                     </span>
                     {t("leagues")}
                   </Link>
+                  {membership && membership.role !== "owner" && (
+                    <button
+                      onClick={() => {
+                        setOpen(false);
+                        setLeaving(true);
+                      }}
+                      className={item}
+                    >
+                      <span className={icon}>
+                        <DoorOpen className="size-[18px]" />
+                      </span>
+                      {t("leave")}
+                    </button>
+                  )}
                   <button onClick={signOut} className={cn(item, "text-loss")}>
                     <span className={icon}>
                       <LogOut className="size-[18px]" />
@@ -192,6 +241,9 @@ export function AccountMenu() {
                   <Link to="/privacy" className="px-3 py-2 text-xs text-faint hover:text-muted">
                     {t("privacy")}
                   </Link>
+                  <Link to="/terms" className="px-3 py-2 text-xs text-faint hover:text-muted">
+                    {t("terms")}
+                  </Link>
                   <span className="ml-auto flex items-center lg:hidden">
                     <LanguageButton />
                     <ThemeButton />
@@ -203,6 +255,15 @@ export function AccountMenu() {
         </AnimatePresence>,
         document.body,
       )}
+      <ConfirmDialog
+        open={leaving}
+        onClose={() => setLeaving(false)}
+        onConfirm={leave}
+        title={t("leaveTitle", { name })}
+        description={t("leaveBody")}
+        confirmLabel={t("leaveConfirm")}
+        loading={busy}
+      />
     </>
   );
 }

@@ -158,6 +158,13 @@ def list_members(slug: str, request: Request, authorization: str | None = Header
         """,
         (board["id"],),
     )
+    blocked = db.fetch_all(
+        """
+        SELECT x.user_id, u.name, u.photo FROM board_bans x JOIN users u ON u.id = x.user_id
+        WHERE x.board_id = %s ORDER BY x.created_at
+        """,
+        (board["id"],),
+    )
     return {
         "members": [
             {
@@ -180,6 +187,8 @@ def list_members(slug: str, request: Request, authorization: str | None = Header
             }
             for r in requests_
         ],
+        # removed and kept out (remove_member)
+        "blocked": [{"userId": b["user_id"], "name": b["name"], "photo": b["photo"]} for b in blocked],
     }
 
 
@@ -263,19 +272,38 @@ def hand_over(slug: str, user_id: int, request: Request, authorization: str | No
 
 
 @router.delete("/boards/{slug}/members/{user_id}")
-def remove_member(slug: str, user_id: int, request: Request, authorization: str | None = Header(default=None)):
-    """Out of the board; their player and matches stay, without an account. Admins remove players only."""
+def remove_member(
+    slug: str, user_id: int, request: Request, block: bool = False, authorization: str | None = Header(default=None)
+):
+    """Out of the board; their player and matches stay, without an account. Admins remove players only. With
+    ?block=true they are kept out too: no invite lets them back in until an owner or admin unblocks them."""
     _, board, membership = _manager(request, slug, authorization)
     roles = ("admin", "player") if membership["role"] == "owner" else ("player",)
+    with request.app.state.db.transaction() as cur:
+        cur.execute(
+            "DELETE FROM memberships WHERE board_id = %s AND user_id = %s AND role = ANY(%s)",
+            (board["id"], user_id, list(roles)),
+        )
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=404, detail="No such member, or not yours to remove")
+        cur.execute("DELETE FROM join_requests WHERE board_id = %s AND user_id = %s", (board["id"], user_id))
+        if block:
+            cur.execute(
+                "INSERT INTO board_bans (board_id, user_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                (board["id"], user_id),
+            )
+    return {"removed": True, "blocked": block}
+
+
+@router.delete("/boards/{slug}/blocked/{user_id}")
+def unblock_member(slug: str, user_id: int, request: Request, authorization: str | None = Header(default=None)):
+    """Lets someone who was removed and kept out come back with an invite."""
+    _, board, _ = _manager(request, slug, authorization)
     if not request.app.state.db.execute(
-        "DELETE FROM memberships WHERE board_id = %s AND user_id = %s AND role = ANY(%s)",
-        (board["id"], user_id, list(roles)),
+        "DELETE FROM board_bans WHERE board_id = %s AND user_id = %s", (board["id"], user_id)
     ):
-        raise HTTPException(status_code=404, detail="No such member, or not yours to remove")
-    request.app.state.db.execute(
-        "DELETE FROM join_requests WHERE board_id = %s AND user_id = %s", (board["id"], user_id)
-    )
-    return {"removed": True}
+        raise HTTPException(status_code=404, detail="They aren't blocked here")
+    return {"blocked": False}
 
 
 # --------------------------------- invitees ----------------------------------
@@ -333,6 +361,10 @@ def accept(code: str, body: InviteAccept, request: Request, authorization: str |
     if you said who you are, ask an owner or admin to confirm it."""
     user = current_user(request, authorization)
     invite, board = _open_invite(request, code)
+    if request.app.state.db.fetch_one(
+        "SELECT 1 FROM board_bans WHERE board_id = %s AND user_id = %s", (board["id"], user["id"])
+    ):
+        raise HTTPException(status_code=403, detail="You can't join this league")
     try:
         with request.app.state.db.transaction() as cur:
             if invite["kind"] == "personal":

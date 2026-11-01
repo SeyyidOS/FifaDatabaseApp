@@ -3,8 +3,12 @@ export interface Player {
   name: string;
   /** Archived players left the roster; their matches still count. */
   archived: boolean;
-  /** the photo of the account this player belongs to (photoUrl), if it has one */
+  /** the photo of the account this player belongs to (photoUrl), if it has one and isn't blocked */
   photo?: string | null;
+  /** whether the player belongs to an account (which can be blocked) */
+  account?: boolean;
+  /** whether the signed-in account blocked that account: its photos are hidden (backend/moderation.py) */
+  blocked?: boolean;
 }
 
 export interface Club {
@@ -214,6 +218,8 @@ export interface BoardMembers {
     player: { id: number; name: string } | null;
   }[];
   requests: { id: number; name: string | null; email: string; photo: string | null; player: { id: number; name: string } | null; newName: string | null }[];
+  /** removed and kept out: no invite lets them back in until unblocked */
+  blocked: { userId: number; name: string | null; photo: string | null }[];
 }
 
 /** A person who signs in with a link sent to their e-mail (not a board sign-in). */
@@ -223,7 +229,12 @@ export interface Account {
   name: string | null;
   /** its photo (photoUrl), if it has one */
   photo: string | null;
+  /** agreed to the terms of use as they are now; undefined until the server has said (an older copy) */
+  termsAccepted?: boolean;
 }
+
+/** Why someone reports a photo or a player (backend/moderation.py). */
+export type ReportReason = "offensive" | "harassment" | "impersonation" | "other";
 
 /** One match of the night's plan; matchId is set once it has been played. */
 export interface PlannedMatch {

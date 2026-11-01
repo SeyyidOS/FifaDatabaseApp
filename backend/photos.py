@@ -84,7 +84,7 @@ def _match_exists(request: Request, board_id: int, match_id: int) -> bool:
     return row is not None
 
 
-def _store(request: Request, board_id: int, match_id: int, raw: bytes, ai: bool) -> dict:
+def _store(request: Request, board_id: int, match_id: int, raw: bytes, ai: bool, user_id: int | None) -> dict:
     if not _match_exists(request, board_id, match_id):
         raise HTTPException(status_code=404, detail=f"No match with ID {match_id}")
     full, thumb, width, height = _encode(raw)
@@ -104,10 +104,11 @@ def _store(request: Request, board_id: int, match_id: int, raw: bytes, ai: bool)
                 raise HTTPException(status_code=409, detail=f"A match holds at most {MAX_PHOTOS} photos")
             cur.execute(
                 """
-                INSERT INTO match_photos (match_id, file, width, height, ai_read) VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO match_photos (match_id, file, width, height, ai_read, uploaded_by)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 RETURNING id, match_id AS "matchId", width, height, created_at AS "createdAt"
                 """,
-                (match_id, file, width, height, ai),
+                (match_id, file, width, height, ai, user_id),
             )
             return cur.fetchone()
     except BaseException:
@@ -127,7 +128,14 @@ async def add_photo(match_id: int, request: Request, ai: bool = False, access: B
         chunks.append(chunk)
     if not size:
         raise HTTPException(status_code=422, detail="No photo was sent")
-    return await run_in_threadpool(_store, request, access.id, match_id, b"".join(chunks), ai)
+    return await run_in_threadpool(_store, request, access.id, match_id, b"".join(chunks), ai, access.user_id)
+
+
+# a photo added by an account the viewer blocked, or that is suspended (moderation.py), isn't shown
+SHOWN = """NOT EXISTS (
+    SELECT 1 FROM users u LEFT JOIN user_blocks b ON b.blocked_id = u.id AND b.user_id = %(me)s
+    WHERE u.id = ph.uploaded_by AND (b.user_id IS NOT NULL OR u.banned_at IS NOT NULL)
+)"""
 
 
 @router.get("/matches/{match_id}/photos")
@@ -135,11 +143,11 @@ def list_photos(match_id: int, request: Request, access: BoardAccess = Depends(b
     if not _match_exists(request, access.id, match_id):
         raise HTTPException(status_code=404, detail=f"No match with ID {match_id}")
     return _db(request).fetch_all(
-        """
-        SELECT id, match_id AS "matchId", width, height, created_at AS "createdAt"
-        FROM match_photos WHERE match_id = %s ORDER BY id
+        f"""
+        SELECT ph.id, ph.match_id AS "matchId", ph.width, ph.height, ph.created_at AS "createdAt"
+        FROM match_photos ph WHERE ph.match_id = %(match)s AND {SHOWN} ORDER BY ph.id
         """,
-        (match_id,),
+        {"match": match_id, "me": access.user_id},
     )
 
 

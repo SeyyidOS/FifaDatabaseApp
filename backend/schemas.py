@@ -7,6 +7,8 @@ from typing import Annotated, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
+from wordfilter import clean
+
 # Letters (any language), digits, spaces, dots, dashes, underscores and apostrophes. "&" is excluded
 # because it joins the names of a duo.
 NAME_PATTERN = re.compile(r"^\w[\w .'-]*$")
@@ -21,10 +23,16 @@ def _player_name(name: str) -> str:
 
 PlayerName = Annotated[str, StringConstraints(min_length=1, max_length=30), AfterValidator(_player_name)]
 ClubName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+# A name someone gives a new player or club, or a new name for one, others will see: no slurs or obscenities
+# (wordfilter.py). Names already in use pass anywhere they are only referred to, such as a match's teams.
+NewPlayerName = Annotated[PlayerName, AfterValidator(clean)]
+NewClubName = Annotated[ClubName, AfterValidator(clean)]
 # the card model can rate the weakest clubs below zero; only differences between ratings matter
 ClubElo = Annotated[int, Field(ge=-1000, le=3000)]
-SeasonName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
-BoardName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=60)]
+SeasonName = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40), AfterValidator(clean)
+]
+BoardName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=60), AfterValidator(clean)]
 Password = Annotated[str, StringConstraints(min_length=6, max_length=128)]
 Score = Annotated[int, Field(ge=0, le=99)]
 KFactor = Annotated[int, Field(ge=8, le=64)]
@@ -62,7 +70,9 @@ def _email(email: str) -> str:
 
 
 Email = Annotated[str, StringConstraints(max_length=254), AfterValidator(_email)]
-AccountName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
+AccountName = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40), AfterValidator(clean)
+]
 
 
 class LinkRequest(BaseModel):
@@ -102,7 +112,7 @@ class InviteAccept(BaseModel):
     """By a group link: the player you are, or the name of a new player (or neither: just join)."""
 
     playerId: int | None = None
-    newName: PlayerName | None = None
+    newName: NewPlayerName | None = None
 
     @model_validator(mode="after")
     def one_of(self) -> "InviteAccept":
@@ -130,11 +140,11 @@ class BoardUpdate(BaseModel):
 
 
 class PlayerIn(BaseModel):
-    name: PlayerName
+    name: NewPlayerName
 
 
 class PlayerUpdate(BaseModel):
-    name: PlayerName | None = None
+    name: NewPlayerName | None = None
     archived: bool | None = None
 
 
@@ -149,12 +159,12 @@ class SeasonUpdate(BaseModel):
 
 
 class ClubIn(BaseModel):
-    name: ClubName
+    name: NewClubName
     elo: ClubElo
 
 
 class ClubUpdate(BaseModel):
-    name: ClubName | None = None
+    name: NewClubName | None = None
     elo: ClubElo | None = None
 
 
@@ -290,3 +300,19 @@ class MatchStatsIn(BaseModel):
     # the photo they were read from, if any
     photoId: int | None = None
     source: Literal["ocr", "manual"] = "manual"
+
+
+# ----------- Moderation -----------
+class ReportIn(BaseModel):
+    """Someone in a league flags a photo or a player (their name or photo) to the people who run the app."""
+
+    kind: Literal["photo", "player"]
+    targetId: int
+    reason: Literal["offensive", "harassment", "impersonation", "other"]
+    note: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)] = ""
+
+
+class ReportResolve(BaseModel):
+    """What the operator did about a report."""
+
+    resolution: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]

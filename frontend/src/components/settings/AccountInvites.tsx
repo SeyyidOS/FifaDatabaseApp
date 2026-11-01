@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Crown, Link2, MoreHorizontal, PartyPopper, RefreshCw, Send, UserCheck, UserMinus, Users } from "lucide-react";
+import { Ban, Check, Copy, Crown, Link2, MoreHorizontal, PartyPopper, RefreshCw, Send, UserCheck, UserMinus, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useAccount } from "../../hooks/useAccount";
@@ -49,6 +49,11 @@ const m = defineMessages({
     makeAdmin: "Make admin",
     makePlayer: "Make player",
     remove: "Remove from the league",
+    removeBlock: "Remove and block",
+    blockTitle: "Remove {name} and keep them out?",
+    blockText: "They leave the league, and no invite lets them back in until you unblock them. Their player and matches stay.",
+    blockedLabel: "Blocked from the league",
+    unblock: "Unblock",
     makeOwner: "Make owner",
     options: "Options for {name}",
     handOverTitle: "Make {name} the owner?",
@@ -87,6 +92,11 @@ const m = defineMessages({
     makeAdmin: "Yönetici yap",
     makePlayer: "Oyuncu yap",
     remove: "Ligden çıkar",
+    removeBlock: "Çıkar ve engelle",
+    blockTitle: "{name} ligden çıkarılıp engellensin mi?",
+    blockText: "Ligden çıkar ve sen engeli kaldırana kadar hiçbir davetle geri giremez. Oyuncusu ve maçları kalır.",
+    blockedLabel: "Ligden engellenenler",
+    unblock: "Engeli kaldır",
     makeOwner: "Sahibi yap",
     options: "{name} için seçenekler",
     handOverTitle: "{name} ligin sahibi olsun mu?",
@@ -259,6 +269,8 @@ export function Members({ role }: { role: Membership["role"] }) {
   const members = useQuery({ queryKey: ["members", slug], queryFn: () => accountApi.members(account.token, slug) });
   const [handOver, setHandOver] = useState<{ userId: number; name: string } | null>(null);
   const [handing, setHanding] = useState(false);
+  const [blocking, setBlocking] = useState<{ userId: number; name: string } | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const act = async (run: () => Promise<unknown>) => {
     try {
@@ -320,12 +332,15 @@ export function Members({ role }: { role: Membership["role"] }) {
               { label: t("makeOwner"), icon: Crown, run: () => setHandOver({ userId: mb.userId, name }) },
             );
           if (canRemove)
-            items.push({
-              label: t("remove"),
-              icon: UserMinus,
-              danger: true,
-              run: () => act(() => accountApi.removeMember(account.token, slug, mb.userId)),
-            });
+            items.push(
+              {
+                label: t("remove"),
+                icon: UserMinus,
+                danger: true,
+                run: () => act(() => accountApi.removeMember(account.token, slug, mb.userId)),
+              },
+              { label: t("removeBlock"), icon: Ban, danger: true, run: () => setBlocking({ userId: mb.userId, name }) },
+            );
           return (
             <li key={mb.userId} className="flex items-center gap-3 rounded-xl px-2 py-2">
               <Avatar name={mb.name || "?"} photo={mb.photo} size="sm" />
@@ -342,6 +357,35 @@ export function Members({ role }: { role: Membership["role"] }) {
           );
         })}
       </ul>
+      {!!data?.blocked.length && (
+        <div className="space-y-1">
+          <p className="label">{t("blockedLabel")}</p>
+          {data.blocked.map((b) => (
+            <div key={b.userId} className="flex items-center gap-3 rounded-xl px-2 py-2">
+              <Avatar name={b.name || "?"} photo={b.photo} size="sm" />
+              <span className="min-w-0 flex-1 truncate text-sm text-muted">{b.name || t("noName")}</span>
+              <Button variant="ghost" size="sm" onClick={() => act(() => accountApi.unblockMember(account.token, slug, b.userId))}>
+                {t("unblock")}
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+      <ConfirmDialog
+        open={!!blocking}
+        onClose={() => setBlocking(null)}
+        title={t("blockTitle", { name: blocking?.name ?? "" })}
+        description={t("blockText")}
+        confirmLabel={t("removeBlock")}
+        loading={busy}
+        onConfirm={async () => {
+          if (!blocking) return;
+          setBusy(true);
+          await act(() => accountApi.removeMember(account.token, slug, blocking.userId, true));
+          setBusy(false);
+          setBlocking(null);
+        }}
+      />
       <ConfirmDialog
         open={!!handOver}
         onClose={() => setHandOver(null)}

@@ -4,10 +4,13 @@ secrets.env, which signs in with that code and gets no e-mail).
 
   deploy/review-league.py        makes it, unless the account is in a league already
 
-Six players with four match nights behind them. It signs in as the demo account through the public API,
-as the app does, and moves the matches back to past Fridays through the fifa_db container (the API dates a
-match when it is logged). FIFA_API_URL, FIFA_DB_CONTAINER and the REVIEW_* variables point it at a scratch
-copy instead.
+Six players with four match nights behind them. One of them, Sam, also has an account (an address at
+example.com, which never gets mail), so App Review finds Block on a player's page: blocking is between
+accounts (backend/moderation.py). Run again on a league made before, it adds Sam's account and nothing else.
+
+It signs in as the demo account through the public API, as the app does, and moves the matches back to past
+Fridays through the fifa_db container (the API dates a match when it is logged). FIFA_API_URL,
+FIFA_DB_CONTAINER and the REVIEW_* variables point it at a scratch copy instead.
 """
 
 import json
@@ -57,6 +60,21 @@ SET time = date_trunc('day', NOW() AT TIME ZONE 'UTC')
 FROM n, friday WHERE m.id = n.id;
 """
 
+# Sam's account, in the league as Sam, with the terms agreed; it never signs in
+TEAMMATE = """
+WITH b AS (SELECT id FROM boards WHERE slug = :'slug'),
+p AS (SELECT p.id FROM players p JOIN b ON p.board_id = b.id WHERE p.name = 'sam'),
+u AS (
+    INSERT INTO users (email, name, terms_version, terms_accepted_at)
+    VALUES ('sam.demo@example.com', 'Sam', 1, NOW())
+    ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
+    RETURNING id
+)
+INSERT INTO memberships (user_id, board_id, role, player_id)
+SELECT u.id, b.id, 'player', p.id FROM u, b, p
+ON CONFLICT DO NOTHING;
+"""
+
 
 def setting(name: str) -> str:
     if os.getenv(name):
@@ -91,12 +109,20 @@ def call(method: str, path: str, body: dict | None = None, token: str | None = N
         sys.exit(f"{method} {path}: {e.code} {e.read().decode(errors='replace')}")
 
 
+def sql(slug: str, script: str) -> None:
+    psql = ["docker", "exec", "-i", DB_CONTAINER, "psql", "-q", "-U", "fifa", "-d", "fifa_db", "-v", f"slug={slug}"]
+    subprocess.run([*psql, "-v", "ON_ERROR_STOP=1"], input=script, text=True, check=True)
+
+
 def main() -> None:
     email, code = setting("REVIEW_EMAIL").lower(), setting("REVIEW_CODE")
     call("POST", "/auth/email", {"email": email, "lang": "en"})
     account = call("POST", "/auth/email/code", {"email": email, "code": code})["token"]
-    if call("GET", "/auth/boards", token=account):
-        sys.exit(f"{email} is in a league already; nothing to do")
+    # the demo account agrees to the terms itself, the first time App Review signs in
+    leagues = call("GET", "/auth/boards", token=account)
+    if leagues:
+        sql(leagues[0]["slug"], TEAMMATE)
+        sys.exit(f"{email} is in a league already; made sure Sam has an account in {leagues[0]['slug']}")
     call("PATCH", "/auth/me", {"name": PLAYERS[0]}, account)
 
     league = call("POST", "/boards", {"name": LEAGUE}, account)
@@ -115,8 +141,8 @@ def main() -> None:
         match = {"clubA": club_a, "clubB": club_b, "teamA": four[:2], "teamB": four[2:]}
         call("POST", f"/boards/{slug}/matches", match | {"scoreA": score[0], "scoreB": score[1]}, board)
 
-    psql = ["docker", "exec", "-i", DB_CONTAINER, "psql", "-q", "-U", "fifa", "-d", "fifa_db", "-v", f"slug={slug}"]
-    subprocess.run([*psql, "-v", "ON_ERROR_STOP=1"], input=BACKDATE, text=True, check=True)
+    sql(slug, BACKDATE)
+    sql(slug, TEAMMATE)
     print(f"{LEAGUE} ({slug}): {len(PLAYERS)} players, {NIGHTS * PER_NIGHT} matches over {NIGHTS} nights")
 
 

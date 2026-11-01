@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 import { useState, type ReactNode } from "react";
 import { Navigate, useParams } from "react-router-dom";
-import { ArrowLeft, Crosshair, Crown, Flame, HeartHandshake, Shield, Skull, Swords, Target, TrendingUp, Trophy } from "lucide-react";
+import { ArrowLeft, Ban, Crosshair, Crown, Flag, Flame, HeartHandshake, Shield, Skull, Swords, Target, TrendingUp, Trophy } from "lucide-react";
 import { MatchMapChart } from "../components/charts/InsightCharts";
 import { DataGate } from "../components/DataGate";
 import { PlayerStatsPanel } from "../components/insights/StatsLab";
@@ -11,6 +11,9 @@ import { PlayerEloChart } from "../components/charts/EloCharts";
 import { NightlyEloChart } from "../components/charts/NightlyElo";
 import { EloChip } from "../components/ranking/Ranking";
 import { MatchCard } from "../components/match/MatchCard";
+import { ReportDialog } from "../components/moderation/Report";
+import { reportMessages } from "../components/moderation/messages";
+import { ConfirmDialog } from "../components/ui/Dialog";
 import { PlayerCard } from "../components/PlayerCard";
 import { Avatar, ClubCrest } from "../components/ui/Identity";
 import { AnimatedNumber, Button, FormPills, Panel, Pill, ProgressBar, RankMove, Segmented } from "../components/ui/primitives";
@@ -23,6 +26,7 @@ import { playerNights } from "../lib/insights";
 import { winRate, type Tally } from "../lib/stats";
 import { BoardLink } from "../components/board/BoardLink";
 import { useBoard } from "../hooks/useBoard";
+import { usePlayers } from "../hooks/useData";
 import { useBoardNavigate } from "../hooks/useBoardNavigate";
 import { useAccount, useMemberships } from "../hooks/useAccount";
 import { useQueryClient } from "@tanstack/react-query";
@@ -59,6 +63,12 @@ const msg = defineMessages({
     you: "You",
     thatsMe: "That's me",
     linked: "Linked to your account",
+    block: "Block",
+    unblock: "Unblock",
+    blockTitle: "Block {name}?",
+    blockBody: "You won't see their photos any more, in any league you share. Their matches stay in the table: they're the league's results. You can unblock them whenever you like; to leave the league instead, use your account menu.",
+    blocked: "Blocked. Their photos are hidden from you.",
+    unblocked: "Unblocked",
     journey: "Elo journey",
     byNight: "By night",
     byMatch: "By match",
@@ -117,6 +127,12 @@ const msg = defineMessages({
     you: "Sen",
     thatsMe: "Bu benim",
     linked: "Hesabına bağlandı",
+    block: "Engelle",
+    unblock: "Engeli kaldır",
+    blockTitle: "{name} engellensin mi?",
+    blockBody: "Ortak olduğunuz hiçbir ligde fotoğraflarını artık görmezsin. Maçları puan tablosunda kalır, çünkü ligin sonuçlarıdır. Engeli istediğin zaman kaldırabilirsin; bunun yerine ligden ayrılmak istersen hesap menüsünü kullan.",
+    blocked: "Engellendi. Fotoğrafları sana gösterilmeyecek.",
+    unblocked: "Engel kaldırıldı",
     journey: "Elo yolculuğu",
     byNight: "Gece gece",
     byMatch: "Maç maç",
@@ -254,6 +270,71 @@ function MeTag({ player }: { player: RankedPlayer }) {
   );
 }
 
+/** Reporting a player, and blocking or unblocking the account behind them (backend/moderation.py); not on your own page. */
+function PlayerSafety({ player }: { player: RankedPlayer }) {
+  const t = useT(msg);
+  const tr = useT(reportMessages);
+  const { slug, api, viaAccount } = useBoard();
+  const raw = usePlayers().data?.find((p) => p.id === player.id);
+  const membership = useMemberships().data?.find((mb) => mb.slug === slug);
+  const queryClient = useQueryClient();
+  const [reporting, setReporting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  if (membership?.player?.id === player.id) return null;
+  const name = displayName(player.name);
+  const canBlock = viaAccount && !!raw?.account;
+
+  const setBlocked = async (blocked: boolean) => {
+    setBusy(true);
+    try {
+      await api.block(player.id, blocked);
+      // their picture and their match photos come and go with it
+      await queryClient.invalidateQueries({ queryKey: ["board", slug] });
+      toast.success(t(blocked ? "blocked" : "unblocked"));
+      setConfirming(false);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 flex flex-wrap justify-end gap-1">
+      <Button variant="ghost" size="sm" className="text-faint" onClick={() => setReporting(true)}>
+        <Flag className="size-3.5" /> {tr("report")}
+      </Button>
+      {canBlock &&
+        (raw?.blocked ? (
+          <Button variant="ghost" size="sm" className="text-faint" loading={busy} onClick={() => setBlocked(false)}>
+            <Ban className="size-3.5" /> {t("unblock")}
+          </Button>
+        ) : (
+          <Button variant="ghost" size="sm" className="text-faint" onClick={() => setConfirming(true)}>
+            <Ban className="size-3.5" /> {t("block")}
+          </Button>
+        ))}
+      <ReportDialog
+        open={reporting}
+        onClose={() => setReporting(false)}
+        kind="player"
+        targetId={player.id}
+        title={tr("playerTitle", { name })}
+      />
+      <ConfirmDialog
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        onConfirm={() => setBlocked(true)}
+        title={t("blockTitle", { name })}
+        description={t("blockBody")}
+        confirmLabel={t("block")}
+        loading={busy}
+      />
+    </div>
+  );
+}
+
 function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
   const [showAll, setShowAll] = useState(false);
   const navigate = useBoardNavigate();
@@ -361,6 +442,7 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
                 <Swords className="size-4" /> {t("compare")}
               </Button>
             </div>
+            <PlayerSafety player={player} />
           </div>
           <div className="hidden shrink-0 lg:block">
             <PlayerCard player={player} size="md" />

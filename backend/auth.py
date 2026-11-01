@@ -179,6 +179,10 @@ def slugify(name: str) -> str:
     return slug or "board"
 
 
+# what an account the operator suspended (moderation.py) is told
+SUSPENDED = "This account is suspended. Write to support if you think that's a mistake."
+
+
 # ----------- Dependencies -----------
 @dataclass
 class BoardAccess:
@@ -195,12 +199,14 @@ class BoardAccess:
 BOARD_COLUMNS = "id, slug, name, k_factor, club_weight, member_version, admin_version"
 
 
-def board_access(
+def board_reader(
     slug: str,
     request: Request,
     authorization: str | None = Header(default=None),
     x_admin_key: str | None = Header(default=None),
 ) -> BoardAccess:
+    """Anyone signed in to the board, viewers included, whatever the request: for what changes nothing in
+    the board itself, such as reporting or blocking someone (moderation.py). Everything else: board_access."""
     board = request.app.state.db.fetch_one(f"SELECT {BOARD_COLUMNS} FROM boards WHERE slug = %s", (slug,))
     if board is None:
         raise HTTPException(status_code=404, detail="Board not found")
@@ -221,14 +227,25 @@ def board_access(
         raise HTTPException(status_code=401, detail="The board password changed; sign in again")
     if "u" in payload:
         membership = request.app.state.db.fetch_one(
-            "SELECT role, player_id FROM memberships WHERE user_id = %s AND board_id = %s", (payload["u"], board["id"])
+            """
+            SELECT m.role, m.player_id, u.banned_at FROM memberships m JOIN users u ON u.id = m.user_id
+            WHERE m.user_id = %s AND m.board_id = %s
+            """,
+            (payload["u"], board["id"]),
         )
         if membership is None or board_role(membership) != payload["r"]:
             raise HTTPException(status_code=401, detail="Your place in this board changed; open it again")
-    # every change to a board goes through here, so a viewer is stopped here once, for all of them
-    if payload["r"] == "viewer" and request.method not in ("GET", "HEAD"):
-        raise HTTPException(status_code=403, detail="You can look around until an owner or admin confirms who you are")
+        if membership["banned_at"] is not None:
+            raise HTTPException(status_code=401, detail=SUSPENDED)
     return access(payload["r"], payload.get("u"))
+
+
+def board_access(request: Request, access: BoardAccess = Depends(board_reader)) -> BoardAccess:
+    """Anyone signed in to the board; a viewer only to look. Every change to a board goes through here, so
+    a viewer is stopped here once, for all of them."""
+    if access.role == "viewer" and request.method not in ("GET", "HEAD"):
+        raise HTTPException(status_code=403, detail="You can look around until an owner or admin confirms who you are")
+    return access
 
 
 def board_admin(access: BoardAccess = Depends(board_access)) -> BoardAccess:

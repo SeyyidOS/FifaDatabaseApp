@@ -15,7 +15,16 @@ import psycopg2.errors
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request
 
 import mailer
-from auth import _sign, client_ip, failed_logins, issue_user_token, links_per_email, links_per_ip, read_user_token
+from auth import (
+    SUSPENDED,
+    _sign,
+    client_ip,
+    failed_logins,
+    issue_user_token,
+    links_per_email,
+    links_per_ip,
+    read_user_token,
+)
 from schemas import AccountUpdate, CodeVerify, LinkRequest, LinkVerify
 
 router = APIRouter(prefix="/auth", tags=["accounts"])
@@ -26,6 +35,9 @@ CODE_TRIES = 5
 # an account token older than this is swapped for a new one when the app checks in (GET /auth/me), so a
 # device in use stays signed in instead of expiring a year after its first sign-in
 RENEW_AFTER = 24 * 3600
+# The terms of use (the app's /terms page) an account must have agreed to; raise it when they change in a
+# way people should agree to again, and the app asks everyone once more.
+TERMS_VERSION = 1
 
 
 def accounts_on() -> bool:
@@ -55,7 +67,20 @@ def _code_hash(email: str, code: str) -> str:
 
 
 def _public(user: dict) -> dict:
-    return {"id": user["id"], "email": user["email"], "name": user["name"], "photo": user["photo"]}
+    return {
+        "id": user["id"],
+        "email": user["email"],
+        "name": user["name"],
+        "photo": user["photo"],
+        "termsAccepted": user["terms_version"] >= TERMS_VERSION,
+    }
+
+
+def _signed_in(user: dict) -> dict:
+    """The answer to a sign-in: an account token, unless the operator suspended the account."""
+    if user["banned_at"] is not None:
+        raise HTTPException(status_code=403, detail=SUSPENDED)
+    return {"token": issue_user_token(user["id"], user["session_version"]), "user": _public(user)}
 
 
 def current_user(request: Request, authorization: str | None) -> dict:
@@ -67,6 +92,8 @@ def current_user(request: Request, authorization: str | None) -> dict:
     user = request.app.state.db.fetch_one("SELECT * FROM users WHERE id = %s", (payload["u"],))
     if user is None or user["session_version"] != payload["v"]:
         raise HTTPException(status_code=401, detail="Sign in again")
+    if user["banned_at"] is not None:
+        raise HTTPException(status_code=401, detail=SUSPENDED)
     return user
 
 
@@ -144,7 +171,7 @@ def verify_link(body: LinkVerify, request: Request):
             (link["email"],),
         )
         user = cur.fetchone()
-    return {"token": issue_user_token(user["id"], user["session_version"]), "user": _public(user)}
+    return _signed_in(user)
 
 
 @router.post("/email/code")
@@ -182,7 +209,7 @@ def verify_code(body: CodeVerify, request: Request):
         """,
         (link["email"],),
     )
-    return {"token": issue_user_token(user["id"], user["session_version"]), "user": _public(user)}
+    return _signed_in(user)
 
 
 @router.get("/me")
@@ -193,6 +220,18 @@ def me(request: Request, authorization: str | None = Header(default=None)):
     if read_user_token(authorization[7:])["iat"] + RENEW_AFTER < time.time():
         out["renewed"] = issue_user_token(user["id"], user["session_version"])
     return out
+
+
+@router.post("/me/terms")
+def accept_terms(request: Request, authorization: str | None = Header(default=None)):
+    """The account agrees to the terms of use as they are now (TERMS_VERSION): no tolerance for offensive
+    content or abuse. The app asks once after signing in, and again when the version goes up."""
+    user = current_user(request, authorization)
+    updated = request.app.state.db.write_one(
+        "UPDATE users SET terms_version = %s, terms_accepted_at = NOW() WHERE id = %s RETURNING *",
+        (TERMS_VERSION, user["id"]),
+    )
+    return _public(updated)
 
 
 @router.patch("/me")
@@ -274,4 +313,4 @@ def verify_email_change(body: LinkVerify, request: Request, tasks: BackgroundTas
         raise HTTPException(status_code=409, detail="That address already has an account") from exc
     # the move is done; the note to the old address can't change that, so it goes after the reply
     tasks.add_task(mailer.send_mail_later, "changed", old["email"], change["lang"], email=user["email"])
-    return {"token": issue_user_token(user["id"], user["session_version"]), "user": _public(user)}
+    return _signed_in(user)

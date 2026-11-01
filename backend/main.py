@@ -17,6 +17,7 @@ import invites
 import live
 import memberships
 import migrations
+import moderation
 import photos
 import seasons
 from db import CONNECTION_ERRORS, Database
@@ -83,3 +84,4 @@ app.include_router(fixtures.router)
 app.include_router(games.router)
 app.include_router(live.router)
 app.include_router(photos.router)
+app.include_router(moderation.router)

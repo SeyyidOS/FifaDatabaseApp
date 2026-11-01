@@ -495,6 +495,53 @@ def v18_photo_ai(cur: RealDictCursor) -> None:
     cur.execute(V18_PHOTO_AI)
 
 
+# Keeping people safe from each other (moderation.py), as App Review asks of apps where people post:
+# - which version of the terms an account agreed to, and whether the operator suspended it;
+# - who uploaded a match photo (none for photos from before);
+# - accounts someone blocked (their photos are hidden from them), and people a league's owner or admins
+#   removed and keep out;
+# - reports of a photo or a player, and what was done about them. `subject` keeps what was reported (a
+#   player's name, say) in case it changes before anyone looks.
+V19_MODERATION = """
+ALTER TABLE users ADD COLUMN terms_version INT NOT NULL DEFAULT 0,
+                  ADD COLUMN terms_accepted_at TIMESTAMPTZ,
+                  ADD COLUMN banned_at TIMESTAMPTZ;
+ALTER TABLE match_photos ADD COLUMN uploaded_by INT REFERENCES users (id) ON DELETE SET NULL;
+CREATE TABLE user_blocks (
+    user_id INT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    blocked_id INT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (user_id, blocked_id),
+    CHECK (user_id <> blocked_id)
+);
+CREATE TABLE board_bans (
+    board_id INT NOT NULL REFERENCES boards (id) ON DELETE CASCADE,
+    user_id INT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (board_id, user_id)
+);
+CREATE TABLE reports (
+    id SERIAL PRIMARY KEY,
+    board_id INT NOT NULL REFERENCES boards (id) ON DELETE CASCADE,
+    reporter_id INT REFERENCES users (id) ON DELETE SET NULL,
+    kind VARCHAR(10) NOT NULL CHECK (kind IN ('photo', 'player')),
+    target_id INT NOT NULL,
+    target_user_id INT REFERENCES users (id) ON DELETE SET NULL,
+    subject TEXT NOT NULL,
+    reason VARCHAR(20) NOT NULL CHECK (reason IN ('offensive', 'harassment', 'impersonation', 'other')),
+    note TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    resolved_at TIMESTAMPTZ,
+    resolution TEXT
+);
+CREATE INDEX reports_open_idx ON reports (created_at) WHERE resolved_at IS NULL;
+"""
+
+
+def v19_moderation(cur: RealDictCursor) -> None:
+    cur.execute(V19_MODERATION)
+
+
 MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (1, v1_legacy),
     (2, v2_boards),
@@ -514,6 +561,7 @@ MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (16, v16_match_log),
     (17, v17_live_matches),
     (18, v18_photo_ai),
+    (19, v19_moderation),
 ]
 
 

@@ -1,4 +1,5 @@
-"""The few e-mails the app sends: sign-in links, and the two about moving an account to a new address.
+"""The few e-mails the app sends: sign-in links, the two about moving an account to a new address, and
+reports to the people who run the app.
 
 With SMTP_HOST set they go out over SMTP (STARTTLS on port 587, the default, checked against the server's
 certificate; SMTP_USER and SMTP_PASSWORD if the server wants them; MAIL_FROM as the sender). SMTP_RELAY
@@ -60,6 +61,16 @@ MAILS = {
             "subject": "Matchnight e-postan değişti",
             "body": "Matchnight hesabına artık bu adresle değil, {email} ile giriliyor.\n\n"
             "Bunu sen yapmadıysan ligini yöneten kişiye haber ver.\n",
+        },
+    },
+    # to SUPPORT_EMAIL, the people who run the app (moderation.py); in English only
+    "report": {
+        "en": {
+            "subject": "Matchnight report #{id}: {subject}",
+            "body": 'Someone in the league "{board}" ({slug}) reported {subject}.\n\n'
+            "Reason: {reason}\nTheir note: {note}\nThe account behind it: {account}\n\n"
+            "App Store rules ask us to look at it within 24 hours. On the server:\n\n"
+            "    deploy/moderate.py show {id}\n",
         },
     },
 }

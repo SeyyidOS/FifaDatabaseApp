@@ -19,3 +19,7 @@ app itself: [frontend/ios/README.md](../../frontend/ios/README.md).
 - [ ] `SUPPORT_EMAIL` set, so `/support` shows a contact
 - [ ] Listing, privacy answers, age rating and review notes pasted in; the demo values typed in by hand
 - [ ] Screenshots uploaded (6.9″; App Store Connect scales them for smaller iPhones)
+- [x] User-generated content (guideline 1.2): terms agreed on first sign-in (`/terms`), a name filter,
+  Report on photos and players, Block, remove-and-block for owners; reports are mailed to `SUPPORT_EMAIL`
+  and handled within 24 hours with `deploy/moderate.py`
+- [ ] License Agreement left as Apple's standard EULA (the app's `/terms` say it applies too)
