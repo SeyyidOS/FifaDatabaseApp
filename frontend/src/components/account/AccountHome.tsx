@@ -1,4 +1,5 @@
 import { Camera, ChevronRight, Link2, LogOut, MailCheck, Pencil, Plus, UserCheck } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -30,6 +31,10 @@ const m = defineMessages({
     save: "Save",
     signOut: "Sign out",
     email: "E-mail",
+    blockedPeople: "People you blocked",
+    blockedHint: "Their photos are hidden from you.",
+    unblock: "Unblock",
+    unblocked: "Unblocked",
     change: "Change",
     cancel: "Cancel",
     newEmail: "New e-mail address",
@@ -77,6 +82,10 @@ const m = defineMessages({
     save: "Kaydet",
     signOut: "Çıkış yap",
     email: "E-posta",
+    blockedPeople: "Engellediğin kişiler",
+    blockedHint: "Fotoğrafları sana gösterilmiyor.",
+    unblock: "Engeli kaldır",
+    unblocked: "Engel kaldırıldı",
     change: "Değiştir",
     cancel: "Vazgeç",
     newEmail: "Yeni e-posta adresi",
@@ -375,6 +384,43 @@ function ChangeEmail({ account }: { account: AccountSession }) {
 }
 
 /** Photo, name, e-mail and signing out, in one place. */
+/** Whom the account blocked from a player's page (backend/moderation.py), with the way back; nothing when nobody. */
+function BlockedPeople({ account }: { account: AccountSession }) {
+  const t = useT(m);
+  const queryClient = useQueryClient();
+  const blocks = useQuery({ queryKey: ["auth-blocks", account.user.id], queryFn: () => accountApi.blocks(account.token) });
+  if (!blocks.data?.length) return null;
+  const unblock = async (userId: number) => {
+    try {
+      await accountApi.unblock(account.token, userId);
+      toast.success(t("unblocked"));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : String(err));
+    }
+    // their photos come back wherever they play
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["auth-blocks"] }),
+      queryClient.invalidateQueries({ queryKey: ["board"] }),
+    ]);
+  };
+  return (
+    <div className="space-y-2">
+      <span className="label block">{t("blockedPeople")}</span>
+      <p className="text-xs text-muted">{t("blockedHint")}</p>
+      <ul className="divide-y divide-line rounded-2xl border border-line">
+        {blocks.data.map((b) => (
+          <li key={b.userId} className="flex items-center gap-3 px-3 py-2">
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold">{displayName(b.name ?? "?")}</span>
+            <Button variant="ghost" size="sm" onClick={() => unblock(b.userId)}>
+              {t("unblock")}
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function EditProfile({ account, onPhoto }: { account: AccountSession; onPhoto: () => void }) {
   const t = useT(m);
   const label = account.user.name || account.user.email;
@@ -448,6 +494,7 @@ function EditProfile({ account, onPhoto }: { account: AccountSession; onPhoto: (
         </div>
         {moving && <ChangeEmail account={account} />}
       </div>
+      <BlockedPeople account={account} />
       <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
         <Button variant="ghost" className="text-loss" onClick={signOutAccount}>
           <LogOut className="size-4" /> {t("signOut")}

@@ -21,6 +21,7 @@ import type {
   NightPlan,
   Player,
   PlayerStanding,
+  ReportReason,
   Season,
   SideStats,
   SignIn,
@@ -29,9 +30,18 @@ import { defineMessages, translator, type Lang } from "./i18n";
 import { siteUrl } from "./links";
 
 const messages = defineMessages({
-  en: { offline: "Can't reach the server. Check your connection." },
-  tr: { offline: "Sunucuya ulaşılamıyor. Bağlantını kontrol et." },
+  en: {
+    offline: "Can't reach the server. Check your connection.",
+    notAllowed: "That name isn't allowed. Pick another one.",
+  },
+  tr: {
+    offline: "Sunucuya ulaşılamıyor. Bağlantını kontrol et.",
+    notAllowed: "Bu isim kullanılamaz. Başka bir isim seç.",
+  },
 });
+
+// what the API says of a name with a slur or obscenity in it (backend/wordfilter.py)
+const NOT_ALLOWED = "that name isn't allowed";
 
 export const API_URL = (import.meta.env.VITE_API_URL ?? "/api").replace(/\/$/, "");
 
@@ -75,6 +85,7 @@ async function request<T>(
     } catch {
       /* non-JSON error body */
     }
+    if (detail.includes(NOT_ALLOWED)) detail = translator(messages)("notAllowed");
     throw new ApiError(res.status, detail || `Request failed (${res.status})`);
   }
   return read(res);
@@ -146,6 +157,12 @@ export function boardApi(slug: string, token: string) {
     /** the image itself; it needs this device's token, so it can't be a plain <img src> */
     photo: (id: number, size: "full" | "thumb") => call<Blob>(`/photos/${id}?size=${size}`, {}, (res) => res.blob()),
     deletePhoto: (id: number) => call<{ message: string }>(`/photos/${id}`, json("DELETE")),
+    /** flags a photo or a player to the people who run the app (backend/moderation.py) */
+    report: (body: { kind: "photo" | "player"; targetId: number; reason: ReportReason; note?: string }) =>
+      call<{ id: number }>("/reports", json("POST", body)),
+    /** hides the photos of the account behind a player from the signed-in account, or shows them again */
+    block: (playerId: number, blocked: boolean) =>
+      call<{ blocked: boolean }>(`/players/${playerId}/block`, json(blocked ? "PUT" : "DELETE")),
     saveStats: (matchId: number, stats: { A: SideStats; B: SideStats; photoId?: number | null; source?: "ocr" | "manual" }) =>
       call<MatchStats>(`/matches/${matchId}/stats`, json("PUT", stats)),
     deleteStats: (matchId: number) => call<{ message: string }>(`/matches/${matchId}/stats`, json("DELETE")),
@@ -208,6 +225,15 @@ export const accountApi = {
   /** A league owned by the account, with no passwords: people come in with invites. */
   createLeague: (token: string, name: string) => request<SignIn>("/boards", json("POST", { name }), token),
   rename: (token: string, name: string) => request<Account>("/auth/me", json("PATCH", { name }), token),
+  /** Agrees to the terms of use as they are now. */
+  acceptTerms: (token: string) => request<Account>("/auth/me/terms", json("POST"), token),
+  /** Whom the account blocked (their photos are hidden from it), and unblocking one. */
+  blocks: (token: string) => request<{ userId: number; name: string | null }[]>("/auth/me/blocks", {}, token),
+  unblock: (token: string, userId: number) =>
+    request<{ blocked: boolean }>(`/auth/me/blocks/${userId}`, json("DELETE"), token),
+  /** Leaves a league (not its owner): the player and matches stay, without the account. */
+  leave: (token: string, slug: string) =>
+    request<{ left: boolean }>(`/boards/${encodeURIComponent(slug)}/membership`, json("DELETE"), token),
   /** What deleting the account would do to each of its leagues. */
   deletion: (token: string) => request<LeagueFate[]>("/auth/me/deletion", {}, token),
   deleteAccount: (token: string) => request<void>("/auth/me", json("DELETE"), token, async () => undefined),
@@ -231,8 +257,15 @@ export const accountApi = {
     request<{ rejected: boolean }>(`/boards/${encodeURIComponent(slug)}/requests/${id}/reject`, json("POST"), token),
   setRole: (token: string, slug: string, userId: number, role: "admin" | "player") =>
     request<{ role: string }>(`/boards/${encodeURIComponent(slug)}/members/${userId}`, json("PATCH", { role }), token),
-  removeMember: (token: string, slug: string, userId: number) =>
-    request<{ removed: boolean }>(`/boards/${encodeURIComponent(slug)}/members/${userId}`, json("DELETE"), token),
+  /** `block`: keep them out too, until unblocked */
+  removeMember: (token: string, slug: string, userId: number, block = false) =>
+    request<{ removed: boolean }>(
+      `/boards/${encodeURIComponent(slug)}/members/${userId}${block ? "?block=true" : ""}`,
+      json("DELETE"),
+      token,
+    ),
+  unblockMember: (token: string, slug: string, userId: number) =>
+    request<{ blocked: boolean }>(`/boards/${encodeURIComponent(slug)}/blocked/${userId}`, json("DELETE"), token),
   /** The owner hands the board over and stays on as an admin. */
   handOver: (token: string, slug: string, userId: number) =>
     request<{ owner: number }>(`/boards/${encodeURIComponent(slug)}/members/${userId}/owner`, json("POST"), token),

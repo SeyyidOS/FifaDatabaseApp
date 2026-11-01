@@ -24,12 +24,15 @@ server {
         return 200 'window.MATCHNIGHT_EDITION = "${EDITION}";\n';
     }
 
-    # short addresses for the pages people are sent to (the App Store's support and privacy links)
+    # short addresses for the pages people are sent to (the App Store's support, privacy and licence links)
     location = /support {
         return 302 /#/support;
     }
     location = /privacy {
         return 302 /#/privacy;
+    }
+    location = /terms {
+        return 302 /#/terms;
     }
 
     location /api/ {

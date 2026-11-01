@@ -217,6 +217,23 @@ def link_player(slug: str, body: MembershipPlayer, request: Request, authorizati
     return {"playerId": body.playerId}
 
 
+@router.delete("/boards/{slug}/membership")
+def leave(slug: str, request: Request, authorization: str | None = Header(default=None)):
+    """Leaves a board, as when an owner or admin removes you: your player and matches stay, without your
+    account. Its owner hands it over first."""
+    user = current_user(request, authorization)
+    board = _board(request, slug)
+    membership = _membership(request, user["id"], board["id"])
+    if membership is None:
+        raise HTTPException(status_code=404, detail="You are not a member of this board")
+    if membership["role"] == "owner":
+        raise HTTPException(status_code=409, detail="Hand the league over to someone before you leave it")
+    with request.app.state.db.transaction() as cur:
+        cur.execute("DELETE FROM memberships WHERE user_id = %s AND board_id = %s", (user["id"], board["id"]))
+        cur.execute("DELETE FROM join_requests WHERE user_id = %s AND board_id = %s", (user["id"], board["id"]))
+    return {"left": True}
+
+
 # --------------------------------- leaving for good ----------------------------------
 
 # Each of an account's boards and, for one it owns, who takes it over: an admin first, then a member with

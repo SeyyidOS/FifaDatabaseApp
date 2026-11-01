@@ -61,6 +61,7 @@ metadata are a common rejection (guideline 5.2.1), and the app itself shows none
     GİZLİLİK
     • Şifre yok: e-postana gelen kodla girersin.
     • Reklam, analiz ya da takip yok. Hesabını uygulamanın içinden silebilirsin.
+    • Uygunsuz bir fotoğrafı ya da oyuncuyu bildir, birini engelle; bildirimlere 24 saat içinde bakılır.
 
     Matchnight bağımsız bir uygulamadır; hiçbir oyun yayıncısı ya da futbol kulübüyle bağlantılı değildir.
 
@@ -112,6 +113,7 @@ metadata are a common rejection (guideline 5.2.1), and the app itself shows none
     PRIVACY
     • No passwords: you sign in with a code sent to your e-mail.
     • No ads, analytics or tracking. You can delete your account inside the app.
+    • Report an offensive photo or player, or block someone; reports are looked at within 24 hours.
 
     Matchnight is an independent app, not affiliated with any game publisher or football club.
 

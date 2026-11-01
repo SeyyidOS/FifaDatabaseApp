@@ -1,4 +1,4 @@
-import { BarChart3, Camera, ChevronLeft, ChevronRight, ExternalLink, ImagePlus, Trash2, X } from "lucide-react";
+import { BarChart3, Camera, ChevronLeft, ChevronRight, ExternalLink, Flag, ImagePlus, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useAiPhotos } from "../../hooks/useAiPhotos";
@@ -9,6 +9,8 @@ import { useObjectUrl } from "../../hooks/useObjectUrl";
 import { cn } from "../../lib/cn";
 import { MAX_PHOTOS } from "../../lib/photos";
 import type { ParsedMatch } from "../../lib/stats";
+import { ReportForm } from "../moderation/Report";
+import { reportMessages } from "../moderation/messages";
 import { Modal } from "../ui/Dialog";
 import { Button, Segmented, Skeleton } from "../ui/primitives";
 import { AiConsent, AiNote } from "./AiConsent";
@@ -86,7 +88,7 @@ function Thumb({ id, onClick, active }: { id: number; onClick: () => void; activ
   );
 }
 
-/** One photo at full size, with the way back to the grid, its neighbours and deleting it. */
+/** One photo at full size, with the way back to the grid, its neighbours, deleting and reporting it. */
 function Viewer({
   ids,
   index,
@@ -99,13 +101,18 @@ function Viewer({
   onBack: () => void;
 }) {
   const t = useT(m);
+  const tr = useT(reportMessages);
   const id = ids[index];
   const { data, isError } = usePhotoBlob(id, "full");
   const url = useObjectUrl(data);
   const del = useDeletePhoto();
   const canEdit = useCanEdit();
   const [armed, setArmed] = useState(false);
-  useEffect(() => setArmed(false), [id]);
+  const [reporting, setReporting] = useState(false);
+  useEffect(() => {
+    setArmed(false);
+    setReporting(false);
+  }, [id]);
 
   const remove = async () => {
     if (!armed) return setArmed(true);
@@ -153,22 +160,31 @@ function Viewer({
           </>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={onBack}>
-          <ChevronLeft className="size-4" /> {t("back")}
-        </Button>
-        <span className="flex-1" />
-        {url && (
-          <a href={url} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium text-muted hover:bg-surface-2 hover:text-fg">
-            <ExternalLink className="size-3.5" /> {t("original")}
-          </a>
-        )}
-        {canEdit && (
-          <Button variant={armed ? "danger" : "ghost"} size="sm" loading={del.isPending} onClick={remove}>
-            <Trash2 className="size-3.5" /> {armed ? t("removeSure") : t("remove")}
+      {reporting ? (
+        <div className="rounded-xl border border-line p-4">
+          <ReportForm kind="photo" targetId={id} title={tr("photoTitle")} onDone={() => setReporting(false)} />
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={onBack}>
+            <ChevronLeft className="size-4" /> {t("back")}
           </Button>
-        )}
-      </div>
+          <span className="flex-1" />
+          <Button variant="ghost" size="sm" onClick={() => setReporting(true)}>
+            <Flag className="size-3.5" /> {tr("report")}
+          </Button>
+          {url && (
+            <a href={url} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium text-muted hover:bg-surface-2 hover:text-fg">
+              <ExternalLink className="size-3.5" /> {t("original")}
+            </a>
+          )}
+          {canEdit && (
+            <Button variant={armed ? "danger" : "ghost"} size="sm" loading={del.isPending} onClick={remove}>
+              <Trash2 className="size-3.5" /> {armed ? t("removeSure") : t("remove")}
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

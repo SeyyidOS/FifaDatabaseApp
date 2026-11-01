@@ -6,7 +6,7 @@ import { publicApi } from "../lib/api";
 import { defineMessages } from "../lib/i18n";
 
 // how the app works, kept in step with what it does: sign-in (accounts), invites, photos (AiConsent),
-// deleting an account (DeleteAccount); the contact address is SUPPORT_EMAIL on the server (/config)
+// reporting and blocking (moderation), deleting an account (DeleteAccount); the contact address is SUPPORT_EMAIL on the server (/config)
 const m = defineMessages({
   en: {
     eyebrow: "Support",
@@ -22,12 +22,18 @@ const m = defineMessages({
     leagues3: "Anyone can start a league of their own from their profile and invite their group.",
     photosTitle: "Match photos",
     photos1: "Adding photos of the match summary screen is optional. The first time, the app asks whether an AI service, Anthropic's Claude, may read their stats; you can change that next to the photos.",
+    safetyTitle: "Reporting and blocking",
+    safety1: "Something offensive? Open the photo, or the player's page, and tap Report. Reports come to us, not to the league, and we look at each one within 24 hours.",
+    safety2: "Block, on a player's page, hides that person's photos from you in every league you share. Whom you blocked is under Profile › Edit.",
+    safety3: "A league's owner and admins can remove someone in Settings › Members; Remove and block also keeps them out.",
+    safety4: "You can leave a league from your account menu. The terms of use say what isn't allowed.",
     deleteTitle: "Deleting your account",
     delete1: "Profile › Edit › Delete account. Before anything is deleted, it shows what happens to each of your leagues.",
     delete2: "Your e-mail, name and photo go at once. A league you own passes to another member, or goes with your account if nobody else is in it.",
     contactTitle: "Contact",
     contact: "Write to us at {email}.",
     privacy: "What we keep and who sees it",
+    terms: "Terms of use",
   },
   tr: {
     eyebrow: "Destek",
@@ -43,12 +49,18 @@ const m = defineMessages({
     leagues3: "Herkes profilinden kendi ligini kurup grubunu davet edebilir.",
     photosTitle: "Maç fotoğrafları",
     photos1: "Maç özeti ekranının fotoğrafını eklemek isteğe bağlı. İlk seferde uygulama, istatistikleri bir yapay zekâ servisinin (Anthropic'in Claude'u) okuyup okumayacağını sorar; bunu fotoğrafların yanından değiştirebilirsin.",
+    safetyTitle: "Bildirme ve engelleme",
+    safety1: "Uygunsuz bir şey mi var? Fotoğrafı ya da oyuncunun sayfasını aç ve Bildir'e dokun. Bildirimler lige değil bize gelir ve her birine 24 saat içinde bakarız.",
+    safety2: "Oyuncu sayfasındaki Engelle, o kişinin fotoğraflarını ortak olduğunuz her ligde senden gizler. Kimi engellediğin Profilim › Düzenle'de.",
+    safety3: "Ligin sahibi ve yöneticileri birini Ayarlar › Üyeler'den çıkarabilir; Çıkar ve engelle geri girmesini de önler.",
+    safety4: "Bir ligden hesap menünden ayrılabilirsin. Neyin yasak olduğu kullanım koşullarında yazar.",
     deleteTitle: "Hesabını silmek",
     delete1: "Profilim › Düzenle › Hesabı sil. Silmeden önce her ligine ne olacağını gösterir.",
     delete2: "E-postan, adın ve fotoğrafın hemen silinir. Sahibi olduğun bir lig başka bir üyeye geçer, başka kimse yoksa hesabınla birlikte silinir.",
     contactTitle: "İletişim",
     contact: "Bize {email} adresinden yazabilirsin.",
     privacy: "Neyi sakladığımız ve kimin ne gördüğü",
+    terms: "Kullanım koşulları",
   },
 });
 
@@ -58,6 +70,7 @@ const SECTIONS: { title: Key; items: Key[] }[] = [
   { title: "signTitle", items: ["sign1", "sign2", "sign3"] },
   { title: "leaguesTitle", items: ["leagues1", "leagues2", "leagues3"] },
   { title: "photosTitle", items: ["photos1"] },
+  { title: "safetyTitle", items: ["safety1", "safety2", "safety3", "safety4"] },
   { title: "deleteTitle", items: ["delete1", "delete2"] },
 ];
 
@@ -104,9 +117,12 @@ export default function Support() {
           <section className="card space-y-2.5 p-5 text-sm sm:p-6">
             <h2 className="font-semibold">{t("contactTitle")}</h2>
             {email && <Contact email={email} />}
-            <p>
+            <p className="flex flex-wrap gap-x-6 gap-y-2">
               <Link to="/privacy" className="font-semibold text-accent-text hover:underline">
                 {t("privacy")} →
+              </Link>
+              <Link to="/terms" className="font-semibold text-accent-text hover:underline">
+                {t("terms")} →
               </Link>
             </p>
           </section>

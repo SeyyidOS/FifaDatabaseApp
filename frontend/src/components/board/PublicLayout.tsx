@@ -10,8 +10,8 @@ import { Avatar } from "../ui/Identity";
 import { IndependenceNote } from "../ui/EditionNotes";
 
 const m = defineMessages({
-  en: { signIn: "Sign in", account: "Your account", privacy: "Privacy", help: "Help" },
-  tr: { signIn: "Giriş yap", account: "Hesabın", privacy: "Gizlilik", help: "Yardım" },
+  en: { signIn: "Sign in", account: "Your account", privacy: "Privacy", terms: "Terms", help: "Help" },
+  tr: { signIn: "Giriş yap", account: "Hesabın", privacy: "Gizlilik", terms: "Koşullar", help: "Yardım" },
 });
 
 /** The account signed in on this device, or a way to sign in; only once the server offers accounts. */
@@ -63,6 +63,9 @@ export function PublicLayout({ children }: { children: ReactNode }) {
           </Link>
           <Link to="/privacy" className="hover:text-muted">
             {t("privacy")}
+          </Link>
+          <Link to="/terms" className="hover:text-muted">
+            {t("terms")}
           </Link>
         </p>
         <IndependenceNote className="max-w-xl" />

@@ -22,16 +22,24 @@ def _db(request: Request):
 
 # ----------- Players -----------
 PLAYER_COLUMNS = "id, name, archived_at IS NOT NULL AS archived"
-# a player linked to an account shows its photo (avatars.py)
-PLAYER_PHOTO = (
-    "(SELECT u.photo FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.player_id = players.id) AS photo"
-)
 
 
 @router.get("/players")
 def list_players(request: Request, access: BoardAccess = Depends(board_access)):
+    """With, for a player linked to an account, its photo (avatars.py) and whether the viewer blocked that
+    account (moderation.py); a blocked or suspended account's photo isn't shown."""
     return _db(request).fetch_all(
-        f"SELECT {PLAYER_COLUMNS}, {PLAYER_PHOTO} FROM players WHERE board_id = %s ORDER BY id", (access.id,)
+        """
+        SELECT p.id, p.name, p.archived_at IS NOT NULL AS archived,
+               CASE WHEN b.user_id IS NULL AND u.banned_at IS NULL THEN u.photo END AS photo,
+               m.user_id IS NOT NULL AS account, b.user_id IS NOT NULL AS blocked
+        FROM players p
+        LEFT JOIN memberships m ON m.player_id = p.id
+        LEFT JOIN users u ON u.id = m.user_id
+        LEFT JOIN user_blocks b ON b.user_id = %(me)s AND b.blocked_id = m.user_id
+        WHERE p.board_id = %(board)s ORDER BY p.id
+        """,
+        {"me": access.user_id, "board": access.id},
     )
 
 
@@ -110,23 +118,24 @@ def delete_player(player_id: int, request: Request, access: BoardAccess = Depend
 @router.get("/matches")
 def list_matches(request: Request, access: BoardAccess = Depends(board_access)):
     return _db(request).fetch_all(
-        """
+        f"""
         SELECT m.id, m.time, m.season_id, m.club_a, m.club_b, m.club_a_elo, m.club_b_elo, m.club_weight,
                m.score_a, m.score_b,
                ARRAY_AGG(p.name ORDER BY mp.slot) FILTER (WHERE mp.side = 'A') AS team_a,
                ARRAY_AGG(p.name ORDER BY mp.slot) FILTER (WHERE mp.side = 'B') AS team_b,
-               ARRAY(SELECT ph.id FROM match_photos ph WHERE ph.match_id = m.id ORDER BY ph.id) AS photos,
+               ARRAY(SELECT ph.id FROM match_photos ph WHERE ph.match_id = m.id AND {photos.SHOWN}
+                     ORDER BY ph.id) AS photos,
                (SELECT json_build_object('A', s.stats -> 'A', 'B', s.stats -> 'B', 'source', s.source,
                                          'photoId', s.photo_id)
                 FROM match_stats s WHERE s.match_id = m.id) AS stats
         FROM matches m
         LEFT JOIN match_players mp ON mp.match_id = m.id
         LEFT JOIN players p ON p.id = mp.player_id
-        WHERE m.board_id = %s
+        WHERE m.board_id = %(board)s
         GROUP BY m.id
         ORDER BY m.time DESC, m.id DESC
         """,
-        (access.id,),
+        {"board": access.id, "me": access.user_id},
     )
 
 
