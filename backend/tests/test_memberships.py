@@ -141,3 +141,41 @@ def test_the_last_night_is_the_players_latest(api, mail, board):
     assert (night["day"], night["played"], night["wins"], night["draws"], night["losses"]) == ("2026-10-10", 2, 0, 1, 1)
     # only that night's Elo
     assert night["delta"] == now["elo"] - first["elo"]
+
+
+def test_the_owner_is_the_first_player(api, mail):
+    me = sign_in(api, mail)
+    api.patch("/auth/me", json={"name": "Seyyid Osman"}, headers=bearer(me["token"]))
+    created = api.post("/boards", json={"name": "Salı Ligi"}, headers=bearer(me["token"]))
+    admin = bearer(created.json()["token"])
+    assert [p["name"] for p in api.get("/boards/sali-ligi/players", headers=admin).json()] == ["seyyid osman"]
+    [mine] = api.get("/auth/boards", headers=bearer(me["token"])).json()
+    assert (mine["player"]["name"], mine["player"]["elo"]) == ("seyyid osman", 1000)
+
+
+def test_owners_of_unplayed_leagues_become_players(api, mail):
+    import migrations
+
+    me = sign_in(api, mail)
+    created = api.post("/boards", json={"name": "Salı Ligi"}, headers=bearer(me["token"])).json()
+    admin = bearer(created["token"])
+    # made before owners were players: an account with no name then, a name now
+    api.patch("/auth/me", json={"name": "Seyyid"}, headers=bearer(me["token"]))
+    played = sign_in(api, mail, "ozgun@example.com")
+    api.patch("/auth/me", json={"name": "Ozgun"}, headers=bearer(played["token"]))
+    other = bearer(api.post("/boards", json={"name": "Played"}, headers=bearer(played["token"])).json()["token"])
+    api.put("/boards/played/membership/player", json={"playerId": None}, headers=bearer(played["token"]))
+    for name in ("a", "b"):
+        api.post("/boards/played/players", json={"name": name}, headers=other)
+    api.post(
+        "/boards/played/matches",
+        json={"clubA": "X", "clubB": "Y", "teamA": ["a"], "teamB": ["b"], "scoreA": 1, "scoreB": 0},
+        headers=other,
+    )
+
+    with api.app.state.db.transaction() as cur:
+        migrations.v20_owner_players(cur)
+    assert [p["name"] for p in api.get("/boards/sali-ligi/players", headers=admin).json()] == ["seyyid"]
+    assert api.get("/auth/boards", headers=bearer(me["token"])).json()[0]["player"]["name"] == "seyyid"
+    # a league with matches is left as it is
+    assert api.get("/auth/boards", headers=bearer(played["token"])).json()[0]["player"] is None

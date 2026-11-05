@@ -18,7 +18,7 @@ from auth import board_role, client_ip, failed_logins, issue_token, verify_passw
 from avatars import _remove as remove_avatar
 from elo import compute_ratings
 from photos import remove_files
-from schemas import BoardClaim, MembershipPlayer
+from schemas import BoardClaim, MembershipPlayer, _player_name
 
 router = APIRouter(tags=["memberships"])
 
@@ -52,6 +52,31 @@ def _membership(request: Request, user_id: int, board_id: int) -> dict | None:
 def add_owner(cur, user_id: int, board_id: int) -> None:
     """Inside a transaction: the account that created a board owns it."""
     cur.execute("INSERT INTO memberships (user_id, board_id, role) VALUES (%s, %s, 'owner')", (user_id, board_id))
+
+
+def add_owner_player(cur, user: dict, board_id: int) -> None:
+    """Inside a transaction: the owner of a new board is its first player, by the account's name (as a player's
+    name is written), or the player of that name if there is one. Nothing for an account without a name, or with
+    one no player could have; they say who they are later, on a player's page."""
+    try:
+        name = _player_name((user["name"] or "")[:30])
+    except ValueError:
+        return
+    cur.execute(
+        """
+        INSERT INTO players (board_id, name) VALUES (%s, %s)
+        ON CONFLICT (board_id, name) DO UPDATE SET name = EXCLUDED.name RETURNING id
+        """,
+        (board_id, name),
+    )
+    player_id = cur.fetchone()["id"]
+    cur.execute(
+        """
+        UPDATE memberships SET player_id = %s WHERE user_id = %s AND board_id = %s
+        AND NOT EXISTS (SELECT 1 FROM memberships WHERE player_id = %s)
+        """,
+        (player_id, user["id"], board_id, player_id),
+    )
 
 
 def standing(request: Request, board: dict, player_id: int) -> dict:

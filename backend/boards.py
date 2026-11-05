@@ -21,7 +21,7 @@ from auth import (
     verify_password,
 )
 from edition import request_edition
-from memberships import add_owner
+from memberships import add_owner, add_owner_player
 from schemas import BoardCreate, BoardUpdate, Login
 from seasons import start_first_season
 
@@ -47,8 +47,9 @@ def create_board(
     """Anyone may create a board unless BOARD_CREATION=closed (then only with the server ADMIN_KEY).
 
     With accounts on, a new league belongs to the signed-in account and has no passwords: people come in
-    with invites. (The server ADMIN_KEY can still make one with passwords, for scripts and tests.) With
-    accounts off, a board has a board password and an admin password."""
+    with invites. The owner is its first player, by the account's name. (The server ADMIN_KEY can still make
+    one with passwords, for scripts and tests.) With accounts off, a board has a board password and an admin
+    password."""
     admin_key = server_admin_key_matches(x_admin_key)
     if os.getenv("BOARD_CREATION", "open") != "open" and not admin_key:
         raise HTTPException(status_code=403, detail="Creating boards is disabled on this server")
@@ -92,6 +93,7 @@ def create_board(
         start_first_season(cur, board["id"], request_edition(request))
         if owner:
             add_owner(cur, owner["id"], board["id"])
+            add_owner_player(cur, owner, board["id"])
     # opened with the account, a token that lasts as long as its membership (auth.board_access)
     return _session(board, "admin", board["admin_version"], owner["id"] if owner else None)
 

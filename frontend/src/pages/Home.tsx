@@ -25,7 +25,7 @@ const m = defineMessages({
     heroA: "Your league.",
     heroB: "Your rules.",
     heroText:
-      "A private board for your group: every result, an Elo rating that rewards upsets, fair teams on demand and the bragging rights to go with it.",
+      "A private league for your group: every result, an Elo rating that rewards upsets, fair teams on demand and the bragging rights to go with it.",
     f1Title: "Ratings that mean something",
     f1: "Elo with club strength, goal margins and upset bonuses.",
     f2Title: "Fair teams in one tap",
@@ -38,13 +38,13 @@ const m = defineMessages({
   },
   tr: {
     onDevice: "Bu cihazda",
-    forget: "{name} board'unu bu cihazda unut",
+    forget: "{name} ligini bu cihazda unut",
     forgetShort: "Bu cihazda unut",
     eyebrow: "Arkadaşlarla maç geceleri için",
     heroA: "Senin ligin.",
     heroB: "Senin kuralların.",
     heroText:
-      "Grubuna özel bir board: her sonuç, sürprizleri ödüllendiren bir Elo puanı, tek dokunuşla dengeli takımlar ve bunlarla gelen hava atma hakkı.",
+      "Grubuna özel bir lig: her sonuç, sürprizleri ödüllendiren bir Elo puanı, tek dokunuşla dengeli takımlar ve bunlarla gelen hava atma hakkı.",
     f1Title: "Anlamı olan puanlar",
     f1: "Kulüp gücü, gol farkı ve sürpriz bonuslu Elo.",
     f2Title: "Tek dokunuşla adil takımlar",

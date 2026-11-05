@@ -10,6 +10,7 @@ from psycopg2.extras import RealDictCursor
 from auth import hash_password
 from db import Database
 from elo import DEFAULT_CLUB_ELO
+from memberships import add_owner_player
 from seasons import TEMPLATES, read_template
 
 log = logging.getLogger("fifa.migrations")
@@ -542,6 +543,20 @@ def v19_moderation(cur: RealDictCursor) -> None:
     cur.execute(V19_MODERATION)
 
 
+def v20_owner_players(cur: RealDictCursor) -> None:
+    """A league's owner is now its first player (boards.create_board). Leagues made before that and not played
+    in yet get theirs: the player of the owner's name, made if need be, unless it has an account already."""
+    cur.execute(
+        """
+        SELECT m.user_id, m.board_id, u.name FROM memberships m JOIN users u ON u.id = m.user_id
+        WHERE m.role = 'owner' AND m.player_id IS NULL
+          AND NOT EXISTS (SELECT 1 FROM matches WHERE board_id = m.board_id)
+        """
+    )
+    for row in cur.fetchall():
+        add_owner_player(cur, {"id": row["user_id"], "name": row["name"]}, row["board_id"])
+
+
 MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (1, v1_legacy),
     (2, v2_boards),
@@ -562,6 +577,7 @@ MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (17, v17_live_matches),
     (18, v18_photo_ai),
     (19, v19_moderation),
+    (20, v20_owner_players),
 ]
 
 

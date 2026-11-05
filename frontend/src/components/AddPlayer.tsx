@@ -1,10 +1,10 @@
-import { AnimatePresence, motion } from "motion/react";
-import { useState, type FormEvent } from "react";
+import { motion } from "motion/react";
+import { useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Check, UserPlus, X } from "lucide-react";
 import { useAddPlayer } from "../hooks/useData";
 import { cn } from "../lib/cn";
-import { displayName } from "../lib/format";
+import { cleanName, displayName } from "../lib/format";
 import type { Player } from "../lib/types";
 import { Button } from "./ui/primitives";
 import { useT } from "../hooks/useI18n";
@@ -40,24 +40,31 @@ const m = defineMessages({
   },
 });
 
+/**
+ * Adding players by name. Behind an "Add player" button, or (`inline`) open for good, as on a new league's
+ * first steps. It stays open after each name, so a whole group goes in one after another.
+ */
 export function AddPlayer({
   players,
   className,
   onAdded,
+  inline,
 }: {
   players: Player[];
   className?: string;
   onAdded?: (name: string) => void;
+  inline?: boolean;
 }) {
   const t = useT(m);
   const tc = useT(common);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const input = useRef<HTMLInputElement>(null);
   const add = useAddPlayer();
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    const n = name.split(/\s+/).filter(Boolean).join(" ").toLowerCase();
+    const n = cleanName(name.split(/\s+/).filter(Boolean).join(" "));
     if (!n) return;
     // same rule as the API (backend/schemas.py); "&" joins the names of a duo
     if (!/^[\p{L}\p{N}_][\p{L}\p{N}_ .'-]*$/u.test(n)) {
@@ -76,49 +83,51 @@ export function AddPlayer({
       await add.mutateAsync(n);
       toast.success(t("joined", { name: displayName(n) }), { description: t("joinedHint") });
       setName("");
-      setOpen(false);
+      input.current?.focus();
       onAdded?.(n);
     } catch (err) {
       toast.error(t("failed"), { description: (err as Error).message });
     }
   };
 
+  // No exit animations: WebKit (the iPhone app) can leave one unfinished, and the button never came back.
   return (
     <div className={cn("relative", className)}>
-      <AnimatePresence mode="wait" initial={false}>
-        {open ? (
-          <motion.form
-            key="form"
-            onSubmit={submit}
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.96 }}
-            className="flex items-center gap-1.5"
-          >
-            <input
-              autoFocus
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
-              placeholder={t("placeholder")}
-              maxLength={30}
-              className="input h-9 w-40"
-            />
-            <Button type="submit" size="icon" variant="primary" loading={add.isPending} aria-label={t("add")}>
-              {!add.isPending && <Check className="size-4" />}
-            </Button>
+      {open || inline ? (
+        <motion.form
+          key="form"
+          onSubmit={submit}
+          initial={inline ? false : { opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex items-center gap-1.5"
+        >
+          <input
+            ref={input}
+            autoFocus={!inline}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Escape" && !inline && setOpen(false)}
+            placeholder={t("placeholder")}
+            maxLength={30}
+            enterKeyHint="done"
+            className={cn("input h-9", inline ? "min-w-0 flex-1" : "w-40")}
+          />
+          <Button type="submit" size="icon" variant="primary" loading={add.isPending} disabled={!name.trim()} aria-label={t("add")}>
+            {!add.isPending && <Check className="size-4" />}
+          </Button>
+          {!inline && (
             <Button type="button" size="icon" variant="ghost" onClick={() => setOpen(false)} aria-label={tc("cancel")}>
               <X className="size-4" />
             </Button>
-          </motion.form>
-        ) : (
-          <motion.div key="btn" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <Button size="sm" variant="secondary" onClick={() => setOpen(true)} className="h-9">
-              <UserPlus className="size-4" /> {t("addPlayer")}
-            </Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </motion.form>
+      ) : (
+        <motion.div key="btn" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <Button size="sm" variant="secondary" onClick={() => setOpen(true)} className="h-9">
+            <UserPlus className="size-4" /> {t("addPlayer")}
+          </Button>
+        </motion.div>
+      )}
     </div>
   );
 }
