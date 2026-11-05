@@ -137,7 +137,7 @@ export function runElo(players: Player[], clubs: Club[], matches: Match[], k: nu
   const ratings = new Map<number, number>();
   const history = new Map<number, EloPoint[]>();
   players.forEach((p) => {
-    ratings.set(p.id, INITIAL_ELO);
+    ratings.set(p.id, p.startElo ?? INITIAL_ELO);
     history.set(p.id, []);
   });
 

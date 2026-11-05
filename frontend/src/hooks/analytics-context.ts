@@ -20,6 +20,8 @@ export interface RankedPlayer {
   /** Left the roster: not ranked (rank 0), but their matches still count. */
   archived: boolean;
   history: EloPoint[];
+  /** the rating they started from (Player.startElo), where their history begins */
+  start: number;
   stats?: PlayerStats;
 }
 

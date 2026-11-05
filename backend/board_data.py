@@ -21,7 +21,7 @@ def _db(request: Request):
 
 
 # ----------- Players -----------
-PLAYER_COLUMNS = "id, name, archived_at IS NOT NULL AS archived"
+PLAYER_COLUMNS = 'id, name, archived_at IS NOT NULL AS archived, start_elo AS "startElo"'
 
 
 @router.get("/players")
@@ -30,7 +30,7 @@ def list_players(request: Request, access: BoardAccess = Depends(board_access)):
     account (moderation.py); a blocked or suspended account's photo isn't shown."""
     return _db(request).fetch_all(
         """
-        SELECT p.id, p.name, p.archived_at IS NOT NULL AS archived,
+        SELECT p.id, p.name, p.archived_at IS NOT NULL AS archived, p.start_elo AS "startElo",
                CASE WHEN b.user_id IS NULL AND u.banned_at IS NULL THEN u.photo END AS photo,
                m.user_id IS NOT NULL AS account, b.user_id IS NOT NULL AS blocked
         FROM players p
@@ -70,7 +70,8 @@ def add_player(player: PlayerIn, request: Request, access: BoardAccess = Depends
 
 @router.patch("/players/{player_id}")
 def update_player(player_id: int, body: PlayerUpdate, request: Request, access: BoardAccess = Depends(board_admin)):
-    """Rename and/or archive (archived players leave the roster; their history stays)."""
+    """Rename, archive (archived players leave the roster; their history stays) and/or set the rating they start
+    from, which replays their history (and their opponents') from there."""
     sets, params = [], {"id": player_id, "board": access.id}
     if body.name is not None:
         sets.append("name = %(name)s")
@@ -78,6 +79,9 @@ def update_player(player_id: int, body: PlayerUpdate, request: Request, access: 
     if body.archived is not None:
         sets.append("archived_at = CASE WHEN %(archived)s THEN COALESCE(archived_at, NOW()) END")
         params["archived"] = body.archived
+    if body.startElo is not None:
+        sets.append("start_elo = %(start)s")
+        params["start"] = body.startElo
     if not sets:
         raise HTTPException(status_code=422, detail="Nothing to change")
     try:

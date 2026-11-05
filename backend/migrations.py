@@ -557,6 +557,11 @@ def v20_owner_players(cur: RealDictCursor) -> None:
         add_owner_player(cur, {"id": row["user_id"], "name": row["name"]}, row["board_id"])
 
 
+# The rating a player starts from (elo.compute_ratings), set by a league's owner or admins; 1000 unless they do.
+def v21_start_elo(cur: RealDictCursor) -> None:
+    cur.execute("ALTER TABLE players ADD COLUMN start_elo INT NOT NULL DEFAULT 1000")
+
+
 MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (1, v1_legacy),
     (2, v2_boards),
@@ -578,6 +583,7 @@ MIGRATIONS: list[tuple[int, Callable[[RealDictCursor], None]]] = [
     (18, v18_photo_ai),
     (19, v19_moderation),
     (20, v20_owner_players),
+    (21, v21_start_elo),
 ]
 
 

@@ -355,7 +355,7 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
   const teammates = [...(s?.teammates.entries() ?? [])].sort((a, b) => b[1].played - a[1].played);
   const played = s?.played ?? 0;
   const current = s?.current;
-  const nights = playerNights(player.history, matches, key);
+  const nights = playerNights(player.history, matches, key, player.start);
   const [chart, setChart] = useSessionState<"night" | "match">("pp-chart", "night");
   const [glow] = playerGradient(player.name);
   const leader = player.rank === 1;
@@ -471,7 +471,7 @@ function Profile({ data, player }: { data: Analytics; player: RankedPlayer }) {
           {chart === "night" ? (
             <NightlyEloChart nights={nights} />
           ) : player.history.length ? (
-            <PlayerEloChart history={player.history} />
+            <PlayerEloChart history={player.history} start={player.start} />
           ) : (
             <p className="py-16 text-center text-sm text-muted">{t("noRated")}</p>
           )}

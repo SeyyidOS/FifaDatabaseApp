@@ -350,8 +350,8 @@ function H2HInner({ data }: { data: Analytics }) {
             <Panel title={t("overTime")} className="lg:col-span-7">
               <EloRaceChart
                 series={[
-                  { name: a.name, history: a.history },
-                  { name: b.name, history: b.history },
+                  { name: a.name, history: a.history, start: a.start },
+                  { name: b.name, history: b.history, start: b.start },
                 ]}
                 height={300}
                 colors={["var(--team-a)", "var(--team-b)"]}

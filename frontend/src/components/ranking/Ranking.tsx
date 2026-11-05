@@ -73,7 +73,7 @@ export function RankingRow({ player: p, rankedAfter }: { player: RankedPlayer; r
             : t("record", { n: played, pct: p.stats ? winRate(p.stats).toFixed(0) : 0 })}
         </span>
       </span>
-      <Sparkline values={nightlyElo(p.history).slice(-12)} width={56} height={22} className="shrink-0" />
+      <Sparkline values={nightlyElo(p.history, p.start).slice(-12)} width={56} height={22} className="shrink-0" />
       <span className="display tabular w-11 shrink-0 text-right text-xl">{p.elo}</span>
       <span className="w-10 shrink-0 text-right">
         <EloChip value={p.eloDelta} />

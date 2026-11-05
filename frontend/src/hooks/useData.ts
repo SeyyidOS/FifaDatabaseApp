@@ -137,7 +137,7 @@ export function useAddPlayer() {
 export function useUpdatePlayer() {
   const { api } = useBoard();
   return useBoardMutation(
-    ({ id, ...changes }: { id: number; name?: string; archived?: boolean }) => api.updatePlayer(id, changes),
+    ({ id, ...changes }: { id: number; name?: string; archived?: boolean; startElo?: number }) => api.updatePlayer(id, changes),
     ["players", "matches", "leaderboard"],
   );
 }

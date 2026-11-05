@@ -34,9 +34,13 @@ def margin_multiplier(
     return margin_factor * upset_bonus
 
 
-def compute_ratings(player_ids: list[int], matches: list[dict], k_factor: int) -> dict[int, int]:
-    """{player_id: elo} after replaying `matches` (oldest first; teams are lists of player ids)."""
-    ratings: dict[int, float] = {pid: float(INITIAL_ELO) for pid in player_ids}
+def compute_ratings(
+    player_ids: list[int], matches: list[dict], k_factor: int, starts: dict[int, int] | None = None
+) -> dict[int, int]:
+    """{player_id: elo} after replaying `matches` (oldest first; teams are lists of player ids), each player
+    starting from their `starts` rating (players.start_elo, set by an admin), else INITIAL_ELO."""
+    starts = starts or {}
+    ratings: dict[int, float] = {pid: float(starts.get(pid, INITIAL_ELO)) for pid in player_ids}
 
     def side_strength(ids: list[int], club_elo: int, club_weight: float) -> float:
         return sum(ratings[i] for i in ids) / len(ids) + club_elo * club_weight
@@ -71,7 +75,7 @@ def compute_ratings(player_ids: list[int], matches: list[dict], k_factor: int) -
 
 def board_ratings(db: Database, board_id: int, k_factor: int) -> dict[int, int]:
     """Ratings for every player of a board, archived ones included (they still shaped history)."""
-    players = db.fetch_all("SELECT id FROM players WHERE board_id = %s ORDER BY id", (board_id,))
+    players = db.fetch_all("SELECT id, start_elo FROM players WHERE board_id = %s ORDER BY id", (board_id,))
     matches = db.fetch_all(
         """
         SELECT m.club_a_elo, m.club_b_elo, m.club_weight, m.score_a, m.score_b,
@@ -85,4 +89,4 @@ def board_ratings(db: Database, board_id: int, k_factor: int) -> dict[int, int]:
         """,
         (board_id,),
     )
-    return compute_ratings([p["id"] for p in players], matches, k_factor)
+    return compute_ratings([p["id"] for p in players], matches, k_factor, {p["id"]: p["start_elo"] for p in players})

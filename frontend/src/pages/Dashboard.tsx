@@ -559,7 +559,7 @@ export default function Dashboard() {
   return (
     <DataGate>
       {(data) => {
-        const top = data.ranking.slice(0, 6).map((p) => ({ name: p.name, history: p.history }));
+        const top = data.ranking.slice(0, 6).map((p) => ({ name: p.name, history: p.history, start: p.start }));
         if (!data.parsed.length) return <GettingStarted data={data} />;
         return (
           <div className="space-y-6">

@@ -53,7 +53,8 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     const prevRank = new Map(order(before.ratings).map(({ player, rank }) => [player.id, rank]));
 
     const describe = (p: Player, rank: number): RankedPlayer => {
-      const elo = Math.round(engine.ratings.get(p.id) ?? INITIAL_ELO);
+      const start = p.startElo ?? INITIAL_ELO;
+      const elo = Math.round(engine.ratings.get(p.id) ?? start);
       const history = engine.history.get(p.id) ?? [];
       const s = stats.get(cleanName(p.name));
       return {
@@ -62,11 +63,12 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
         elo,
         rank,
         rankDelta: rank ? (prevRank.get(p.id) || rank) - rank : 0,
-        eloDelta: elo - Math.round(before.ratings.get(p.id) ?? INITIAL_ELO),
-        peak: Math.round(Math.max(INITIAL_ELO, ...history.map((h) => h.elo))),
+        eloDelta: elo - Math.round(before.ratings.get(p.id) ?? start),
+        peak: Math.round(Math.max(start, ...history.map((h) => h.elo))),
         provisional: !p.archived && (s?.played ?? 0) < rankedAfter,
         archived: p.archived,
         history,
+        start,
         stats: s,
       };
     };
