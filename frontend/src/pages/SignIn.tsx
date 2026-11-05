@@ -32,8 +32,8 @@ const m = defineMessages({
     badLink: "This link didn't work",
     badLinkText: "Sign-in links work once and only for 15 minutes. Ask for a new one below.",
     off: "Accounts aren't open yet",
-    offText: "For now, boards are joined with their password.",
-    boards: "Back to boards",
+    offText: "For now, leagues are joined with their password.",
+    boards: "Back to leagues",
   },
   tr: {
     eyebrow: "Hesabın",
@@ -53,8 +53,8 @@ const m = defineMessages({
     badLink: "Bu link çalışmadı",
     badLinkText: "Giriş linkleri bir kez ve sadece 15 dakika geçerli. Aşağıdan yenisini iste.",
     off: "Hesaplar henüz açık değil",
-    offText: "Şimdilik board'lara şifreyle giriliyor.",
-    boards: "Board'lara dön",
+    offText: "Şimdilik liglere şifreyle giriliyor.",
+    boards: "Liglere dön",
   },
 });
 
