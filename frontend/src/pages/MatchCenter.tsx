@@ -19,7 +19,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { AddPlayer } from "../components/AddPlayer";
+import { InviteButton } from "../components/board/InviteButton";
 import { LiveBadge, LivePanel, LiveSides } from "../components/live/LiveMatches";
 import { liveMessages } from "../components/live/messages";
 import { common } from "../lib/messages";
@@ -80,7 +80,7 @@ const msg = defineMessages({
     noPlayers: "No players yet",
     draftFailed: "Couldn't draft teams",
     tooFew: "Pick at least {n} players for {mode}.",
-    noSplit: "Every split reunites last match's partners. Add more players or change the mode.",
+    noSplit: "Every split reunites last match's partners. Mark more players here or change the mode.",
     balancedDraft: "Balanced draft · {diff} Elo apart",
     drafted: "Teams drafted",
     splitUp: "Last match's partners were split up.",
@@ -142,7 +142,7 @@ const msg = defineMessages({
     noPlayers: "Henüz oyuncu yok",
     draftFailed: "Takımlar kurulamadı",
     tooFew: "{mode} için en az {n} oyuncu seç.",
-    noSplit: "Her dağılım son maçın ortaklarını bir araya getiriyor. Oyuncu ekle ya da modu değiştir.",
+    noSplit: "Her dağılım son maçın ortaklarını bir araya getiriyor. Daha fazla oyuncuyu burada işaretle ya da modu değiştir.",
     balancedDraft: "Dengeli kura · aradaki fark {diff} Elo",
     drafted: "Takımlar kuruldu",
     splitUp: "Son maçın ortakları ayrıldı.",
@@ -791,7 +791,7 @@ function MatchCenterInner({ data }: { data: Analytics }) {
                   t("squadSub", { here: present.length, all: allNames.length }) +
                   (busy.length ? ` · ${tl("busy", { names: busy.map(displayName).join(", ") })}` : "")
                 }
-                action={<AddPlayer players={data.players} />}
+                action={<InviteButton />}
                 bodyClassName="p-3.5 sm:p-5"
               >
                 <div className="mb-5 flex flex-wrap items-center gap-3">

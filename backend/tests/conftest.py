@@ -62,7 +62,7 @@ class Board:
 
     def add_players(self, *names):
         for name in names:
-            assert self.api.post(self.url("/players"), json={"name": name}, headers=self.member).status_code == 201
+            assert self.api.post(self.url("/players"), json={"name": name}, headers=self.admin).status_code == 201
 
     def add_match(self, team_a, team_b, score_a, score_b, club_a="Arsenal", club_b="Chelsea"):
         body = {"clubA": club_a, "clubB": club_b, "teamA": team_a, "teamB": team_b}

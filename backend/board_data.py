@@ -53,7 +53,9 @@ def _name_taken(request: Request, board_id: int, name: str) -> HTTPException:
 
 
 @router.post("/players", status_code=201)
-def add_player(player: PlayerIn, request: Request, access: BoardAccess = Depends(board_access)):
+def add_player(player: PlayerIn, request: Request, access: BoardAccess = Depends(board_admin)):
+    """Owners and admins only (Settings): people come in with invites (invites.py), and the rest of a league
+    can't put names on its roster."""
     row = _db(request).write_one(
         f"""
         INSERT INTO players (board_id, name) VALUES (%s, %s)

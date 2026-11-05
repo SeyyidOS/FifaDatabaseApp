@@ -128,16 +128,22 @@ def test_settings_and_password_changes(board):
 
 # ----------- Players -----------
 def test_player_names_are_normalised_and_unique_per_board(api, board):
-    created = api.post(board.url("/players"), json={"name": "  Ali   VELI "}, headers=board.member)
+    created = api.post(board.url("/players"), json={"name": "  Ali   VELI "}, headers=board.admin)
     assert created.status_code == 201 and created.json() == {"id": 1, "name": "ali veli", "archived": False}
-    assert api.post(board.url("/players"), json={"name": "ALI veli"}, headers=board.member).status_code == 409
+    assert api.post(board.url("/players"), json={"name": "ALI veli"}, headers=board.admin).status_code == 409
     other = Board(api, "Other Crew")
-    assert api.post(other.url("/players"), json={"name": "ali veli"}, headers=other.member).status_code == 201
+    assert api.post(other.url("/players"), json={"name": "ali veli"}, headers=other.admin).status_code == 201
+
+
+def test_only_admins_add_players(api, board):
+    # everyone else comes in with an invite
+    assert api.post(board.url("/players"), json={"name": "ghost"}, headers=board.member).status_code == 403
+    assert api.get(board.url("/players"), headers=board.member).json() == []
 
 
 @pytest.mark.parametrize("name", ["", "   ", "a&b", "x" * 31, "{x}", "a,b"])
 def test_invalid_player_names_are_rejected(board, name):
-    assert board.api.post(board.url("/players"), json={"name": name}, headers=board.member).status_code == 422
+    assert board.api.post(board.url("/players"), json={"name": name}, headers=board.admin).status_code == 422
 
 
 def test_archiving_keeps_history_and_ratings(board):
@@ -153,7 +159,7 @@ def test_archiving_keeps_history_and_ratings(board):
     standings = api.get(board.url("/leaderboard/players"), params=SINCE_EVER, headers=board.member).json()
     assert "a" not in [r["name"] for r in standings]
     assert board.add_match(["a"], ["c"], 1, 0).status_code == 422  # archived players can't play
-    readded = api.post(board.url("/players"), json={"name": "a"}, headers=board.member)
+    readded = api.post(board.url("/players"), json={"name": "a"}, headers=board.admin)
     assert readded.status_code == 409 and readded.json()["detail"].endswith("Settings")
 
     assert api.patch(board.url("/players/1"), json={"archived": False}, headers=board.admin).json()["archived"] is False
@@ -559,6 +565,6 @@ def test_the_support_address_comes_from_the_server(api, monkeypatch):
 
 def test_a_name_with_a_dotted_capital_i(api, board):
     # "İhsan".lower() is "i" + a combining dot, which isn't a letter
-    added = api.post(board.url("/players"), json={"name": "İhsan"}, headers=board.member)
+    added = api.post(board.url("/players"), json={"name": "İhsan"}, headers=board.admin)
     assert added.status_code == 201, added.text
     assert added.json()["name"] == "ihsan"
