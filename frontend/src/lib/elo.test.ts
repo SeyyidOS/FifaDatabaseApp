@@ -43,3 +43,15 @@ describe("club weight", () => {
     expect(previewMatch(engine, { ...sides, clubB: undefined }).expectedA).toBeCloseTo(squads, 10);
   });
 });
+
+describe("starting rating", () => {
+  it("starts a player from the rating an admin gave them, like the API (backend/elo.py)", () => {
+    const set = players.map((p) => (p.name === "ali" ? { ...p, startElo: 1200 } : p));
+    const plain = runElo(players, clubs, [], 24, 0.5).ratings;
+    expect(runElo(set, clubs, [], 24, 0.5).ratings.get(3)).toBe(1200);
+    expect(plain.get(3)).toBe(1000);
+    // kerem & seyyid beat a side with a stronger ali: a bigger upset, so they win more
+    const after = (list: Player[]) => runElo(list, clubs, [match(1, 0.5)], 24, 0.5).ratings.get(1)!;
+    expect(after(set)).toBeGreaterThan(after(players));
+  });
+});

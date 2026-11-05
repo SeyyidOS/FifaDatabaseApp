@@ -85,7 +85,8 @@ def standing(request: Request, board: dict, player_id: int) -> dict:
     A night runs past midnight: like the app, its day is the local date six hours earlier."""
     db = request.app.state.db
     players = db.fetch_all(
-        "SELECT id, archived_at IS NOT NULL AS archived FROM players WHERE board_id = %s ORDER BY id", (board["id"],)
+        "SELECT id, start_elo, archived_at IS NOT NULL AS archived FROM players WHERE board_id = %s ORDER BY id",
+        (board["id"],),
     )
     matches = db.fetch_all(
         """
@@ -100,7 +101,8 @@ def standing(request: Request, board: dict, player_id: int) -> dict:
         {"tz": os.getenv("APP_TIMEZONE", "Europe/Istanbul"), "board": board["id"]},
     )
     ids = [p["id"] for p in players]
-    ratings = compute_ratings(ids, matches, board["k_factor"])
+    starts = {p["id"]: p["start_elo"] for p in players}
+    ratings = compute_ratings(ids, matches, board["k_factor"], starts)
 
     played: dict[int, int] = {}
     results = []  # this player's, oldest first: (night, result, goals for)
@@ -119,18 +121,18 @@ def standing(request: Request, board: dict, player_id: int) -> dict:
     if results:
         night = results[-1][0]
         tonight = [r for n, r, _ in results if n == night]
-        before = compute_ratings(ids, [m for m in matches if m["night"] < night], board["k_factor"])
+        before = compute_ratings(ids, [m for m in matches if m["night"] < night], board["k_factor"], starts)
         last_night = {
             "day": night.isoformat(),
             "played": len(tonight),
             "wins": tonight.count("W"),
             "draws": tonight.count("D"),
             "losses": tonight.count("L"),
-            "delta": ratings.get(player_id, 1000) - before.get(player_id, 1000),
+            "delta": ratings[player_id] - before[player_id],
         }
     outcomes = [r for _, r, _ in results]
     return {
-        "elo": round(ratings.get(player_id, 1000)),
+        "elo": round(ratings[player_id]),
         "played": len(results),
         "rank": next((i + 1 for i, p in enumerate(ranked) if p["id"] == player_id), 0),
         "wins": outcomes.count("W"),

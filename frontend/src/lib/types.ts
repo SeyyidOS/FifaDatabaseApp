@@ -5,6 +5,8 @@ export interface Player {
   archived: boolean;
   /** the photo of the account this player belongs to (photoUrl), if it has one and isn't blocked */
   photo?: string | null;
+  /** the rating they start from: 1000 unless an owner or admin set another (Settings) */
+  startElo?: number;
   /** whether the player belongs to an account (which can be blocked) */
   account?: boolean;
   /** whether the signed-in account blocked that account: its photos are hidden (backend/moderation.py) */

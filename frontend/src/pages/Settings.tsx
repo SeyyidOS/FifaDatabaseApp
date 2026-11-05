@@ -94,6 +94,15 @@ const msg = defineMessages({
     change: "Change",
     renamedTo: "Renamed to {name}",
     renamedHint: "Their whole history follows.",
+    startElo: "Starting Elo",
+    startEloName: "Starting Elo of {name}",
+    startShort: "starts at {elo}",
+    startSaved: "{name} now starts at {elo} Elo",
+    startHint: "Their matches are replayed from it.",
+    startRange: "Use a number between 100 and 3000",
+    startTitle: "Change {name}'s starting Elo?",
+    startText: "{name} has played {n} matches. Every rating in the league is worked out again from the new start: theirs, and a little of everyone they played.",
+    startConfirm: "Change it",
     renameFailedPlayer: "Couldn't rename",
     archivedToast: "{name} archived",
     archivedHint: "Off the roster; their matches and everyone's ratings stay as they were.",
@@ -200,6 +209,15 @@ const msg = defineMessages({
     change: "Değiştir",
     renamedTo: "Yeni adı: {name}",
     renamedHint: "Bütün geçmişi de yeni isme geçer.",
+    startElo: "Başlangıç Elo'su",
+    startEloName: "{name} için başlangıç Elo'su",
+    startShort: "{elo} ile başlar",
+    startSaved: "{name} artık {elo} Elo ile başlıyor",
+    startHint: "Maçları bu puandan yeniden hesaplanır.",
+    startRange: "100 ile 3000 arasında bir sayı gir",
+    startTitle: "{name} için başlangıç Elo'su değişsin mi?",
+    startText: "{name} {n} maç oynadı. Ligdeki bütün puanlar yeni başlangıçtan yeniden hesaplanır: onunki ve oynadığı herkesinki biraz.",
+    startConfirm: "Değiştir",
     renameFailedPlayer: "Ad değiştirilemedi",
     archivedToast: "{name} arşivlendi",
     archivedHint: "Kadrodan çıktı; maçları ve herkesin puanı olduğu gibi kalıyor.",
@@ -591,6 +609,9 @@ function PlayerRow({ player, played }: { player: Player; played: number }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(player.name);
   const [confirm, setConfirm] = useState(false);
+  const start = player.startElo ?? 1000;
+  const [rating, setRating] = useState<string | null>(null);
+  const [confirmStart, setConfirmStart] = useState(false);
 
   const rename = (e: FormEvent) => {
     e.preventDefault();
@@ -607,6 +628,28 @@ function PlayerRow({ player, played }: { player: Player; played: number }) {
       },
     );
   };
+  // the rating they start from (backend elo.compute_ratings): replays history, so it asks first once they've played
+  const saveStart = () => {
+    const next = Number(rating);
+    if (!Number.isInteger(next) || next < 100 || next > 3000) return toast.error(t("startRange"));
+    setConfirmStart(false);
+    if (next === start) return setRating(null);
+    update.mutate(
+      { id: player.id, startElo: next },
+      {
+        onSuccess: () => {
+          setRating(null);
+          toast.success(t("startSaved", { name: displayName(player.name), elo: next }), { description: t("startHint") });
+        },
+        onError: fail(t("updateFailed")),
+      },
+    );
+  };
+  const submitStart = (e: FormEvent) => {
+    e.preventDefault();
+    if (played > 0 && Number(rating) !== start) setConfirmStart(true);
+    else saveStart();
+  };
   const archive = (archived: boolean) =>
     update.mutate(
       { id: player.id, archived },
@@ -622,7 +665,27 @@ function PlayerRow({ player, played }: { player: Player; played: number }) {
   return (
     <li className={cn("group flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-surface-2/60", player.archived && "opacity-60")}>
       <Avatar name={player.name} size="sm" />
-      {editing ? (
+      {rating !== null ? (
+        <form onSubmit={submitStart} className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="min-w-0 truncate text-sm font-medium">{displayName(player.name)}</span>
+          <input
+            autoFocus
+            type="number"
+            inputMode="numeric"
+            min={100}
+            max={3000}
+            step={10}
+            value={rating}
+            onChange={(e) => setRating(e.target.value)}
+            onKeyDown={(e) => e.key === "Escape" && setRating(null)}
+            className="input tabular ml-auto h-8 w-24 sm:text-sm"
+            aria-label={t("startEloName", { name: displayName(player.name) })}
+          />
+          <Button type="submit" size="sm" variant="primary" loading={update.isPending}>
+            {tc("save")}
+          </Button>
+        </form>
+      ) : editing ? (
         <form onSubmit={rename} className="flex min-w-0 flex-1 gap-2">
           <input
             autoFocus
@@ -641,14 +704,24 @@ function PlayerRow({ player, played }: { player: Player; played: number }) {
         <span className="min-w-0 flex-1 truncate text-sm font-medium">
           {displayName(player.name)}
           {player.archived && <span className="ml-2 text-[10px] font-semibold text-faint uppercase">{t("archived")}</span>}
+          {start !== 1000 && <span className="tabular ml-2 text-xs font-normal text-muted">{t("startShort", { elo: start })}</span>}
         </span>
       )}
-      {!editing && (
+      {!editing && rating === null && (
         <>
           <span className="tabular hidden text-xs text-muted sm:block">{t("matchesN", { n: played })}</span>
           <span className="flex gap-0.5 opacity-70 transition-opacity group-hover:opacity-100">
             <Button size="icon" variant="ghost" onClick={() => setEditing(true)} aria-label={t("renameName", { name: player.name })} title={t("rename")}>
               <Pencil className="size-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setRating(String(start))}
+              aria-label={t("startEloName", { name: displayName(player.name) })}
+              title={t("startElo")}
+            >
+              <Gauge className="size-4" />
             </Button>
             <Button
               size="icon"
@@ -673,6 +746,16 @@ function PlayerRow({ player, played }: { player: Player; played: number }) {
           </span>
         </>
       )}
+      <ConfirmDialog
+        open={confirmStart}
+        onClose={() => setConfirmStart(false)}
+        onConfirm={saveStart}
+        tone="accent"
+        title={t("startTitle", { name: displayName(player.name) })}
+        description={t("startText", { name: displayName(player.name), n: played })}
+        confirmLabel={t("startConfirm")}
+        loading={update.isPending}
+      />
       <ConfirmDialog
         open={confirm}
         onClose={() => setConfirm(false)}

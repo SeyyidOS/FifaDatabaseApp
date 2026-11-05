@@ -129,7 +129,8 @@ def test_settings_and_password_changes(board):
 # ----------- Players -----------
 def test_player_names_are_normalised_and_unique_per_board(api, board):
     created = api.post(board.url("/players"), json={"name": "  Ali   VELI "}, headers=board.admin)
-    assert created.status_code == 201 and created.json() == {"id": 1, "name": "ali veli", "archived": False}
+    assert created.status_code == 201
+    assert created.json() == {"id": 1, "name": "ali veli", "archived": False, "startElo": 1000}
     assert api.post(board.url("/players"), json={"name": "ALI veli"}, headers=board.admin).status_code == 409
     other = Board(api, "Other Crew")
     assert api.post(other.url("/players"), json={"name": "ali veli"}, headers=other.admin).status_code == 201
@@ -568,3 +569,23 @@ def test_a_name_with_a_dotted_capital_i(api, board):
     added = api.post(board.url("/players"), json={"name": "İhsan"}, headers=board.admin)
     assert added.status_code == 201, added.text
     assert added.json()["name"] == "ihsan"
+
+
+def test_a_player_can_start_from_another_rating(api, board):
+    board.add_players("a", "b")
+    board.add_match(["a"], ["b"], 2, 1)
+
+    def ratings():
+        return {r["playerId"]: r["elo"] for r in api.get(board.url("/elo"), headers=board.member).json()["ratings"]}
+
+    before = ratings()
+    # only admins set it, within reason
+    assert api.patch(board.url("/players/2"), json={"startElo": 1200}, headers=board.member).status_code == 403
+    assert api.patch(board.url("/players/2"), json={"startElo": 50}, headers=board.admin).status_code == 422
+    changed = api.patch(board.url("/players/2"), json={"startElo": 1200}, headers=board.admin)
+    assert changed.json()["startElo"] == 1200
+    after = ratings()
+    # b starts 200 higher, so losing to a costs b more and wins a more than before
+    assert after[2] - 1200 < before[2] - 1000
+    assert after[1] > before[1]
+    assert [p["startElo"] for p in api.get(board.url("/players"), headers=board.member).json()] == [1000, 1200]

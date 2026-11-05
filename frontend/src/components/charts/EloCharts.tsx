@@ -52,6 +52,8 @@ const m = defineMessages({
 export interface RaceSeries {
   name: string;
   history: EloPoint[];
+  /** the rating the history starts from (1000 unless set) */
+  start?: number;
 }
 
 export function EloRaceChart({
@@ -76,7 +78,7 @@ export function EloRaceChart({
     const rows = ordered.map((day) => ({ day }) as Record<string, number | string>);
     series.forEach((s) => {
       let i = 0;
-      let current = INITIAL_ELO;
+      let current = s.start ?? INITIAL_ELO;
       ordered.forEach((day, d) => {
         while (i < s.history.length && matchdayKey(s.history[i].time) <= day) {
           current = s.history[i].elo;
@@ -178,17 +180,26 @@ export function EloRaceChart({
 
 /* ------------------------------ Player Elo area ----------------------------- */
 
-export function PlayerEloChart({ history, height = 260 }: { history: EloPoint[]; height?: number }) {
+export function PlayerEloChart({
+  history,
+  start = INITIAL_ELO,
+  height = 260,
+}: {
+  history: EloPoint[];
+  /** the rating the history starts from */
+  start?: number;
+  height?: number;
+}) {
   const t = useT(m);
   const data = useMemo(
     () => [
-      { i: 0, elo: INITIAL_ELO, time: null as Date | null },
+      { i: 0, elo: start, time: null as Date | null },
       ...history.map((h, i) => ({ i: i + 1, elo: Math.round(h.elo), time: h.time })),
     ],
-    [history],
+    [history, start],
   );
   const peak = data.reduce((a, b) => (b.elo > a.elo ? b : a), data[0]);
-  const up = data[data.length - 1].elo >= INITIAL_ELO;
+  const up = data[data.length - 1].elo >= start;
   const color = up ? "var(--accent)" : "var(--loss)";
   const stroke = up ? "var(--chart-1)" : "var(--loss)";
 

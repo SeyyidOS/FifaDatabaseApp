@@ -142,7 +142,7 @@ export function boardApi(slug: string, token: string) {
 
     players: () => call<Player[]>("/players"),
     addPlayer: (name: string) => call<Player>("/players", json("POST", { name })),
-    updatePlayer: (id: number, changes: { name?: string; archived?: boolean }) =>
+    updatePlayer: (id: number, changes: { name?: string; archived?: boolean; startElo?: number }) =>
       call<Player>(`/players/${id}`, json("PATCH", changes)),
     deletePlayer: (id: number) => call<{ message: string }>(`/players/${id}`, json("DELETE")),
 

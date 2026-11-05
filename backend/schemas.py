@@ -31,6 +31,8 @@ NewPlayerName = Annotated[PlayerName, AfterValidator(clean)]
 NewClubName = Annotated[ClubName, AfterValidator(clean)]
 # the card model can rate the weakest clubs below zero; only differences between ratings matter
 ClubElo = Annotated[int, Field(ge=-1000, le=3000)]
+# where a player's rating starts (1000 unless an admin says otherwise)
+StartElo = Annotated[int, Field(ge=100, le=3000)]
 SeasonName = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40), AfterValidator(clean)
 ]
@@ -148,6 +150,7 @@ class PlayerIn(BaseModel):
 class PlayerUpdate(BaseModel):
     name: NewPlayerName | None = None
     archived: bool | None = None
+    startElo: StartElo | None = None
 
 
 class SeasonIn(BaseModel):
