@@ -127,7 +127,8 @@ def main() -> None:
 
     league = call("POST", "/boards", {"name": LEAGUE}, account)
     slug, board = league["slug"], league["token"]
-    for name in PLAYERS:
+    # the owner (PLAYERS[0], the account's name) is the league's first player already
+    for name in PLAYERS[1:]:
         call("POST", f"/boards/{slug}/players", {"name": name}, board)
     # the API keeps names in lower case, the app capitalises them
     ids = {p["name"]: p["id"] for p in call("GET", f"/boards/{slug}/players", token=board)}

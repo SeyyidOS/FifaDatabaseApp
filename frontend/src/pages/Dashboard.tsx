@@ -13,6 +13,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
+import { AddPlayer } from "../components/AddPlayer";
 import { DataGate } from "../components/DataGate";
 import { EloRaceChart } from "../components/charts/EloCharts";
 import { PageHeader } from "../components/layout/AppShell";
@@ -35,7 +36,7 @@ import { clubIdentity } from "../lib/identity";
 import { winRate, type ParsedMatch } from "../lib/stats";
 import { BoardLink } from "../components/board/BoardLink";
 import { NewPlayers, RankingRow } from "../components/ranking/Ranking";
-import { useBoard } from "../hooks/useBoard";
+import { useBoard, useCanEdit } from "../hooks/useBoard";
 import { useT } from "../hooks/useI18n";
 import { defineMessages, locale } from "../lib/i18n";
 
@@ -72,15 +73,15 @@ const msg = defineMessages({
     marathonDetail: "{matches} matches · {goals} goals",
     teams: "{a} vs {b}",
     welcome: "Welcome",
-    emptyDesc: "Your board is empty for now. Three steps and the stories start writing themselves.",
+    emptyDesc: "Your league is empty for now. Three steps and the stories start writing themselves.",
     step1: "Add your players",
-    step1Text: "Everyone starts at 1000 Elo.",
-    step1Cta: "Add players",
+    step1Text: "Everyone starts at 1000 Elo. Add the others by name, or let them join with the invite.",
     step2: "Log the first match",
     step2Text: "Draft fair teams, pick clubs, enter the score.",
     step2Cta: "Match center",
     step3: "Invite the group",
-    step3Text: "Share the link and the board password.",
+    step3Text: "Share the link and the league password.",
+    step3TextInvite: "Send the group link to your friends: each picks who they are, you confirm it.",
     step3Cta: "Invite",
     fromLab: "From the lab",
     labLink: "All awards, Elo DNA & duo matchups",
@@ -122,21 +123,22 @@ const msg = defineMessages({
     marathonDetail: "{matches} maç · {goals} gol",
     teams: "{a} - {b}",
     welcome: "Hoş geldin",
-    emptyDesc: "Board'un şimdilik boş. Üç adım sonra hikâyeler kendiliğinden yazılmaya başlar.",
+    emptyDesc: "Ligin şimdilik boş. Üç adım sonra hikâyeler kendiliğinden yazılmaya başlar.",
     step1: "Oyuncularını ekle",
-    step1Text: "Herkes 1000 Elo ile başlar.",
-    step1Cta: "Oyuncu ekle",
+    step1Text: "Herkes 1000 Elo ile başlar. Diğerlerini adıyla ekle ya da davetle kendileri katılsın.",
     step2: "İlk maçı gir",
     step2Text: "Adil takımlar kur, kulüpleri seç, skoru gir.",
     step2Cta: "Maç merkezi",
     step3: "Grubu davet et",
-    step3Text: "Linki ve board şifresini paylaş.",
+    step3Text: "Linki ve lig şifresini paylaş.",
+    step3TextInvite: "Grup linkini arkadaşlarına at: herkes kendini seçer, sen onaylarsın.",
     step3Cta: "Davet et",
     fromLab: "Laboratuvardan",
     labLink: "Tüm ödüller, Elo DNA'sı ve ikili eşleşmeler",
     eyebrow: "Sezon özeti",
-    matches: "Maçlar",
-    goals: "Goller",
+    // under a number: Turkish counts in the singular ("8 maç")
+    matches: "Maç",
+    goals: "Gol",
     race: "Yarış",
     raceSub: "Her maç gecesinden sonra Elo · odaklanmak için ismin üzerine gel, gizlemek için tıkla",
   },
@@ -461,14 +463,39 @@ function Records({ data }: { data: Analytics }) {
   );
 }
 
-function GettingStarted({ players }: { players: number }) {
+/** A league with no matches yet: add the players right here, then the first match, then the invites. */
+function GettingStarted({ data }: { data: Analytics }) {
   const t = useT(msg);
-  const { name } = useBoard();
-  const steps = [
-    { done: players >= 2, title: t("step1"), text: t("step1Text"), to: "/play", cta: t("step1Cta") },
-    { done: false, title: t("step2"), text: t("step2Text"), to: "/play", cta: t("step2Cta") },
-    { done: false, title: t("step3"), text: t("step3Text"), to: "/settings", cta: t("step3Cta") },
+  const { name, role, viaAccount } = useBoard();
+  const canEdit = useCanEdit();
+  const roster = data.players.filter((p) => !p.archived);
+  const ready = roster.length >= 2;
+  const steps: { title: string; text: string; done: boolean; body?: ReactNode; to?: string; cta?: string }[] = [
+    {
+      title: t("step1"),
+      text: t("step1Text"),
+      done: ready,
+      body: (
+        <div className="mt-4 space-y-3">
+          {roster.length > 0 && (
+            <ul className="flex flex-wrap gap-1.5">
+              {roster.map((p) => (
+                <li key={p.id} className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 py-1 pr-3 pl-1 text-sm ring-1 ring-line">
+                  <Avatar name={p.name} size="sm" />
+                  {displayName(p.name)}
+                </li>
+              ))}
+            </ul>
+          )}
+          {canEdit && <AddPlayer players={data.players} inline />}
+        </div>
+      ),
+    },
+    { title: t("step2"), text: t("step2Text"), done: false, to: "/play", cta: t("step2Cta") },
   ];
+  // invites are for whoever runs the league
+  if (role === "admin")
+    steps.push({ title: t("step3"), text: t(viaAccount ? "step3TextInvite" : "step3Text"), done: false, to: "/settings", cta: t("step3Cta") });
   return (
     <div className="space-y-6">
       <PageHeader eyebrow={t("welcome")} title={name} description={t("emptyDesc")} />
@@ -484,12 +511,16 @@ function GettingStarted({ players }: { players: number }) {
               {i + 1}
             </span>
             <h2 className="mt-4 text-lg font-semibold">{s.title}</h2>
-            <p className="mt-1 flex-1 text-sm text-muted">{s.text}</p>
-            <BoardLink to={s.to} className="mt-5">
-              <Button variant={i === (players >= 2 ? 1 : 0) ? "primary" : "secondary"} className="w-full">
-                {s.cta} <ArrowRight className="size-4" />
-              </Button>
-            </BoardLink>
+            <p className="mt-1 text-sm text-muted">{s.text}</p>
+            {s.body}
+            <span className="flex-1" />
+            {s.to && (
+              <BoardLink to={s.to} className="mt-5">
+                <Button variant={i === 1 && ready ? "primary" : "secondary"} className="w-full">
+                  {s.cta} <ArrowRight className="size-4" />
+                </Button>
+              </BoardLink>
+            )}
           </motion.div>
         ))}
       </div>
@@ -528,7 +559,7 @@ export default function Dashboard() {
     <DataGate>
       {(data) => {
         const top = data.ranking.slice(0, 6).map((p) => ({ name: p.name, history: p.history }));
-        if (!data.parsed.length) return <GettingStarted players={data.ranking.length} />;
+        if (!data.parsed.length) return <GettingStarted data={data} />;
         return (
           <div className="space-y-6">
             <header className="min-w-0">

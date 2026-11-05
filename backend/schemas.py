@@ -15,7 +15,9 @@ NAME_PATTERN = re.compile(r"^\w[\w .'-]*$")
 
 
 def _player_name(name: str) -> str:
-    name = " ".join(name.split()).lower()
+    # "İ" lowercases to "i" and a combining dot, which isn't a letter: "İhsan" is "ihsan" (the app writes it
+    # "İhsan" again in Turkish)
+    name = " ".join(name.split()).replace("İ", "i").lower()
     if not NAME_PATTERN.match(name):
         raise ValueError("use letters, numbers, spaces, dots, dashes or apostrophes")
     return name

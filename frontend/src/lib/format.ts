@@ -72,7 +72,9 @@ export function relativeTime(d: Date, now = new Date()): string {
 }
 
 /** Same normalisation the backend uses for names inside team strings. */
-export const cleanName = (s: string) => s.replace(/[{}()]/g, "").trim().toLowerCase();
+/** A player's name as the API keeps it (backend/schemas.py): lower case, "İ" as "i" (lower-cased, it would
+ * be "i" and a combining dot). */
+export const cleanName = (s: string) => s.replace(/[{}()]/g, "").trim().replace(/İ/g, "i").toLowerCase();
 
 export const parseTeam = (team: string[] | null | undefined) => (team ?? []).map(cleanName).filter(Boolean);
 

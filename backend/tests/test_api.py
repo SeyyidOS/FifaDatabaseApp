@@ -555,3 +555,10 @@ def test_the_support_address_comes_from_the_server(api, monkeypatch):
     assert api.get("/config").json() == {"supportEmail": None}
     monkeypatch.setenv("SUPPORT_EMAIL", "  help@matchnight.test ")
     assert api.get("/config").json() == {"supportEmail": "help@matchnight.test"}
+
+
+def test_a_name_with_a_dotted_capital_i(api, board):
+    # "İhsan".lower() is "i" + a combining dot, which isn't a letter
+    added = api.post(board.url("/players"), json={"name": "İhsan"}, headers=board.member)
+    assert added.status_code == 201, added.text
+    assert added.json()["name"] == "ihsan"
