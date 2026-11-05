@@ -41,19 +41,17 @@ const m = defineMessages({
 });
 
 /**
- * Adding players by name. Behind an "Add player" button, or (`inline`) open for good, as on a new league's
- * first steps. It stays open after each name, so a whole group goes in one after another.
+ * Adding players by name, for owners and admins in Settings (people otherwise come in with invites). It stays
+ * open after each name, so several go in one after another.
  */
 export function AddPlayer({
   players,
   className,
   onAdded,
-  inline,
 }: {
   players: Player[];
   className?: string;
   onAdded?: (name: string) => void;
-  inline?: boolean;
 }) {
   const t = useT(m);
   const tc = useT(common);
@@ -93,33 +91,31 @@ export function AddPlayer({
   // No exit animations: WebKit (the iPhone app) can leave one unfinished, and the button never came back.
   return (
     <div className={cn("relative", className)}>
-      {open || inline ? (
+      {open ? (
         <motion.form
           key="form"
           onSubmit={submit}
-          initial={inline ? false : { opacity: 0, scale: 0.96 }}
+          initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           className="flex items-center gap-1.5"
         >
           <input
             ref={input}
-            autoFocus={!inline}
+            autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === "Escape" && !inline && setOpen(false)}
+            onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
             placeholder={t("placeholder")}
             maxLength={30}
             enterKeyHint="done"
-            className={cn("input h-9", inline ? "min-w-0 flex-1" : "w-40")}
+            className="input h-9 w-40"
           />
           <Button type="submit" size="icon" variant="primary" loading={add.isPending} disabled={!name.trim()} aria-label={t("add")}>
             {!add.isPending && <Check className="size-4" />}
           </Button>
-          {!inline && (
-            <Button type="button" size="icon" variant="ghost" onClick={() => setOpen(false)} aria-label={tc("cancel")}>
-              <X className="size-4" />
-            </Button>
-          )}
+          <Button type="button" size="icon" variant="ghost" onClick={() => setOpen(false)} aria-label={tc("cancel")}>
+            <X className="size-4" />
+          </Button>
         </motion.form>
       ) : (
         <motion.div key="btn" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>

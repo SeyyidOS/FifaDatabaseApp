@@ -115,6 +115,7 @@ const msg = defineMessages({
     deleted: "{name} deleted",
     deleteFailed: "Couldn't delete the player",
     players: "Players",
+    rosterHint: "People join with an invite. Add someone by name here only if they can't.",
     rosterSub: "{n} on the roster",
     rosterArchived: " · {n} archived",
     hideArchived: "Hide archived players",
@@ -220,6 +221,7 @@ const msg = defineMessages({
     deleted: "{name} silindi",
     deleteFailed: "Oyuncu silinemedi",
     players: "Oyuncular",
+    rosterHint: "Oyuncular davetle gelir. Buradan sadece davetle gelemeyecek birini adıyla ekle.",
     rosterSub: "Kadroda {n} kişi",
     rosterArchived: " · {n} arşivde",
     hideArchived: "Arşivdekileri gizle",
@@ -704,6 +706,7 @@ function PlayersAdmin({ data }: { data: Analytics }) {
       action={<AddPlayer players={data.players} />}
       bodyClassName="p-2"
     >
+      <p className="px-3 pt-1 pb-2 text-xs text-muted">{t("rosterHint")}</p>
       <ul>
         {players.map((p) => (
           <PlayerRow key={p.id} player={p} played={data.stats.get(cleanName(p.name))?.played ?? 0} />

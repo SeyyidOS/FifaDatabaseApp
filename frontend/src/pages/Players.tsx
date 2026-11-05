@@ -1,10 +1,9 @@
 import { motion } from "motion/react";
-import { AddPlayer } from "../components/AddPlayer";
+import { InviteButton } from "../components/board/InviteButton";
 import { DataGate } from "../components/DataGate";
 import { PageHeader } from "../components/layout/AppShell";
 import { PlayerCard } from "../components/PlayerCard";
 import { Segmented } from "../components/ui/primitives";
-import { useCanEdit } from "../hooks/useBoard";
 import { useSessionState } from "../hooks/useSessionState";
 import { winRate } from "../lib/stats";
 import { BoardLink } from "../components/board/BoardLink";
@@ -38,7 +37,6 @@ const msg = defineMessages({
 
 export default function Players() {
   const t = useT(msg);
-  const canEdit = useCanEdit();
   const [order, setOrder] = useSessionState<Order>("pl-order", "elo");
   return (
     <DataGate>
@@ -68,7 +66,7 @@ export default function Players() {
                       { value: "name", label: t("name") },
                     ]}
                   />
-                  {canEdit && <AddPlayer players={data.players} />}
+                  <InviteButton />
                 </>
               }
             />

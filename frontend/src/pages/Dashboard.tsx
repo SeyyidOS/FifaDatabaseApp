@@ -13,7 +13,6 @@ import {
   Zap,
 } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
-import { AddPlayer } from "../components/AddPlayer";
 import { DataGate } from "../components/DataGate";
 import { EloRaceChart } from "../components/charts/EloCharts";
 import { PageHeader } from "../components/layout/AppShell";
@@ -36,7 +35,7 @@ import { clubIdentity } from "../lib/identity";
 import { winRate, type ParsedMatch } from "../lib/stats";
 import { BoardLink } from "../components/board/BoardLink";
 import { NewPlayers, RankingRow } from "../components/ranking/Ranking";
-import { useBoard, useCanEdit } from "../hooks/useBoard";
+import { useBoard } from "../hooks/useBoard";
 import { useT } from "../hooks/useI18n";
 import { defineMessages, locale } from "../lib/i18n";
 
@@ -73,13 +72,13 @@ const msg = defineMessages({
     marathonDetail: "{matches} matches · {goals} goals",
     teams: "{a} vs {b}",
     welcome: "Welcome",
-    emptyDesc: "Your league is empty for now. Three steps and the stories start writing themselves.",
-    step1: "Add your players",
-    step1Text: "Everyone starts at 1000 Elo. Add the others by name, or let them join with the invite.",
+    emptyDesc: "Your league is empty for now. Two steps and the stories start writing themselves.",
+    step1: "Bring your group in",
+    step1Wait: "Whoever runs the league invites the group; everyone who joins shows up here.",
+    step1Manual: "Someone who can't come in with an invite? Add them by name in Settings › Players.",
     step2: "Log the first match",
     step2Text: "Draft fair teams, pick clubs, enter the score.",
     step2Cta: "Match center",
-    step3: "Invite the group",
     step3Text: "Share the link and the league password.",
     step3TextInvite: "Send the group link to your friends: each picks who they are, you confirm it.",
     step3Cta: "Invite",
@@ -123,13 +122,13 @@ const msg = defineMessages({
     marathonDetail: "{matches} maç · {goals} gol",
     teams: "{a} - {b}",
     welcome: "Hoş geldin",
-    emptyDesc: "Ligin şimdilik boş. Üç adım sonra hikâyeler kendiliğinden yazılmaya başlar.",
-    step1: "Oyuncularını ekle",
-    step1Text: "Herkes 1000 Elo ile başlar. Diğerlerini adıyla ekle ya da davetle kendileri katılsın.",
+    emptyDesc: "Ligin şimdilik boş. İki adım sonra hikâyeler kendiliğinden yazılmaya başlar.",
+    step1: "Grubunu getir",
+    step1Wait: "Ligi yöneten kişi grubu davet ediyor; katılan herkes burada görünür.",
+    step1Manual: "Davetle gelemeyecek biri mi var? Ayarlar › Oyuncular'dan adıyla ekleyebilirsin.",
     step2: "İlk maçı gir",
     step2Text: "Adil takımlar kur, kulüpleri seç, skoru gir.",
     step2Cta: "Maç merkezi",
-    step3: "Grubu davet et",
     step3Text: "Linki ve lig şifresini paylaş.",
     step3TextInvite: "Grup linkini arkadaşlarına at: herkes kendini seçer, sen onaylarsın.",
     step3Cta: "Davet et",
@@ -463,17 +462,21 @@ function Records({ data }: { data: Analytics }) {
   );
 }
 
-/** A league with no matches yet: add the players right here, then the first match, then the invites. */
+/**
+ * A league with no matches yet: bring the group in with the invite (whoever runs the league; the others wait
+ * for them), then the first match. Players come in by invites; adding one by name is Settings', for someone
+ * who can't.
+ */
 function GettingStarted({ data }: { data: Analytics }) {
   const t = useT(msg);
   const { name, role, viaAccount } = useBoard();
-  const canEdit = useCanEdit();
+  const admin = role === "admin";
   const roster = data.players.filter((p) => !p.archived);
   const ready = roster.length >= 2;
   const steps: { title: string; text: string; done: boolean; body?: ReactNode; to?: string; cta?: string }[] = [
     {
       title: t("step1"),
-      text: t("step1Text"),
+      text: admin ? t(viaAccount ? "step3TextInvite" : "step3Text") : t("step1Wait"),
       done: ready,
       body: (
         <div className="mt-4 space-y-3">
@@ -487,19 +490,17 @@ function GettingStarted({ data }: { data: Analytics }) {
               ))}
             </ul>
           )}
-          {canEdit && <AddPlayer players={data.players} inline />}
+          {admin && <p className="text-xs text-faint">{t("step1Manual")}</p>}
         </div>
       ),
+      ...(admin && { to: "/settings", cta: t("step3Cta") }),
     },
     { title: t("step2"), text: t("step2Text"), done: false, to: "/play", cta: t("step2Cta") },
   ];
-  // invites are for whoever runs the league
-  if (role === "admin")
-    steps.push({ title: t("step3"), text: t(viaAccount ? "step3TextInvite" : "step3Text"), done: false, to: "/settings", cta: t("step3Cta") });
   return (
     <div className="space-y-6">
       <PageHeader eyebrow={t("welcome")} title={name} description={t("emptyDesc")} />
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         {steps.map((s, i) => (
           <motion.div key={s.title} {...fade(i)} className="card flex flex-col p-6">
             <span
@@ -516,7 +517,7 @@ function GettingStarted({ data }: { data: Analytics }) {
             <span className="flex-1" />
             {s.to && (
               <BoardLink to={s.to} className="mt-5">
-                <Button variant={i === 1 && ready ? "primary" : "secondary"} className="w-full">
+                <Button variant={(i === 0) !== ready ? "primary" : "secondary"} className="w-full">
                   {s.cta} <ArrowRight className="size-4" />
                 </Button>
               </BoardLink>
